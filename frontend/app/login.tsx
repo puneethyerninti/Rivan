@@ -82,8 +82,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.logoWrap}>
-            <Image source={require("../assets/images/rivan-logo.jpg")} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.brand}>RIVAN REALITY LLP</Text>
+            <Image source={require("../assets/images/rivan-logo.png")} style={styles.logo} resizeMode="contain" />
             <Text style={styles.tagline}>Legacy of trust, legacy of wealth</Text>
           </View>
 
@@ -208,8 +207,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, padding: spacing.lg, justifyContent: "center" },
   logoWrap: { alignItems: "center", marginBottom: spacing.xl },
-  logo: { width: 110, height: 110, marginBottom: spacing.sm },
-  brand: { ...typography.h3, color: colors.primary, letterSpacing: 1.5, fontWeight: "800" },
+  logo: { width: 220, height: 110, marginBottom: spacing.sm },
   tagline: { ...typography.small, color: colors.accent, marginTop: 4, fontStyle: "italic", fontWeight: "500" },
   form: { gap: spacing.md },
   title: { ...typography.h1, color: colors.primaryDeepest, fontWeight: "700" },

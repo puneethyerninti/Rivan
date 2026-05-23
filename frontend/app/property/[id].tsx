@@ -214,7 +214,9 @@ export default function PropertyDetails() {
               onPress={() => router.push(`/layout/${id}`)}
             >
               <Feather name="grid" size={16} color={colors.white} />
-              <Text style={styles.actionBtnTextPrimary}>View Layout</Text>
+              <Text style={styles.actionBtnTextPrimary}>
+                {property.category === "Open Plots" || property.category === "Layouts" ? "View Layout" : "View Availability"}
+              </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity

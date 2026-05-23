@@ -333,16 +333,56 @@ async def my_bookings(user: Dict[str, Any] = Depends(get_current_user)):
 # ---------- My Land ----------
 @api_router.get("/myland")
 async def my_land(user: Dict[str, Any] = Depends(get_current_user)):
-    """Return plots assigned/owned by this user (status=booked or sold)"""
+    """Return units owned/booked by this user with purchase progress"""
     plots = await db.plots.find(
         {"owner_id": user["id"]}, {"_id": 0}
     ).to_list(100)
-    # Enrich with property info
     enriched = []
     for plot in plots:
         prop = await db.properties.find_one({"id": plot["property_id"]}, {"_id": 0})
-        enriched.append({**plot, "property": prop})
+        # Compute progress for this plot
+        installments = await db.installments.find(
+            {"user_id": user["id"], "plot_id": plot["id"]}, {"_id": 0}
+        ).to_list(100)
+        total_amt = sum(i["amount"] for i in installments) or plot.get("price", 0)
+        paid_amt = sum(i["amount"] for i in installments if i["status"] == "paid")
+        progress = (paid_amt / total_amt) if total_amt > 0 else 0
+        # Purchase completion: once all installments paid + registration done
+        purchase_complete = progress >= 1.0
+        # Compute registration timeline
+        timeline = [
+            {"step": "Booking Confirmed", "done": True, "date": plot.get("created_at", "")[:10]},
+            {"step": "Token Paid", "done": paid_amt > 0, "date": ""},
+            {"step": "Agreement Signed", "done": progress >= 0.25, "date": ""},
+            {"step": "Installments Complete", "done": progress >= 1.0, "date": ""},
+            {"step": "Registration Done", "done": purchase_complete and plot.get("status") == "sold", "date": ""},
+            {"step": "Possession Handed Over", "done": plot.get("status") == "sold" and purchase_complete, "date": ""},
+        ]
+        enriched.append({
+            **plot,
+            "property": prop,
+            "payment_progress": progress,
+            "total_amount": total_amt,
+            "paid_amount": paid_amt,
+            "balance_amount": total_amt - paid_amt,
+            "purchase_complete": purchase_complete,
+            "registration_timeline": timeline,
+            "next_due": next((i for i in installments if i["status"] != "paid"), None),
+        })
     return enriched
+
+
+@api_router.get("/myland/can-request-services")
+async def can_request_services(user: Dict[str, Any] = Depends(get_current_user)):
+    """Returns whether user is eligible to request property services (owns at least one plot with sufficient progress)"""
+    plots = await db.plots.find({"owner_id": user["id"]}, {"_id": 0}).to_list(100)
+    if not plots:
+        return {"eligible": False, "reason": "No properties purchased yet", "owned_plots": []}
+    return {
+        "eligible": True,
+        "reason": None,
+        "owned_plots": [{"id": p["id"], "plot_number": p["plot_number"], "property_id": p["property_id"]} for p in plots],
+    }
 
 
 # ---------- Payments ----------
@@ -455,6 +495,13 @@ async def services_catalog():
 
 @api_router.post("/services/request")
 async def request_service(req: ServiceReq, user: Dict[str, Any] = Depends(get_current_user)):
+    # Gate: only owners (have at least one booked/sold plot) can request services
+    owned = await db.plots.count_documents({"owner_id": user["id"]})
+    if owned == 0:
+        raise HTTPException(
+            status_code=403,
+            detail="Property services are available only after purchase. Please book a property first.",
+        )
     sr = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
@@ -894,6 +941,7 @@ async def seed_data():
             plots.append({
                 "id": f"plot-1-{plot_num}",
                 "property_id": "prop-1",
+                "unit_type": "plot",
                 "plot_number": f"P-{plot_num:03d}",
                 "survey_number": "SY-No 234/3",
                 "size": f"{size_sqy} sq yards",
@@ -921,6 +969,7 @@ async def seed_data():
             plots2.append({
                 "id": f"plot-6-{plot_num}",
                 "property_id": "prop-6",
+                "unit_type": "plot",
                 "plot_number": f"L-{plot_num:03d}",
                 "survey_number": "SY-No 78/2",
                 "size": f"{size_sqy} sq yards",
@@ -935,6 +984,150 @@ async def seed_data():
             })
             plot_num += 1
     await db.plots.insert_many([p.copy() for p in plots2])
+
+    # ---- Apartment Units for Rivan Skyline Towers (prop-3) ----
+    # 2 towers × 8 floors × 4 flats per floor = 64 units
+    apt_units = []
+    flat_status_pool = ["available"] * 5 + ["reserved", "booked", "sold"]
+    for tower_idx, tower in enumerate(["T1", "T2"]):
+        for floor in range(1, 9):
+            for flat in range(1, 5):
+                size_sqft = [1450, 1750, 1950, 2200][flat - 1]
+                bhk = ["3 BHK", "3 BHK", "3.5 BHK", "4 BHK"][flat - 1]
+                price = size_sqft * 5862  # ~₹85L starting
+                idx_local = tower_idx * 32 + (floor - 1) * 4 + (flat - 1)
+                apt_units.append({
+                    "id": f"flat-3-{tower}-F{floor:02d}-{flat:02d}",
+                    "property_id": "prop-3",
+                    "unit_type": "flat",
+                    "plot_number": f"{tower}-{floor:02d}0{flat}",
+                    "survey_number": "SY-No 11/1",
+                    "tower": tower,
+                    "floor": floor,
+                    "flat_number": f"{tower}-{floor:02d}0{flat}",
+                    "bhk": bhk,
+                    "size": f"{size_sqft} sq ft",
+                    "size_sqft": size_sqft,
+                    "facing": ["North-East", "South-East", "North-West", "South-West"][flat - 1],
+                    "price": price,
+                    "status": flat_status_pool[idx_local % len(flat_status_pool)],
+                    "row": floor,
+                    "col": flat,
+                    "owner_id": None,
+                    "created_at": now_utc().isoformat(),
+                })
+    await db.plots.insert_many([u.copy() for u in apt_units])
+
+    # ---- Villa Units for Rivan Heritage Villas (prop-2) ----
+    villa_units = []
+    villa_status_pool = ["available", "available", "available", "reserved", "booked", "sold"]
+    for i in range(1, 13):
+        size_sqft = [2400, 2800, 3200, 3800][((i - 1) % 4)]
+        villa_type = ["Classic 4 BHK", "Premium 4 BHK", "Luxury 4.5 BHK", "Signature 5 BHK"][((i - 1) % 4)]
+        price = size_sqft * 6041  # ~₹1.45 Cr starting
+        villa_units.append({
+            "id": f"villa-2-{i:02d}",
+            "property_id": "prop-2",
+            "unit_type": "villa",
+            "plot_number": f"V-{i:02d}",
+            "survey_number": "SY-No 89/2",
+            "villa_type": villa_type,
+            "size": f"{size_sqft} sq ft",
+            "size_sqft": size_sqft,
+            "facing": facings[i % len(facings)],
+            "price": price,
+            "status": villa_status_pool[i % len(villa_status_pool)],
+            "row": (i - 1) // 4,
+            "col": (i - 1) % 4,
+            "owner_id": None,
+            "created_at": now_utc().isoformat(),
+        })
+    await db.plots.insert_many([v.copy() for v in villa_units])
+
+    # ---- Commercial Units for Rivan Commercial Hub (prop-5) ----
+    commercial_units = []
+    cm_status_pool = ["available", "available", "reserved", "booked", "sold"]
+    for floor in range(1, 6):
+        for shop in range(1, 5):
+            idx_c = (floor - 1) * 4 + (shop - 1)
+            size_sqft = [800, 1200, 2000, 3500][shop - 1]
+            shop_type = ["Retail", "Retail", "Office", "Office"][shop - 1]
+            price = size_sqft * 14400  # ~₹1.15 Cr starting
+            commercial_units.append({
+                "id": f"shop-5-F{floor:02d}-{shop:02d}",
+                "property_id": "prop-5",
+                "unit_type": "shop",
+                "plot_number": f"F{floor}-S{shop:02d}",
+                "survey_number": "SY-No 22/1",
+                "floor": floor,
+                "shop_type": shop_type,
+                "size": f"{size_sqft} sq ft",
+                "size_sqft": size_sqft,
+                "facing": ["East", "West", "North", "South"][shop - 1],
+                "price": price,
+                "status": cm_status_pool[idx_c % len(cm_status_pool)],
+                "row": floor,
+                "col": shop,
+                "owner_id": None,
+                "created_at": now_utc().isoformat(),
+            })
+    await db.plots.insert_many([c.copy() for c in commercial_units])
+
+    # ---- Farm Land Parcels for Rivan Farms (prop-4) ----
+    farm_units = []
+    farm_status_pool = ["available", "available", "reserved", "booked", "sold"]
+    for i in range(1, 9):
+        acres = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 5.0][i - 1]
+        price = int(acres * 3500000)
+        farm_units.append({
+            "id": f"farm-4-{i:02d}",
+            "property_id": "prop-4",
+            "unit_type": "farm",
+            "plot_number": f"FL-{i:02d}",
+            "survey_number": "SY-No 156",
+            "acres": acres,
+            "size": f"{acres} acres",
+            "facing": facings[i % len(facings)],
+            "price": price,
+            "status": farm_status_pool[i % len(farm_status_pool)],
+            "row": (i - 1) // 4,
+            "col": (i - 1) % 4,
+            "owner_id": None,
+            "created_at": now_utc().isoformat(),
+        })
+    await db.plots.insert_many([f.copy() for f in farm_units])
+
+    # ---- Flats for Rivan Premium Flats (prop-7) ----
+    pflat_units = []
+    pf_status_pool = ["available"] * 4 + ["reserved", "booked", "sold"]
+    for tower_idx, tower in enumerate(["A", "B"]):
+        for floor in range(1, 7):
+            for flat in range(1, 4):
+                size_sqft = [1100, 1350, 1650][flat - 1]
+                bhk = ["2 BHK", "3 BHK", "3 BHK"][flat - 1]
+                price = size_sqft * 5273
+                idx_pf = tower_idx * 18 + (floor - 1) * 3 + (flat - 1)
+                pflat_units.append({
+                    "id": f"flat-7-{tower}-F{floor:02d}-{flat:02d}",
+                    "property_id": "prop-7",
+                    "unit_type": "flat",
+                    "plot_number": f"{tower}-{floor:02d}0{flat}",
+                    "survey_number": "SY-No 45/1",
+                    "tower": tower,
+                    "floor": floor,
+                    "flat_number": f"{tower}-{floor:02d}0{flat}",
+                    "bhk": bhk,
+                    "size": f"{size_sqft} sq ft",
+                    "size_sqft": size_sqft,
+                    "facing": ["East", "West", "North"][flat - 1],
+                    "price": price,
+                    "status": pf_status_pool[idx_pf % len(pf_status_pool)],
+                    "row": floor,
+                    "col": flat,
+                    "owner_id": None,
+                    "created_at": now_utc().isoformat(),
+                })
+    await db.plots.insert_many([u.copy() for u in pflat_units])
 
     # ---- Experience Centres ----
     centres = [

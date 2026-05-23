@@ -82,6 +82,7 @@ export const api = {
 
   // My Land
   myLand: () => apiRequest("/myland"),
+  canRequestServices: () => apiRequest("/myland/can-request-services"),
 
   // Payments
   paymentsSummary: () => apiRequest("/payments/summary"),
