@@ -346,9 +346,12 @@ async def my_land(user: Dict[str, Any] = Depends(get_current_user)):
         ).to_list(100)
         total_amt = sum(i["amount"] for i in installments) or plot.get("price", 0)
         paid_amt = sum(i["amount"] for i in installments if i["status"] == "paid")
+        # For sold plots without installment records (legacy), treat as fully paid
+        if plot.get("status") == "sold" and not installments:
+            paid_amt = total_amt
         progress = (paid_amt / total_amt) if total_amt > 0 else 0
-        # Purchase completion: once all installments paid + registration done
-        purchase_complete = progress >= 1.0
+        # Purchase completion: status sold OR all installments paid
+        purchase_complete = plot.get("status") == "sold" or progress >= 1.0
         # Compute registration timeline
         timeline = [
             {"step": "Booking Confirmed", "done": True, "date": plot.get("created_at", "")[:10]},
@@ -1191,6 +1194,13 @@ async def seed_data():
     await db.plots.update_one(
         {"id": demo_plot_id},
         {"$set": {"status": "booked", "owner_id": demo_user_id}}
+    )
+
+    # Assign a SECOND plot to demo user — fully purchased (for "Purchase Completed" demo state)
+    completed_plot_id = "villa-2-03"
+    await db.plots.update_one(
+        {"id": completed_plot_id},
+        {"$set": {"status": "sold", "owner_id": demo_user_id}}
     )
 
     # Installments for demo
