@@ -44,13 +44,19 @@ DB_NAME = os.environ.get("DB_NAME", "rivaan")
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
 ALLOW_LOCAL_AUTH_FALLBACK = os.environ.get("ALLOW_LOCAL_AUTH_FALLBACK", "false").lower() == "true"
-GOOGLE_WEB_CLIENT_ID = os.environ["GOOGLE_WEB_CLIENT_ID"]
+GOOGLE_WEB_CLIENT_ID = os.environ.get("GOOGLE_WEB_CLIENT_ID", "")
 GOOGLE_ANDROID_CLIENT_ID = os.environ.get("GOOGLE_ANDROID_CLIENT_ID", "")
 GOOGLE_IOS_CLIENT_ID = os.environ.get("GOOGLE_IOS_CLIENT_ID", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 def get_firebase_project_id() -> str:
     return os.environ.get("FIREBASE_PROJECT_ID", "")
+
+
+def get_google_client_ids() -> List[str]:
+    return [client_id for client_id in (GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_IOS_CLIENT_ID) if client_id]
+
+
 VILLA_VIDEO_URL = "https://res.cloudinary.com/dzisksq78/video/upload/v1780939161/villa_1_ltxt2q.mp4"
 CORS_ORIGINS = [
     origin.strip()
@@ -1919,9 +1925,14 @@ async def verify_otp(req: VerifyOtpReq):
 
 @api_router.post("/auth/google", response_model=TokenResp)
 async def google_auth(req: GoogleAuthReq):
+    google_client_ids = get_google_client_ids()
+    if not google_client_ids:
+        logger.error("Google auth failed: Google OAuth client IDs are not configured on the backend")
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured on the backend")
+
     payload = verify_google_id_token(
         req.id_token,
-        [GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_IOS_CLIENT_ID],
+        google_client_ids,
     )
     user = await upsert_user_identity(
         name=payload.get("name") or payload.get("given_name") or payload["email"].split("@")[0],

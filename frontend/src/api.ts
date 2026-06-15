@@ -6,6 +6,7 @@ import { NativeModules, Platform } from "react-native";
 import { storage } from "@/src/utils/storage";
 
 const ENV_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+const HOSTED_PRODUCTION_BACKEND_URL = "https://rivan.onrender.com";
 const TOKEN_KEY = "rivan_token";
 const GET_CACHE_TTL_MS = 120000;
 const REQUEST_TIMEOUT_MS = 12000;
@@ -131,6 +132,7 @@ function buildCandidateBaseUrls() {
   const normalizedEnv = normalizeBaseUrl(ENV_BACKEND_URL);
   const normalizedWebOverride = normalizeBaseUrl(getWebBackendOverride());
   const normalizedInferred = normalizeBaseUrl(inferBackendUrl());
+  const normalizedHostedFallback = normalizeBaseUrl(isHostedHttpsWeb() ? HOSTED_PRODUCTION_BACKEND_URL : "");
 
   if (canUseBackendCandidate(normalizedWebOverride, "override")) candidates.add(normalizedWebOverride);
 
@@ -141,6 +143,8 @@ function buildCandidateBaseUrls() {
     if (canUseBackendCandidate(normalizedEnv, "env")) candidates.add(normalizedEnv);
     if (canUseBackendCandidate(normalizedInferred, "inferred")) candidates.add(normalizedInferred);
   }
+
+  if (canUseBackendCandidate(normalizedHostedFallback, "env")) candidates.add(normalizedHostedFallback);
 
   if (!candidates.size && !isHostedHttpsWeb()) candidates.add("http://127.0.0.1:8000");
   return Array.from(candidates);
