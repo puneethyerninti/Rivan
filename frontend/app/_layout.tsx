@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, Platform, StyleSheet } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
@@ -10,21 +10,36 @@ import { AuthProvider, useAuth } from "@/src/auth-context";
 import { colors } from "@/src/theme";
 
 SplashScreen.preventAutoHideAsync();
+export const unstable_settings = {
+  initialRouteName: "index",
+};
 
 function RootLayoutInner() {
-  const { isLoading, isAuthed } = useAuth();
+  const { user, isLoading, isAuthed } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === "login";
-    if (!isAuthed && !inAuthGroup) {
+    const rootSegment = segments[0];
+    const isAgent = user?.role === "agent" || user?.role === "sub_agent";
+    const inAuthGroup = rootSegment === "login" || rootSegment === "agent-login";
+    const allowPublicAgentPreview = Platform.OS === "web" && !isAuthed && rootSegment === "agent";
+    const agentAllowedSegments = new Set(["agent", "layout", "booking", "property", "notifications"]);
+    const customerRestrictedSegments = new Set(["agent", "agent-login", "admin"]);
+    const inAgentArea = agentAllowedSegments.has(rootSegment || "");
+    const inCustomerRestrictedArea = customerRestrictedSegments.has(rootSegment || "");
+
+    if (!isAuthed && !inAuthGroup && !allowPublicAgentPreview) {
       router.replace("/login");
     } else if (isAuthed && inAuthGroup) {
-      router.replace("/(tabs)");
+      router.replace(isAgent ? "/agent" : "/");
+    } else if (isAuthed && isAgent && !inAgentArea) {
+      router.replace("/agent");
+    } else if (isAuthed && !isAgent && inCustomerRestrictedArea) {
+      router.replace("/");
     }
-  }, [isAuthed, isLoading, segments, router]);
+  }, [isAuthed, isLoading, router, segments, user]);
 
   if (isLoading) {
     return (
@@ -35,20 +50,7 @@ function RootLayoutInner() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.white } }}>
-      <Stack.Screen name="login" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="property/[id]" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="layout/[id]" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="booking/[plotId]" options={{ presentation: "modal" }} />
-      <Stack.Screen name="documents" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="services" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="services/[type]" options={{ presentation: "modal" }} />
-      <Stack.Screen name="notifications" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="wishlist" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="centre/[id]" options={{ animation: "slide_from_right" }} />
-      <Stack.Screen name="admin" options={{ animation: "slide_from_right" }} />
-    </Stack>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.white } }} />
   );
 }
 

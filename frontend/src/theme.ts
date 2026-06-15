@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // Rivan Reality design tokens
 export const colors = {
   // Brand
@@ -70,27 +72,33 @@ export const typography = {
 };
 
 export const shadow = {
-  sm: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-  },
+  sm: Platform.OS === "web"
+    ? { boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 2,
+        elevation: 1,
+      },
+  md: Platform.OS === "web"
+    ? { boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+  lg: Platform.OS === "web"
+    ? { boxShadow: "0 6px 16px rgba(0,0,0,0.12)" }
+    : {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 6,
+      },
 };
 
 export const plotStatusColor = (status: string): string => {

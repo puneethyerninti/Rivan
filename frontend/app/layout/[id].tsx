@@ -1,35 +1,70 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Linking, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  Linking,
+  Alert,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api } from "@/src/api";
+import { useAuth } from "@/src/auth-context";
 import { colors, radii, spacing, typography, shadow, plotStatusColor, plotStatusLabel, formatINR, formatINRFull } from "@/src/theme";
 
-const PLOT_SIZE = 76;
-const FLAT_SIZE = 70;
+const STATUS_KEYS = ["all", "available", "reserved", "booked", "sold"] as const;
+type StatusKey = (typeof STATUS_KEYS)[number];
+
+function extractNumericSize(size?: string) {
+  if (!size) return null;
+  const match = size.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+function normalizePlotUnits(units: any[]) {
+  const autoCols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(Math.max(units.length, 1)))));
+  return units.map((unit, index) => ({
+    ...unit,
+    row: typeof unit.row === "number" ? unit.row : Math.floor(index / autoCols),
+    col: typeof unit.col === "number" ? unit.col : index % autoCols,
+    size_sqy: unit.size_sqy || extractNumericSize(unit.size),
+  }));
+}
 
 export default function LayoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isDesktop = width >= 1100;
+  const isAgent = user?.role === "agent" || user?.role === "sub_agent";
+
   const [property, setProperty] = useState<any>(null);
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
-  const [filter, setFilter] = useState<string>("all");
-  // Apartment/flat tower selection
+  const [filter, setFilter] = useState<StatusKey>("all");
   const [activeTower, setActiveTower] = useState<string | null>(null);
   const [activeFloor, setActiveFloor] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [p, pl] = await Promise.all([api.getProperty(id as string), api.getPropertyPlots(id as string)]);
-        setProperty(p);
-        setUnits(pl as any[]);
-        const firstTower = (pl as any[]).find((u) => u.tower)?.tower;
+        const [propertyRes, unitsRes] = await Promise.all([api.getProperty(id as string), api.getPropertyPlots(id as string)]);
+        const loadedUnits = unitsRes as any[];
+        setProperty(propertyRes);
+        setUnits(loadedUnits);
+        const firstTower = loadedUnits.find((unit) => unit.tower)?.tower;
         if (firstTower) setActiveTower(firstTower);
+        setSelected(null);
       } catch (e: any) {
         Alert.alert("Error", e.message);
       } finally {
@@ -39,121 +74,247 @@ export default function LayoutScreen() {
   }, [id]);
 
   const unitType = units[0]?.unit_type || "plot";
+  const openCount = units.filter((unit) => unit.status === "available").length;
 
-  const counts = useMemo(() => ({
-    all: units.length,
-    available: units.filter((u) => u.status === "available").length,
-    reserved: units.filter((u) => u.status === "reserved").length,
-    booked: units.filter((u) => u.status === "booked").length,
-    sold: units.filter((u) => u.status === "sold").length,
-  }), [units]);
+  function openWhatsApp(unit: any) {
+    const label = unit?.plot_number || "this unit";
+    const text = `Hi, I'm interested in ${label} at ${property?.name}.`;
+    Linking.openURL(`https://wa.me/919876543210?text=${encodeURIComponent(text)}`).catch(() =>
+      Alert.alert("Unable to open WhatsApp")
+    );
+  }
 
-  if (loading) return <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View>;
+  function handleVisit(unit: any) {
+    if (isAgent) {
+      router.push(`/agent?action=visit&propertyId=${unit.property_id}&assetId=${unit.id}`);
+      return;
+    }
+    router.push(`/centre/site-${unit.property_id}`);
+  }
 
-  const screenTitle: Record<string, string> = {
-    plot: "Interactive Plot Layout",
-    flat: "Live Availability",
-    villa: "Villa Availability",
-    shop: "Commercial Availability",
-    farm: "Farm Parcels",
-  };
+  function handleBook(unit: any) {
+    if (isAgent) {
+      router.push(`/agent?action=booking&propertyId=${unit.property_id}&assetId=${unit.id}`);
+      return;
+    }
+    router.push(`/booking/${unit.id}`);
+  }
 
-  function openWhatsApp(p: any) {
-    const text = `Hi, I'm interested in ${p.plot_number} at ${property.name}.`;
-    Linking.openURL(`https://wa.me/919876543210?text=${encodeURIComponent(text)}`);
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]} testID="layout-screen">
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity testID="layout-back-button" style={styles.headerBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          testID="layout-back-button"
+          style={styles.headerBtn}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Feather name="arrow-left" size={20} color={colors.primaryDeepest} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>{property?.name}</Text>
-          <Text style={styles.headerSub}>{screenTitle[unitType] || "Availability"}</Text>
+          <Text style={styles.headerSub}>Interactive property layout</Text>
         </View>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => Alert.alert("Status Legend", "🟢 Available — Open for booking\n🟡 Reserved — Hold by another customer\n🔵 Booked — Sold but not registered\n🔴 Sold — Registered & handed over")}>
-          <Feather name="info" size={20} color={colors.primaryDeepest} />
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() =>
+            Alert.alert(
+              "Availability",
+              "Green is available, amber is reserved, blue is booked, and red is sold."
+            )
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Open availability legend"
+        >
+          <Feather name="layers" size={20} color={colors.primaryDeepest} />
         </TouchableOpacity>
       </View>
 
-      {/* Legend & Filter */}
-      <View style={styles.legendRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.legendScroll}>
-          <LegendPill label="All" count={counts.all} color={colors.stone400} active={filter === "all"} onPress={() => setFilter("all")} testID="layout-filter-all" />
-          <LegendPill label="Available" count={counts.available} color={colors.available} active={filter === "available"} onPress={() => setFilter("available")} testID="layout-filter-available" />
-          <LegendPill label="Reserved" count={counts.reserved} color={colors.reserved} active={filter === "reserved"} onPress={() => setFilter("reserved")} testID="layout-filter-reserved" />
-          <LegendPill label="Booked" count={counts.booked} color={colors.booked} active={filter === "booked"} onPress={() => setFilter("booked")} testID="layout-filter-booked" />
-          <LegendPill label="Sold" count={counts.sold} color={colors.sold} active={filter === "sold"} onPress={() => setFilter("sold")} testID="layout-filter-sold" />
-        </ScrollView>
-      </View>
+      <ScrollView contentContainerStyle={styles.pageScroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.pageShell}>
+          <View style={styles.mapCard}>
+            <View style={styles.mapHeaderBar}>
+              <View style={styles.mapLocationChip}>
+                <Feather name="map-pin" size={14} color={colors.primary} />
+                <Text style={styles.mapLocationText} numberOfLines={1}>
+                  {property?.location || "Project location"}
+                </Text>
+              </View>
+              <View style={styles.mapOpenChip}>
+                <Feather name="navigation" size={13} color={colors.accentDark} />
+                <Text style={styles.mapOpenText}>{openCount} open</Text>
+              </View>
+            </View>
 
-      {/* Body — switches based on unit type */}
-      {unitType === "plot" ? (
-        <PlotGrid units={units} filter={filter} onSelect={setSelected} />
-      ) : unitType === "flat" ? (
-        <FlatTowerView units={units} filter={filter} activeTower={activeTower} setActiveTower={setActiveTower} activeFloor={activeFloor} setActiveFloor={setActiveFloor} onSelect={setSelected} />
-      ) : unitType === "villa" ? (
-        <CardGrid units={units} filter={filter} onSelect={setSelected} kind="villa" />
-      ) : unitType === "shop" ? (
-        <FloorGroupedCards units={units} filter={filter} onSelect={setSelected} kind="shop" />
-      ) : unitType === "farm" ? (
-        <CardGrid units={units} filter={filter} onSelect={setSelected} kind="farm" />
-      ) : (
-        <View style={{ padding: spacing.lg }}><Text>No layout</Text></View>
-      )}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.legendScroll}>
+              {STATUS_KEYS.map((statusKey) => (
+                <LegendPill
+                  key={statusKey}
+                  label={statusKey === "all" ? "All" : statusKey.charAt(0).toUpperCase() + statusKey.slice(1)}
+                  color={statusKey === "all" ? colors.stone400 : plotStatusColor(statusKey)}
+                  active={filter === statusKey}
+                  onPress={() => setFilter(statusKey)}
+                  testID={`layout-filter-${statusKey}`}
+                />
+              ))}
+            </ScrollView>
 
-      <UnitDetailModal selected={selected} property={property} onClose={() => setSelected(null)} onWhatsApp={openWhatsApp} onBook={(u) => { setSelected(null); router.push(`/booking/${u.id}`); }} onVisit={(u) => { setSelected(null); router.push(`/centre/site-${u.property_id}`); }} />
+            <View style={styles.mapCanvasShell}>
+              {unitType === "plot" ? (
+                <PlotGrid
+                  units={units}
+                  filter={filter}
+                  onSelect={setSelected}
+                  selectedId={selected?.id}
+                  isTablet={isTablet}
+                  isDesktop={isDesktop}
+                />
+              ) : unitType === "flat" ? (
+                <FlatTowerView
+                  units={units}
+                  filter={filter}
+                  activeTower={activeTower}
+                  setActiveTower={setActiveTower}
+                  activeFloor={activeFloor}
+                  setActiveFloor={setActiveFloor}
+                  onSelect={setSelected}
+                  selectedId={selected?.id}
+                  isTablet={isTablet}
+                />
+              ) : unitType === "villa" ? (
+                <CardGrid units={units} filter={filter} onSelect={setSelected} kind="villa" selectedId={selected?.id} isTablet={isTablet} />
+              ) : unitType === "shop" ? (
+                <FloorGroupedCards units={units} filter={filter} onSelect={setSelected} kind="shop" selectedId={selected?.id} isTablet={isTablet} />
+              ) : unitType === "farm" ? (
+                <CardGrid units={units} filter={filter} onSelect={setSelected} kind="farm" selectedId={selected?.id} isTablet={isTablet} />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>No map data available.</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      <UnitDetailModal
+        selected={selected}
+        property={property}
+        onClose={() => setSelected(null)}
+        onWhatsApp={openWhatsApp}
+        onBook={handleBook}
+        onVisit={handleVisit}
+      />
     </SafeAreaView>
   );
 }
 
-function LegendPill({ label, count, color, active, onPress, testID }: { label: string; count: number; color: string; active: boolean; onPress: () => void; testID: string }) {
+function LegendPill({
+  label,
+  color,
+  active,
+  onPress,
+  testID,
+}: {
+  label: string;
+  color: string;
+  active: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
   return (
-    <TouchableOpacity testID={testID} style={[styles.legendPill, active && styles.legendPillActive]} onPress={onPress}>
+    <TouchableOpacity
+      testID={testID}
+      style={[styles.legendPill, active && styles.legendPillActive]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} filter`}
+    >
       <View style={[styles.legendDot, { backgroundColor: color }]} />
       <Text style={[styles.legendLabel, active && styles.legendLabelActive]}>{label}</Text>
-      <View style={[styles.legendCount, active && styles.legendCountActive]}>
-        <Text style={[styles.legendCountText, active && styles.legendCountTextActive]}>{count}</Text>
-      </View>
     </TouchableOpacity>
   );
 }
 
-// ----- Layout: Open Plots / Layouts -----
-function PlotGrid({ units, filter, onSelect }: { units: any[]; filter: string; onSelect: (u: any) => void }) {
-  const cols = Math.max(...units.map((p) => p.col)) + 1;
-  const rows = Math.max(...units.map((p) => p.row)) + 1;
+function PlotGrid({
+  units,
+  filter,
+  onSelect,
+  selectedId,
+  isTablet,
+  isDesktop,
+}: {
+  units: any[];
+  filter: StatusKey;
+  onSelect: (unit: any) => void;
+  selectedId?: string;
+  isTablet: boolean;
+  isDesktop: boolean;
+}) {
+  const normalizedUnits = useMemo(() => normalizePlotUnits(units), [units]);
+  const cols = Math.max(...normalizedUnits.map((unit) => unit.col)) + 1;
+  const rows = Math.max(...normalizedUnits.map((unit) => unit.row)) + 1;
+  const plotSize = isDesktop ? 94 : isTablet ? 84 : 70;
+
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-      <ScrollView horizontal contentContainerStyle={styles.hScroll}>
-        <View>
-          <View style={[styles.road, { width: cols * (PLOT_SIZE + 6) }]}>
-            <Text style={styles.roadText}>● Main Road (40 ft) ●</Text>
+    <ScrollView style={styles.mapScroll} contentContainerStyle={styles.mapScrollContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.plotBoardScroll}>
+        <View style={styles.plotBoardWrap}>
+          <View style={styles.mapNorthPill}>
+            <Feather name="navigation" size={12} color={colors.primaryDeepest} />
+            <Text style={styles.mapNorthText}>North</Text>
           </View>
-          <View style={styles.gridRow}>
-            <View style={[styles.sideRoad, { height: rows * (PLOT_SIZE + 6) }]}>
-              <Text style={styles.sideRoadText}>Internal Road</Text>
-            </View>
-            <View>
-              {Array.from({ length: rows }).map((_, r) => (
-                <View key={r} style={styles.plotRow}>
-                  {Array.from({ length: cols }).map((_, c) => {
-                    const plot = units.find((p) => p.row === r && p.col === c);
-                    if (!plot) return <View key={c} style={[styles.plotCell, { backgroundColor: "transparent" }]} />;
+
+          <View style={[styles.mainRoad, { width: cols * (plotSize + 10) + 34 }]}>
+            <View style={styles.roadStripe} />
+            <View style={styles.roadStripe} />
+          </View>
+
+          <View style={styles.plotBodyRow}>
+            <View style={[styles.internalRoad, { height: rows * (plotSize + 10) }]} />
+
+            <View style={styles.plotGridShell}>
+              {Array.from({ length: rows }).map((_, rowIndex) => (
+                <View key={rowIndex} style={styles.plotRow}>
+                  {Array.from({ length: cols }).map((_, colIndex) => {
+                    const plot = normalizedUnits.find((unit) => unit.row === rowIndex && unit.col === colIndex);
+                    if (!plot) {
+                      return <View key={`empty-${rowIndex}-${colIndex}`} style={[styles.plotSpacer, { width: plotSize, height: plotSize }]} />;
+                    }
+
                     const visible = filter === "all" || plot.status === filter;
+                    const isSelected = selectedId === plot.id;
+
                     return (
                       <TouchableOpacity
                         key={plot.id}
                         testID={`layout-plot-${plot.id}`}
-                        style={[styles.plotCell, { backgroundColor: plotStatusColor(plot.status), opacity: visible ? 1 : 0.25 }]}
+                        style={[
+                          styles.plotCell,
+                          {
+                            width: plotSize,
+                            height: plotSize,
+                            backgroundColor: visible ? plotStatusColor(plot.status) : colors.stone300,
+                            opacity: visible ? 1 : 0.4,
+                          },
+                          isSelected && styles.plotCellSelected,
+                        ]}
                         onPress={() => onSelect(plot)}
-                        activeOpacity={0.7}
+                        activeOpacity={0.88}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${plot.plot_number}, ${plotStatusLabel(plot.status)}, ${plot.size || ""}`}
                       >
                         <Text style={styles.plotNumber}>{plot.plot_number.replace("P-", "").replace("L-", "")}</Text>
-                        <Text style={styles.plotSize}>{plot.size_sqy}sqy</Text>
+                        <Text style={styles.plotSize}>{plot.size_sqy ? `${plot.size_sqy}` : plot.size}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -161,173 +322,212 @@ function PlotGrid({ units, filter, onSelect }: { units: any[]; filter: string; o
               ))}
             </View>
           </View>
-          <View style={[styles.park, { width: cols * (PLOT_SIZE + 6) + 28 }]}>
-            <Feather name="sun" size={14} color={colors.primaryLight} />
-            <Text style={styles.parkText}>Central Park · Open Space</Text>
-          </View>
         </View>
       </ScrollView>
-      <View style={styles.helperBox}>
-        <Feather name="zoom-in" size={14} color={colors.stone500} />
-        <Text style={styles.helperText}>Scroll horizontally to view full layout. Tap any plot for details.</Text>
-      </View>
     </ScrollView>
   );
 }
 
-// ----- Apartment / Flat: Tower → Floor → Flat -----
-function FlatTowerView({ units, filter, activeTower, setActiveTower, activeFloor, setActiveFloor, onSelect }:
-  { units: any[]; filter: string; activeTower: string | null; setActiveTower: (t: string) => void; activeFloor: number | null; setActiveFloor: (f: number | null) => void; onSelect: (u: any) => void }) {
-  const towers = Array.from(new Set(units.map((u) => u.tower).filter(Boolean))).sort();
-  const towerUnits = units.filter((u) => u.tower === activeTower);
-  const floors = Array.from(new Set(towerUnits.map((u) => u.floor))).sort((a, b) => b - a);
-  const flatsPerFloor = activeFloor != null ? towerUnits.filter((u) => u.floor === activeFloor) : [];
-  const floorVisible = activeFloor;
+function FlatTowerView({
+  units,
+  filter,
+  activeTower,
+  setActiveTower,
+  activeFloor,
+  setActiveFloor,
+  onSelect,
+  selectedId,
+  isTablet,
+}: {
+  units: any[];
+  filter: StatusKey;
+  activeTower: string | null;
+  setActiveTower: (tower: string) => void;
+  activeFloor: number | null;
+  setActiveFloor: (floor: number | null) => void;
+  onSelect: (unit: any) => void;
+  selectedId?: string;
+  isTablet: boolean;
+}) {
+  const towers = Array.from(new Set(units.map((unit) => unit.tower).filter(Boolean))).sort();
+  const towerUnits = units.filter((unit) => unit.tower === activeTower);
+  const floors = Array.from(new Set(towerUnits.map((unit) => unit.floor))).sort((a, b) => b - a);
+  const floorUnits = activeFloor != null ? towerUnits.filter((unit) => unit.floor === activeFloor) : [];
 
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
-      {/* Tower selector */}
-      <Text style={styles.subSection}>Select Tower</Text>
-      <View style={styles.towerRow}>
-        {towers.map((t) => (
-          <TouchableOpacity
-            key={t}
-            testID={`layout-tower-${t}`}
-            style={[styles.towerCard, activeTower === t && styles.towerCardActive]}
-            onPress={() => { setActiveTower(t); setActiveFloor(null); }}
-          >
-            <View style={styles.towerIcon}>
-              <Feather name="grid" size={20} color={activeTower === t ? colors.white : colors.primary} />
-            </View>
-            <Text style={[styles.towerTitle, activeTower === t && { color: colors.white }]}>Tower {t}</Text>
-            <Text style={[styles.towerMeta, activeTower === t && { color: "rgba(255,255,255,0.8)" }]}>
-              {units.filter((u) => u.tower === t).length} units
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Floor selector */}
-      <Text style={[styles.subSection, { marginTop: spacing.lg }]}>Tower {activeTower} — Floors</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.floorScroll}>
-        {floors.map((f) => {
-          const floorUnits = towerUnits.filter((u) => u.floor === f);
-          const availCount = floorUnits.filter((u) => u.status === "available").length;
-          const isActive = activeFloor === f;
+    <ScrollView style={styles.mapScroll} contentContainerStyle={styles.flatContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.controlScroll}>
+        {towers.map((tower) => {
+          const active = activeTower === tower;
           return (
             <TouchableOpacity
-              key={f}
-              testID={`layout-floor-${f}`}
-              style={[styles.floorChip, isActive && styles.floorChipActive]}
-              onPress={() => setActiveFloor(isActive ? null : f)}
+              key={tower}
+              testID={`layout-tower-${tower}`}
+              style={[styles.controlChip, active && styles.controlChipActive]}
+              onPress={() => {
+                setActiveTower(tower);
+                setActiveFloor(null);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Select tower ${tower}`}
             >
-              <Text style={[styles.floorChipTitle, isActive && { color: colors.white }]}>Floor {f}</Text>
-              <Text style={[styles.floorChipMeta, isActive && { color: "rgba(255,255,255,0.8)" }]}>
-                {availCount}/{floorUnits.length} avail
-              </Text>
+              <Text style={[styles.controlChipText, active && styles.controlChipTextActive]}>Tower {tower}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {floorVisible == null ? (
-        <View style={styles.hint}>
-          <Feather name="info" size={14} color={colors.stone500} />
-          <Text style={styles.hintText}>Tap any floor above to view flats.</Text>
-        </View>
-      ) : (
-        <>
-          <Text style={[styles.subSection, { marginTop: spacing.lg }]}>Tower {activeTower} · Floor {floorVisible}</Text>
-          <View style={styles.flatGrid}>
-            {flatsPerFloor.map((flat) => {
-              const visible = filter === "all" || flat.status === filter;
-              return (
-                <TouchableOpacity
-                  key={flat.id}
-                  testID={`layout-flat-${flat.id}`}
-                  style={[styles.flatCell, { backgroundColor: plotStatusColor(flat.status), opacity: visible ? 1 : 0.3 }]}
-                  onPress={() => onSelect(flat)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.flatNumber}>{flat.flat_number}</Text>
-                  <Text style={styles.flatMeta}>{flat.bhk}</Text>
-                  <Text style={styles.flatMeta}>{flat.size_sqft} sqft</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </>
-      )}
-    </ScrollView>
-  );
-}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.controlScroll}>
+        {floors.map((floor) => {
+          const active = activeFloor === floor;
+          return (
+            <TouchableOpacity
+              key={floor}
+              testID={`layout-floor-${floor}`}
+              style={[styles.controlChip, active && styles.controlChipActive]}
+              onPress={() => setActiveFloor(active ? null : floor)}
+              accessibilityRole="button"
+              accessibilityLabel={`Select floor ${floor}`}
+            >
+              <Text style={[styles.controlChipText, active && styles.controlChipTextActive]}>Floor {floor}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
-// ----- Villa / Farm: Card Grid -----
-function CardGrid({ units, filter, onSelect, kind }: { units: any[]; filter: string; onSelect: (u: any) => void; kind: "villa" | "farm" }) {
-  const filtered = filter === "all" ? units : units.filter((u) => u.status === filter);
-  return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
-      <Text style={styles.subSection}>{kind === "villa" ? "Villa Units" : "Farm Parcels"}</Text>
-      <View style={styles.cardGrid}>
-        {filtered.map((unit) => (
-          <TouchableOpacity
-            key={unit.id}
-            testID={`layout-${kind}-${unit.id}`}
-            style={styles.unitCard}
-            onPress={() => onSelect(unit)}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.unitImage, { backgroundColor: plotStatusColor(unit.status) }]}>
-              <Feather name={kind === "villa" ? "home" : "sun"} size={28} color={colors.white} />
-              <View style={styles.unitStatusPill}>
-                <Text style={styles.unitStatusText}>{plotStatusLabel(unit.status)}</Text>
-              </View>
-            </View>
-            <View style={styles.unitBody}>
-              <Text style={styles.unitNumber}>{unit.plot_number}</Text>
-              <Text style={styles.unitType}>{kind === "villa" ? unit.villa_type : `${unit.acres} acres`}</Text>
-              <Text style={styles.unitSize}>{unit.size} · {unit.facing}</Text>
-              <Text style={styles.unitPrice}>{formatINR(unit.price)}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.flatGrid}>
+        {(activeFloor == null ? towerUnits : floorUnits).map((unit) => {
+          const visible = filter === "all" || unit.status === filter;
+          const active = selectedId === unit.id;
+          return (
+            <TouchableOpacity
+              key={unit.id}
+              testID={`layout-flat-${unit.id}`}
+              style={[
+                styles.flatCell,
+                { backgroundColor: visible ? plotStatusColor(unit.status) : colors.stone300, opacity: visible ? 1 : 0.4 },
+                active && styles.flatCellSelected,
+              ]}
+              onPress={() => onSelect(unit)}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={`Flat ${unit.flat_number}, ${plotStatusLabel(unit.status)}, ${unit.bhk}`}
+            >
+              <Text style={styles.flatNumber}>{unit.flat_number}</Text>
+              <Text style={styles.flatMeta}>{unit.bhk}</Text>
+              <Text style={styles.flatMeta}>{unit.size_sqft} sqft</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </ScrollView>
   );
 }
 
-// ----- Commercial: Grouped by Floor -----
-function FloorGroupedCards({ units, filter, onSelect, kind }: { units: any[]; filter: string; onSelect: (u: any) => void; kind: "shop" }) {
-  const filtered = filter === "all" ? units : units.filter((u) => u.status === filter);
-  const floors = Array.from(new Set(filtered.map((u) => u.floor))).sort();
+function CardGrid({
+  units,
+  filter,
+  onSelect,
+  kind,
+  selectedId,
+  isTablet,
+}: {
+  units: any[];
+  filter: StatusKey;
+  onSelect: (unit: any) => void;
+  kind: "villa" | "farm";
+  selectedId?: string;
+  isTablet: boolean;
+}) {
+  const filteredUnits = filter === "all" ? units : units.filter((unit) => unit.status === filter);
+
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}>
+    <ScrollView style={styles.mapScroll} contentContainerStyle={styles.cardGridContent}>
+      <View style={styles.cardGrid}>
+        {filteredUnits.map((unit) => {
+          const active = selectedId === unit.id;
+          return (
+            <TouchableOpacity
+              key={unit.id}
+              testID={`layout-${kind}-${unit.id}`}
+              style={[styles.unitCard, isTablet && styles.unitCardTablet, active && styles.unitCardSelected]}
+              onPress={() => onSelect(unit)}
+              activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityLabel={`${unit.plot_number}, ${plotStatusLabel(unit.status)}, ${unit.size}`}
+            >
+              <View style={[styles.unitMapHeader, { backgroundColor: plotStatusColor(unit.status) }]}>
+                <Feather name={kind === "villa" ? "home" : "sun"} size={24} color={colors.white} />
+                <View style={styles.unitStatusPill}>
+                  <Text style={styles.unitStatusText}>{plotStatusLabel(unit.status)}</Text>
+                </View>
+              </View>
+              <View style={styles.unitBody}>
+                <Text style={styles.unitNumber}>{unit.plot_number}</Text>
+                <Text style={styles.unitType}>{kind === "villa" ? unit.villa_type : `${unit.acres} acres`}</Text>
+                <Text style={styles.unitMeta}>{unit.size} · {unit.facing}</Text>
+                <Text style={styles.unitPrice}>{formatINR(unit.price)}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </ScrollView>
+  );
+}
+
+function FloorGroupedCards({
+  units,
+  filter,
+  onSelect,
+  kind,
+  selectedId,
+  isTablet,
+}: {
+  units: any[];
+  filter: StatusKey;
+  onSelect: (unit: any) => void;
+  kind: "shop";
+  selectedId?: string;
+  isTablet: boolean;
+}) {
+  const filteredUnits = filter === "all" ? units : units.filter((unit) => unit.status === filter);
+  const floors = Array.from(new Set(filteredUnits.map((unit) => unit.floor))).sort((a, b) => a - b);
+
+  return (
+    <ScrollView style={styles.mapScroll} contentContainerStyle={styles.cardGridContent}>
       {floors.map((floor) => (
-        <View key={floor} style={{ marginBottom: spacing.lg }}>
-          <Text style={styles.subSection}>Floor {floor}</Text>
+        <View key={floor} style={styles.floorSection}>
           <View style={styles.cardGrid}>
-            {filtered.filter((u) => u.floor === floor).map((unit) => (
-              <TouchableOpacity
-                key={unit.id}
-                testID={`layout-${kind}-${unit.id}`}
-                style={styles.unitCard}
-                onPress={() => onSelect(unit)}
-                activeOpacity={0.85}
-              >
-                <View style={[styles.unitImage, { backgroundColor: plotStatusColor(unit.status) }]}>
-                  <Feather name="briefcase" size={24} color={colors.white} />
-                  <View style={styles.unitStatusPill}>
-                    <Text style={styles.unitStatusText}>{plotStatusLabel(unit.status)}</Text>
-                  </View>
-                </View>
-                <View style={styles.unitBody}>
-                  <Text style={styles.unitNumber}>{unit.plot_number}</Text>
-                  <Text style={styles.unitType}>{unit.shop_type}</Text>
-                  <Text style={styles.unitSize}>{unit.size} · {unit.facing}</Text>
-                  <Text style={styles.unitPrice}>{formatINR(unit.price)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {filteredUnits
+              .filter((unit) => unit.floor === floor)
+              .map((unit) => {
+                const active = selectedId === unit.id;
+                return (
+                  <TouchableOpacity
+                    key={unit.id}
+                    testID={`layout-${kind}-${unit.id}`}
+                    style={[styles.unitCard, isTablet && styles.unitCardTablet, active && styles.unitCardSelected]}
+                    onPress={() => onSelect(unit)}
+                    activeOpacity={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${unit.plot_number}, ${plotStatusLabel(unit.status)}, ${unit.shop_type}`}
+                  >
+                    <View style={[styles.unitMapHeader, { backgroundColor: plotStatusColor(unit.status) }]}>
+                      <Feather name="briefcase" size={22} color={colors.white} />
+                      <View style={styles.unitFloorBadge}>
+                        <Text style={styles.unitFloorText}>F{floor}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.unitBody}>
+                      <Text style={styles.unitNumber}>{unit.plot_number}</Text>
+                      <Text style={styles.unitType}>{unit.shop_type}</Text>
+                      <Text style={styles.unitMeta}>{unit.size} · {unit.facing}</Text>
+                      <Text style={styles.unitPrice}>{formatINR(unit.price)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
           </View>
         </View>
       ))}
@@ -335,16 +535,40 @@ function FloorGroupedCards({ units, filter, onSelect, kind }: { units: any[]; fi
   );
 }
 
-// ----- Modal -----
-function UnitDetailModal({ selected, property, onClose, onWhatsApp, onBook, onVisit }: { selected: any; property: any; onClose: () => void; onWhatsApp: (u: any) => void; onBook: (u: any) => void; onVisit: (u: any) => void }) {
+function UnitDetailModal({
+  selected,
+  property,
+  onClose,
+  onWhatsApp,
+  onBook,
+  onVisit,
+}: {
+  selected: any;
+  property: any;
+  onClose: () => void;
+  onWhatsApp: (unit: any) => void;
+  onBook: (unit: any) => void;
+  onVisit: (unit: any) => void;
+}) {
   return (
     <Modal visible={!!selected} animationType="slide" transparent onRequestClose={onClose}>
       <TouchableOpacity activeOpacity={1} style={styles.modalBg} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.modalCard}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>
-            <View>
-              <Text style={styles.modalPlot}>{selected?.unit_type === "flat" ? "Flat" : selected?.unit_type === "villa" ? "Villa" : selected?.unit_type === "shop" ? "Unit" : selected?.unit_type === "farm" ? "Parcel" : "Plot"} {selected?.plot_number}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.modalPlot}>
+                {selected?.unit_type === "flat"
+                  ? "Flat"
+                  : selected?.unit_type === "villa"
+                    ? "Villa"
+                    : selected?.unit_type === "shop"
+                      ? "Unit"
+                      : selected?.unit_type === "farm"
+                        ? "Parcel"
+                        : "Plot"}{" "}
+                {selected?.plot_number}
+              </Text>
               <Text style={styles.modalProperty}>{property?.name}</Text>
             </View>
             <View style={[styles.modalStatus, { backgroundColor: plotStatusColor(selected?.status) }]}>
@@ -353,20 +577,14 @@ function UnitDetailModal({ selected, property, onClose, onWhatsApp, onBook, onVi
           </View>
 
           <View style={styles.modalGrid}>
-            {selected?.bhk ? <ModalInfo icon="home" label="Type" value={selected.bhk} /> : null}
-            {selected?.villa_type ? <ModalInfo icon="home" label="Type" value={selected.villa_type} /> : null}
-            {selected?.shop_type ? <ModalInfo icon="briefcase" label="Type" value={selected.shop_type} /> : null}
-            {selected?.acres ? <ModalInfo icon="sun" label="Acres" value={`${selected.acres}`} /> : null}
-            {selected?.tower ? <ModalInfo icon="layers" label="Tower" value={selected.tower} /> : null}
-            {selected?.floor ? <ModalInfo icon="bar-chart-2" label="Floor" value={`${selected.floor}`} /> : null}
-            <ModalInfo icon="hash" label="Survey No." value={selected?.survey_number} />
             <ModalInfo icon="maximize-2" label="Size" value={selected?.size} />
             <ModalInfo icon="compass" label="Facing" value={selected?.facing} />
+            <ModalInfo icon="hash" label="Survey No." value={selected?.survey_number} />
             <ModalInfo icon="map-pin" label="Location" value={property?.location} />
           </View>
 
           <View style={styles.modalPriceRow}>
-            <Text style={styles.modalPriceLabel}>Total Price</Text>
+            <Text style={styles.modalPriceLabel}>Price</Text>
             <Text style={styles.modalPriceValue}>{selected ? formatINRFull(selected.price) : ""}</Text>
           </View>
 
@@ -374,11 +592,7 @@ function UnitDetailModal({ selected, property, onClose, onWhatsApp, onBook, onVi
             <TouchableOpacity testID="plot-modal-whatsapp" style={styles.modalIconBtn} onPress={() => onWhatsApp(selected)}>
               <Feather name="message-circle" size={20} color="#25D366" />
             </TouchableOpacity>
-            <TouchableOpacity
-              testID="plot-modal-visit"
-              style={[styles.modalIconBtn, { backgroundColor: colors.accentSoft }]}
-              onPress={() => onVisit(selected)}
-            >
+            <TouchableOpacity testID="plot-modal-visit" style={[styles.modalIconBtn, styles.modalIconBtnAccent]} onPress={() => onVisit(selected)}>
               <Feather name="calendar" size={20} color={colors.accent} />
             </TouchableOpacity>
             {(selected?.status === "available" || selected?.status === "reserved") ? (
@@ -387,7 +601,7 @@ function UnitDetailModal({ selected, property, onClose, onWhatsApp, onBook, onVi
                 <Feather name="arrow-right" size={16} color={colors.white} />
               </TouchableOpacity>
             ) : (
-              <View style={[styles.modalBookBtn, { backgroundColor: colors.stone300 }]}>
+              <View style={[styles.modalBookBtn, styles.modalBookBtnDisabled]}>
                 <Feather name="lock" size={16} color={colors.stone600} />
                 <Text style={[styles.modalBookText, { color: colors.stone600 }]}>{plotStatusLabel(selected?.status)}</Text>
               </View>
@@ -414,88 +628,261 @@ function ModalInfo({ icon, label, value }: { icon: any; label: string; value?: s
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.white },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.stone100 },
-  headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.stone100,
+  },
+  headerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.offWhite,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerCenter: { flex: 1 },
   headerTitle: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700" },
-  headerSub: { ...typography.small, color: colors.stone500 },
-  legendRow: { backgroundColor: colors.white, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.stone100 },
-  legendScroll: { gap: spacing.sm, paddingHorizontal: spacing.lg },
-  legendPill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full, backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.stone100 },
+  headerSub: { ...typography.small, color: colors.stone500, marginTop: 2 },
+  pageScroll: { padding: spacing.md, paddingBottom: spacing.xl },
+  pageShell: { width: "100%", maxWidth: 1320, alignSelf: "center" },
+  mapCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+    padding: spacing.md,
+    gap: spacing.md,
+    minHeight: 560,
+    ...shadow.md,
+  },
+  mapHeaderBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
+  mapLocationChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.offWhite,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: "78%",
+  },
+  mapLocationText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  mapOpenChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mapOpenText: { ...typography.small, color: colors.accentDark, fontWeight: "700" },
+  legendScroll: { gap: spacing.sm },
+  legendPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radii.full,
+    backgroundColor: colors.offWhite,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+  },
   legendPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { ...typography.small, color: colors.stone700, fontWeight: "600" },
   legendLabelActive: { color: colors.white },
-  legendCount: { minWidth: 22, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
-  legendCountActive: { backgroundColor: "rgba(255,255,255,0.25)" },
-  legendCountText: { fontSize: 10, fontWeight: "700", color: colors.primary },
-  legendCountTextActive: { color: colors.white },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: spacing.md, alignItems: "center" },
-  hScroll: { padding: spacing.sm },
-  subSection: { ...typography.label, color: colors.stone600, marginBottom: spacing.sm, marginLeft: 4 },
-  road: { height: 28, backgroundColor: colors.stone700, alignItems: "center", justifyContent: "center", borderRadius: radii.sm, marginLeft: 28, marginBottom: 6 },
-  roadText: { ...typography.label, color: colors.stone200, fontSize: 9 },
-  gridRow: { flexDirection: "row" },
-  sideRoad: { width: 22, marginRight: 6, backgroundColor: colors.stone700, borderRadius: radii.sm, alignItems: "center", justifyContent: "center" },
-  sideRoadText: { ...typography.label, color: colors.stone200, fontSize: 8, transform: [{ rotate: "-90deg" }], width: 80 },
-  plotRow: { flexDirection: "row", gap: 6, marginBottom: 6 },
-  plotCell: { width: PLOT_SIZE, height: PLOT_SIZE, borderRadius: radii.sm, alignItems: "center", justifyContent: "center", padding: 4, ...shadow.sm },
-  plotNumber: { color: colors.white, fontSize: 16, fontWeight: "800", letterSpacing: 0.5 },
-  plotSize: { color: "rgba(255,255,255,0.85)", fontSize: 10, fontWeight: "600" },
-  park: { height: 32, backgroundColor: "#E6F4EA", borderRadius: radii.sm, marginTop: 6, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
-  parkText: { ...typography.small, color: colors.primaryLight, fontWeight: "600" },
-  helperBox: { flexDirection: "row", alignItems: "center", gap: 6, padding: spacing.md, marginTop: spacing.md, backgroundColor: colors.white, borderRadius: radii.md, marginHorizontal: spacing.lg },
-  helperText: { ...typography.small, color: colors.stone500, flex: 1 },
-  // Tower
-  towerRow: { flexDirection: "row", gap: spacing.sm },
-  towerCard: { flex: 1, backgroundColor: colors.white, borderRadius: radii.md, padding: spacing.md, alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.stone100 },
-  towerCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  towerIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#E6F4EA", alignItems: "center", justifyContent: "center" },
-  towerTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  towerMeta: { ...typography.small, color: colors.stone500 },
-  // Floor
-  floorScroll: { gap: 6, paddingHorizontal: 4 },
-  floorChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radii.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.stone100, alignItems: "center", minWidth: 72 },
-  floorChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  floorChipTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  floorChipMeta: { ...typography.small, color: colors.stone500, fontSize: 10 },
-  // Flat
-  flatGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
-  flatCell: { width: FLAT_SIZE * 1.5, height: FLAT_SIZE * 1.15, borderRadius: radii.md, alignItems: "center", justifyContent: "center", padding: 6, ...shadow.sm },
-  flatNumber: { color: colors.white, fontSize: 14, fontWeight: "800" },
-  flatMeta: { color: "rgba(255,255,255,0.92)", fontSize: 10, fontWeight: "600" },
-  hint: { flexDirection: "row", alignItems: "center", gap: 6, padding: spacing.md, backgroundColor: colors.white, borderRadius: radii.md, marginTop: spacing.md },
-  hintText: { ...typography.small, color: colors.stone500, flex: 1 },
-  // Cards
+  mapCanvasShell: {
+    flex: 1,
+    borderRadius: radii.lg,
+    backgroundColor: "#EEF3EF",
+    overflow: "hidden",
+  },
+  mapScroll: { flex: 1 },
+  mapScrollContent: { paddingBottom: spacing.sm },
+  plotBoardScroll: { paddingBottom: spacing.sm },
+  plotBoardWrap: { gap: 10, paddingRight: spacing.sm, paddingTop: spacing.xs },
+  mapNorthPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.white,
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+  },
+  mapNorthText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  mainRoad: {
+    height: 42,
+    backgroundColor: "#BFC6BF",
+    borderRadius: radii.md,
+    marginLeft: 36,
+    justifyContent: "space-around",
+    paddingHorizontal: spacing.md,
+  },
+  roadStripe: { height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.92)" },
+  plotBodyRow: { flexDirection: "row", alignItems: "stretch" },
+  internalRoad: {
+    width: 30,
+    marginRight: 8,
+    backgroundColor: "#BFC6BF",
+    borderRadius: radii.md,
+  },
+  plotGridShell: {
+    backgroundColor: "#E6EEE8",
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: "#D7E2D9",
+  },
+  plotRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  plotCell: {
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    ...shadow.sm,
+  },
+  plotCellSelected: { borderWidth: 3, borderColor: colors.white, transform: [{ scale: 1.03 }] },
+  plotSpacer: { borderRadius: radii.md, opacity: 0 },
+  plotNumber: { color: colors.white, fontSize: 15, fontWeight: "800" },
+  plotSize: { color: "rgba(255,255,255,0.92)", fontSize: 10, fontWeight: "700", marginTop: 2 },
+  flatContent: { paddingBottom: spacing.sm },
+  controlScroll: { gap: spacing.sm, paddingBottom: spacing.sm },
+  controlChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
+  controlChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  controlChipText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  controlChipTextActive: { color: colors.white },
+  flatGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
+  flatCell: {
+    width: 128,
+    minHeight: 96,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.sm,
+    ...shadow.sm,
+  },
+  flatCellSelected: { borderWidth: 3, borderColor: colors.white, transform: [{ scale: 1.03 }] },
+  flatNumber: { color: colors.white, fontSize: 15, fontWeight: "800" },
+  flatMeta: { color: "rgba(255,255,255,0.92)", fontSize: 10, fontWeight: "700", marginTop: 2 },
+  cardGridContent: { paddingBottom: spacing.sm },
   cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  unitCard: { width: "48%", backgroundColor: colors.white, borderRadius: radii.md, overflow: "hidden", ...shadow.sm },
-  unitImage: { height: 80, alignItems: "center", justifyContent: "center", position: "relative" },
-  unitStatusPill: { position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.sm },
-  unitStatusText: { color: colors.white, fontSize: 8, fontWeight: "700", letterSpacing: 0.5 },
-  unitBody: { padding: spacing.sm, gap: 2 },
-  unitNumber: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  unitType: { ...typography.small, color: colors.primary, fontWeight: "600", fontSize: 11 },
-  unitSize: { ...typography.small, color: colors.stone500, fontSize: 11 },
-  unitPrice: { ...typography.body, color: colors.primary, fontWeight: "700", marginTop: 4 },
-  // Modal
-  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
-  modalCard: { backgroundColor: colors.white, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, gap: spacing.md },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.stone200, alignSelf: "center" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  modalPlot: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "700" },
-  modalProperty: { ...typography.small, color: colors.stone500 },
-  modalStatus: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.sm },
-  modalStatusText: { color: colors.white, fontSize: 10, fontWeight: "700", letterSpacing: 1 },
+  floorSection: { marginBottom: spacing.md },
+  unitCard: {
+    width: "100%",
+    backgroundColor: colors.offWhite,
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.stone100,
+  },
+  unitCardTablet: { width: "48%" },
+  unitCardSelected: { borderColor: colors.primary, borderWidth: 2, ...shadow.md },
+  unitMapHeader: { height: 108, alignItems: "center", justifyContent: "center", position: "relative" },
+  unitStatusPill: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  unitStatusText: { fontSize: 9, color: colors.white, fontWeight: "800", letterSpacing: 0.6 },
+  unitFloorBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  unitFloorText: { fontSize: 9, color: colors.white, fontWeight: "800", letterSpacing: 0.6 },
+  unitBody: { padding: spacing.md, gap: 4 },
+  unitNumber: { ...typography.bodyLarge, color: colors.primaryDeepest, fontWeight: "700" },
+  unitType: { ...typography.small, color: colors.primary, fontWeight: "700" },
+  unitMeta: { ...typography.small, color: colors.stone500 },
+  unitPrice: { ...typography.body, color: colors.primary, fontWeight: "800", marginTop: 4 },
+  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: spacing.xl },
+  emptyStateText: { ...typography.body, color: colors.stone500 },
+  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+    maxHeight: "84%",
+  },
+  modalHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: colors.stone200, alignSelf: "center" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  modalPlot: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "800" },
+  modalProperty: { ...typography.small, color: colors.stone500, marginTop: 2 },
+  modalStatus: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.full },
+  modalStatusText: { color: colors.white, fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
   modalGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  modalInfo: { flexBasis: "47%", flexDirection: "row", alignItems: "center", gap: 8, padding: spacing.sm, backgroundColor: colors.offWhite, borderRadius: radii.md },
+  modalInfo: {
+    flexBasis: "47%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: spacing.sm,
+    backgroundColor: colors.offWhite,
+    borderRadius: radii.md,
+  },
   modalInfoLabel: { ...typography.small, color: colors.stone500, fontSize: 11 },
   modalInfoValue: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  modalPriceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md, backgroundColor: colors.primary, borderRadius: radii.md },
-  modalPriceLabel: { ...typography.body, color: "rgba(255,255,255,0.8)", fontWeight: "600" },
-  modalPriceValue: { ...typography.h2, color: colors.white, fontWeight: "700" },
+  modalPriceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+  },
+  modalPriceLabel: { ...typography.body, color: "rgba(255,255,255,0.78)", fontWeight: "600" },
+  modalPriceValue: { ...typography.h2, color: colors.white, fontWeight: "800" },
   modalActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  modalIconBtn: { width: 48, height: 48, borderRadius: radii.md, backgroundColor: "#E6F9EE", alignItems: "center", justifyContent: "center" },
-  modalBookBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, backgroundColor: colors.primary, borderRadius: radii.md },
+  modalIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: "#E8F9EF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalIconBtnAccent: { backgroundColor: colors.accentSoft },
+  modalBookBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 14,
+  },
+  modalBookBtnDisabled: { backgroundColor: colors.stone300 },
   modalBookText: { ...typography.body, color: colors.white, fontWeight: "700" },
 });

@@ -20,7 +20,6 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
-          tabBarTestID: "tab-home",
         }}
       />
       <Tabs.Screen
@@ -28,7 +27,6 @@ export default function TabsLayout() {
         options={{
           title: "Payments",
           tabBarIcon: ({ color, size }) => <Feather name="credit-card" size={size} color={color} />,
-          tabBarTestID: "tab-payments",
         }}
       />
       <Tabs.Screen
@@ -36,7 +34,6 @@ export default function TabsLayout() {
         options={{
           title: "My Land",
           tabBarIcon: ({ color, size }) => <Feather name="map" size={size} color={color} />,
-          tabBarTestID: "tab-myland",
         }}
       />
       <Tabs.Screen
@@ -44,7 +41,6 @@ export default function TabsLayout() {
         options={{
           title: "Visits",
           tabBarIcon: ({ color, size }) => <Feather name="calendar" size={size} color={color} />,
-          tabBarTestID: "tab-visits",
         }}
       />
       <Tabs.Screen
@@ -52,7 +48,6 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
-          tabBarTestID: "tab-profile",
         }}
       />
     </Tabs>

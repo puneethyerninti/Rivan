@@ -79,7 +79,7 @@ export default function BookingScreen() {
             <Text style={styles.successDetailValue}>{formatINR(plot?.price)}</Text>
           </View>
           <Button title="View My Bookings" onPress={() => router.replace("/(tabs)/myland")} testID="booking-view-mybookings" />
-          <Button title="Back to Home" variant="ghost" onPress={() => router.replace("/(tabs)")} testID="booking-back-home" />
+          <Button title="Back to Home" variant="ghost" onPress={() => router.replace("/")} testID="booking-back-home" />
         </View>
       </SafeAreaView>
     );

@@ -11,7 +11,7 @@ const SERVICE_ICON_MAP: Record<string, any> = {
   Cleaning: "feather",
   "CCTV Installation": "video",
   "Compound Wall": "grid",
-  Construction: "tool",
+  "Villa/House": "home",
   Borewell: "droplet",
   Fencing: "shield",
   "Electricity Connection": "zap",

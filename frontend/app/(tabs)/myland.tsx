@@ -5,13 +5,13 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { api } from "@/src/api";
-import { colors, radii, spacing, typography, shadow, formatINR, formatINRFull } from "@/src/theme";
+import { colors, radii, spacing, typography, shadow, formatINR } from "@/src/theme";
 
 const SERVICE_ICONS: Record<string, any> = {
   Cleaning: "feather",
   "CCTV Installation": "video",
   "Compound Wall": "grid",
-  Construction: "tool",
+  "Villa/House": "home",
   Borewell: "droplet",
   Fencing: "shield",
   "Electricity Connection": "zap",
@@ -85,7 +85,7 @@ export default function MyLandScreen() {
   const [lands, setLands] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [paying, setPaying] = useState<string | null>(null);
 
@@ -171,7 +171,7 @@ export default function MyLandScreen() {
               <Feather name="map" size={48} color={colors.stone300} />
               <Text style={styles.emptyTitle}>Start your Rivan journey</Text>
               <Text style={styles.emptyText}>Book your first plot, villa or flat to unlock your real My Land dashboard.</Text>
-              <TouchableOpacity testID="myland-browse-button" style={styles.exploreBtn} onPress={() => router.push("/(tabs)")}>
+              <TouchableOpacity testID="myland-browse-button" style={styles.exploreBtn} onPress={() => router.push("/")}>
                 <Text style={styles.exploreBtnText}>Explore Properties</Text>
                 <Feather name="arrow-right" size={16} color={colors.white} />
               </TouchableOpacity>
@@ -271,16 +271,6 @@ function PurchasedCard({ land, services, notifications, router, isDemo }: any) {
           <QuickBtn icon="navigation" label="Directions" onPress={openMaps} testID={`myland-directions-${land.id}`} />
           <QuickBtn icon="calendar" label="Site Visit" onPress={() => router.push(`/centre/site-${land.property_id}`)} testID={`myland-sitevisit-${land.id}`} />
           <QuickBtn icon="phone" label="Support" onPress={callSupport} testID={`myland-support-${land.id}`} />
-        </View>
-
-        {/* Documents Section */}
-        <SectionHeader title="Property Documents" actionLabel="View All" onAction={() => router.push("/documents")} testID={`myland-docs-${land.id}`} />
-        <View style={styles.docRow}>
-          <DocChip label="Sale Deed" icon="award" color="#7E22CE" onPress={() => router.push("/documents")} />
-          <DocChip label="Agreement" icon="file-text" color={colors.primary} onPress={() => router.push("/documents")} />
-          <DocChip label="Registration" icon="check-circle" color="#BE185D" onPress={() => router.push("/documents")} />
-          <DocChip label="KYC" icon="user-check" color="#D97706" onPress={() => router.push("/documents")} />
-          <DocChip label="Receipts" icon="credit-card" color={colors.info} onPress={() => router.push("/(tabs)/payments")} />
         </View>
 
         {/* Payment Summary (compact) */}
@@ -400,19 +390,18 @@ function OngoingCard({ land, router, onPay, paying, notifications, isDemo }: any
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
-          <View style={styles.progressStats}>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatLabel}>Property Value</Text>
-              <Text style={styles.progressStatValue}>{formatINR(land.total_amount || land.price || 0)}</Text>
-            </View>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatLabel}>Amount Paid</Text>
-              <Text style={[styles.progressStatValue, { color: colors.accentLight }]}>{formatINR(land.paid_amount || 0)}</Text>
-            </View>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatLabel}>Balance</Text>
-              <Text style={[styles.progressStatValue, { color: colors.accent }]}>{formatINR(land.balance_amount || 0)}</Text>
-            </View>
+          <View style={styles.progressMilestones}>
+            {[10, 20, 50, 75, 100].map((step) => {
+              const active = progress >= step;
+              return (
+                <View key={step} style={styles.progressMilestone}>
+                  <View style={[styles.progressMilestoneDot, active && styles.progressMilestoneDotActive]} />
+                  <Text style={[styles.progressMilestoneText, active && styles.progressMilestoneTextActive]}>
+                    {step}%
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -435,8 +424,6 @@ function OngoingCard({ land, router, onPay, paying, notifications, isDemo }: any
             </View>
             <View style={styles.nextDueAmountRow}>
               <View>
-                <Text style={styles.nextDueAmountLabel}>Amount Due</Text>
-                <Text style={styles.nextDueAmount}>{formatINRFull(land.next_due.amount)}</Text>
                 <Text style={styles.nextDueDate}>Due on {land.next_due.due_date}</Text>
               </View>
               <TouchableOpacity
@@ -549,17 +536,6 @@ function QuickBtn({ icon, label, onPress, testID }: { icon: any; label: string; 
   );
 }
 
-function DocChip({ label, icon, color, onPress }: { label: string; icon: any; color: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.docChip} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.docChipIcon, { backgroundColor: `${color}18` }]}>
-        <Feather name={icon} size={16} color={color} />
-      </View>
-      <Text style={styles.docChipLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 function SectionHeader({ title, actionLabel, onAction, testID }: { title: string; actionLabel?: string; onAction?: () => void; testID?: string }) {
   return (
     <View style={styles.sectionHeader}>
@@ -637,12 +613,6 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700" },
   sectionAction: { ...typography.small, color: colors.accent, fontWeight: "700" },
 
-  // Docs
-  docRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  docChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.offWhite, borderRadius: radii.md, borderWidth: 1, borderColor: colors.stone100 },
-  docChipIcon: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  docChipLabel: { ...typography.small, color: colors.primaryDeepest, fontWeight: "600" },
-
   // Payment summary (purchased)
   paySummary: { flexDirection: "row", padding: spacing.md, backgroundColor: colors.offWhite, borderRadius: radii.md },
   paySummaryItem: { flex: 1, alignItems: "center" },
@@ -677,10 +647,27 @@ const styles = StyleSheet.create({
   progressPct: { ...typography.h2, color: colors.accent, fontWeight: "800" },
   progressBar: { height: 8, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 4, marginTop: 8, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: colors.accent, borderRadius: 4 },
-  progressStats: { flexDirection: "row", marginTop: spacing.sm, gap: 8 },
-  progressStat: { flex: 1 },
-  progressStatLabel: { ...typography.small, color: "rgba(255,255,255,0.6)", fontSize: 10 },
-  progressStatValue: { ...typography.body, color: colors.white, fontWeight: "700", marginTop: 2 },
+  progressMilestones: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.md, gap: 6 },
+  progressMilestone: { flex: 1, alignItems: "center", gap: 6 },
+  progressMilestoneDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "transparent",
+  },
+  progressMilestoneDotActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  progressMilestoneText: {
+    ...typography.small,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  progressMilestoneTextActive: { color: colors.white },
 
   // Next due (ongoing)
   nextDueCard: { padding: spacing.md, backgroundColor: "#FFFBEB", borderRadius: radii.md, borderWidth: 1.5, borderColor: colors.accentLight, gap: spacing.sm },
@@ -691,8 +678,6 @@ const styles = StyleSheet.create({
   nextDueStatus: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.sm },
   nextDueStatusText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
   nextDueAmountRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  nextDueAmountLabel: { ...typography.small, color: colors.stone500, fontSize: 11 },
-  nextDueAmount: { ...typography.h2, color: colors.accent, fontWeight: "800", marginTop: 2 },
   nextDueDate: { ...typography.small, color: colors.stone600, fontSize: 11, marginTop: 2 },
   payNowBtnBig: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 12, borderRadius: radii.md, minWidth: 110, justifyContent: "center" },
   payNowBigText: { ...typography.body, color: colors.white, fontWeight: "700" },

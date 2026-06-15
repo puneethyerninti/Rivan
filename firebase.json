@@ -1,0 +1,53 @@
+{
+  "hosting": {
+    "public": "frontend/dist",
+    "headers": [
+      {
+        "source": "**/*.ttf",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "font/ttf"
+          }
+        ]
+      },
+      {
+        "source": "**/*.otf",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "font/otf"
+          }
+        ]
+      },
+      {
+        "source": "**/*.woff",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "font/woff"
+          }
+        ]
+      },
+      {
+        "source": "**/*.woff2",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "font/woff2"
+          }
+        ]
+      }
+    ],
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

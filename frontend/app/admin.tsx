@@ -8,7 +8,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { colors, radii, spacing, typography, shadow } from "@/src/theme";
 
-type Tab = "stats" | "bookings" | "services" | "users";
+type Tab = "stats" | "bookings" | "services" | "users" | "agents" | "leads" | "pipeline" | "tasks" | "reports";
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -18,21 +18,27 @@ export default function AdminScreen() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [crm, setCrm] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [s, b, sr, u] = await Promise.all([
+      const [s, b, sr, u, a, crmDashboard] = await Promise.all([
         api.adminStats().catch(() => null),
         api.adminBookings().catch(() => []),
         api.adminServices().catch(() => []),
         api.adminUsers().catch(() => []),
+        api.adminAgents().catch(() => []),
+        api.crmAdminDashboard().catch(() => null),
       ]);
       setStats(s);
       setBookings(b as any[]);
       setServices(sr as any[]);
       setUsers(u as any[]);
+      setAgents(a as any[]);
+      setCrm(crmDashboard);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,6 +68,16 @@ export default function AdminScreen() {
   async function updateService(id: string, newStatus: string) {
     try {
       await api.adminUpdateService(id, newStatus);
+      await load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    }
+  }
+
+  async function approveAgent(id: string) {
+    try {
+      await api.adminApproveAgent(id);
+      Alert.alert("Approved", "Agent access has been activated.");
       await load();
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -100,7 +116,7 @@ export default function AdminScreen() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarInner}>
-        {(["stats", "bookings", "services", "users"] as Tab[]).map((t) => (
+        {(["stats", "bookings", "services", "users", "agents", "leads", "pipeline", "tasks", "reports"] as Tab[]).map((t) => (
           <TouchableOpacity
             key={t}
             testID={`admin-tab-${t}`}
@@ -108,7 +124,15 @@ export default function AdminScreen() {
             onPress={() => setTab(t)}
           >
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === "stats" ? "Overview" : t === "bookings" ? `Bookings (${bookings.length})` : t === "services" ? `Services (${services.length})` : `Users (${users.length})`}
+              {t === "stats" ? "Overview" :
+                t === "bookings" ? `Bookings (${bookings.length})` :
+                t === "services" ? `Services (${services.length})` :
+                t === "users" ? `Users (${users.length})` :
+                t === "agents" ? `Agents (${agents.length})` :
+                t === "leads" ? `Leads (${crm?.leads?.length || 0})` :
+                t === "pipeline" ? `Pipeline (${crm?.opportunities?.length || 0})` :
+                t === "tasks" ? `Tasks (${crm?.tasks?.length || 0})` :
+                "Reports"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -212,6 +236,120 @@ export default function AdminScreen() {
                 </View>
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {tab === "agents" ? (
+          <View style={{ gap: spacing.sm }}>
+            {agents.length === 0 ? <EmptyState text="No agents available" /> : agents.map((agent) => (
+              <View key={agent.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.userAvatar, { backgroundColor: agent.approval_status === "approved" ? colors.primary : colors.accent }]}>
+                    <Text style={styles.userAvatarText}>{(agent.name || "A")[0]?.toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{agent.name}</Text>
+                    <Text style={styles.cardSub}>{agent.email || agent.phone}</Text>
+                    <Text style={styles.cardMeta}>{agent.role === "sub_agent" ? "Sub-Agent" : "Agent"} · Manager: {agent.manager_name || "Rivan Admin"}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: agent.approval_status === "approved" ? "#E6F4EA" : "#FEF3C7" }]}>
+                    <Text style={[styles.statusText, { color: agent.approval_status === "approved" ? colors.success : "#D97706" }]}>
+                      {(agent.approval_status || "pending").toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.cardMeta}>Aadhaar: {agent.aadhaar_number || "-"} · Bank: {agent.bank_details || "-"}</Text>
+                {agent.approval_status !== "approved" ? (
+                  <TouchableOpacity testID={`admin-approve-agent-${agent.id}`} style={styles.confirmBtn} onPress={() => approveAgent(agent.id)}>
+                    <Feather name="check-circle" size={14} color={colors.white} />
+                    <Text style={styles.confirmBtnText}>Approve Agent Access</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {tab === "leads" ? (
+          <View style={{ gap: spacing.sm }}>
+            {(crm?.leads || []).length === 0 ? <EmptyState text="No CRM leads yet" /> : (crm?.leads || []).map((lead: any) => (
+              <View key={lead.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{lead.name}</Text>
+                    <Text style={styles.cardSub}>{lead.phone || lead.email || "No contact"} · {lead.source || "manual"}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: "#E0E7FF" }]}>
+                    <Text style={[styles.statusText, { color: colors.info }]}>{String(lead.status || "new").toUpperCase()}</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardMeta}>Assigned Agent: {lead.assigned_agent_id || "Unassigned"}</Text>
+                {lead.notes_summary ? <Text style={styles.cardMessage}>{lead.notes_summary}</Text> : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {tab === "pipeline" ? (
+          <View style={{ gap: spacing.sm }}>
+            {(crm?.opportunities || []).length === 0 ? <EmptyState text="No CRM opportunities yet" /> : (crm?.opportunities || []).map((item: any) => (
+              <View key={item.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{item.property_id}</Text>
+                    <Text style={styles.cardSub}>Lead: {item.lead_id} · Agent: {item.assigned_agent_id || "Unassigned"}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: "#E6F4EA" }]}>
+                    <Text style={[styles.statusText, { color: colors.success }]}>{String(item.stage || "new").toUpperCase()}</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardMeta}>Expected Value: {item.expected_value ? `₹${Number(item.expected_value).toLocaleString("en-IN")}` : "TBD"}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {tab === "tasks" ? (
+          <View style={{ gap: spacing.sm }}>
+            {(crm?.tasks || []).length === 0 ? <EmptyState text="No CRM tasks yet" /> : (crm?.tasks || []).map((task: any) => (
+              <View key={task.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{task.title}</Text>
+                    <Text style={styles.cardSub}>{task.task_type} · {task.assigned_to_user_id}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: task.status === "completed" ? "#E6F4EA" : "#FEF3C7" }]}>
+                    <Text style={[styles.statusText, { color: task.status === "completed" ? colors.success : "#D97706" }]}>{String(task.status || "open").toUpperCase()}</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardMeta}>Due: {task.due_at ? task.due_at.slice(0, 10) : "Not set"}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {tab === "reports" ? (
+          <View style={{ gap: spacing.sm }}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Stage Counts</Text>
+              {Object.entries(crm?.stage_counts || {}).map(([stage, count]: any) => (
+                <Text key={stage} style={styles.cardMeta}>{stage}: {String(count)}</Text>
+              ))}
+            </View>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Opportunities By Agent</Text>
+              {Object.entries(crm?.reports?.by_agent || {}).map(([agentId, count]: any) => (
+                <Text key={agentId} style={styles.cardMeta}>{agentId}: {String(count)}</Text>
+              ))}
+            </View>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Lost Reasons</Text>
+              {Object.entries(crm?.reports?.lost_reasons || {}).length === 0 ? (
+                <Text style={styles.cardMeta}>No lost opportunities yet.</Text>
+              ) : Object.entries(crm?.reports?.lost_reasons || {}).map(([reason, count]: any) => (
+                <Text key={reason} style={styles.cardMeta}>{reason}: {String(count)}</Text>
+              ))}
+            </View>
           </View>
         ) : null}
       </ScrollView>

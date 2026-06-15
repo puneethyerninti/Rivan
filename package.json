@@ -1,0 +1,23 @@
+{
+  "name": "rivaan",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js",
+    "backend": "node scripts/dev.js --backend-only",
+    "frontend": "npm --prefix frontend run start -- --lan -c",
+    "web": "npm --prefix frontend run web",
+    "lint": "npm --prefix frontend run lint"
+  },
+  "dependencies": {
+    "expo": "^56.0.9",
+    "firebase": "^12.14.0",
+    "react": "19.2.3",
+    "react-native": "0.85.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14",
+    "typescript": "~6.0.3"
+  },
+  "version": "1.0.0"
+}

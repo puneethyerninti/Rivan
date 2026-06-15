@@ -10,6 +10,8 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
+  useWindowDimensions,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -17,6 +19,8 @@ import { useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
+import { PropertyMedia } from "@/src/components/PropertyMedia";
+import { mockFeaturedProperties, mockProperties } from "@/src/mock-data";
 import { colors, radii, spacing, typography, shadow, formatINR } from "@/src/theme";
 
 const LOCATIONS = ["Hyderabad", "Shadnagar", "Gachibowli", "Kompally", "Madhapur"];
@@ -35,13 +39,15 @@ const CATEGORIES = [
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 900;
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [location, setLocation] = useState("Hyderabad");
   const [locationOpen, setLocationOpen] = useState(false);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [featured, setFeatured] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState<any[]>(mockProperties);
+  const [featured, setFeatured] = useState<any[]>(mockFeaturedProperties);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -74,8 +80,9 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]} testID="home-screen">
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.shell, isDesktop && styles.shellDesktop]}>
+        {/* Header */}
+        <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
             testID="home-location-button"
@@ -111,34 +118,34 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {locationOpen ? (
-        <View style={styles.locationDropdown} testID="home-location-dropdown">
-          {LOCATIONS.map((l) => (
-            <TouchableOpacity
-              key={l}
-              testID={`home-location-${l}`}
-              style={styles.locationItem}
-              onPress={() => {
-                setLocation(l);
-                setLocationOpen(false);
-              }}
-            >
-              <Feather
-                name={l === location ? "check" : "map-pin"}
-                size={14}
-                color={l === location ? colors.primary : colors.stone400}
-              />
-              <Text style={[styles.locationItemText, l === location && styles.locationItemActive]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
+        {locationOpen ? (
+          <View style={styles.locationDropdown} testID="home-location-dropdown">
+            {LOCATIONS.map((l) => (
+              <TouchableOpacity
+                key={l}
+                testID={`home-location-${l}`}
+                style={styles.locationItem}
+                onPress={() => {
+                  setLocation(l);
+                  setLocationOpen(false);
+                }}
+              >
+                <Feather
+                  name={l === location ? "check" : "map-pin"}
+                  size={14}
+                  color={l === location ? colors.primary : colors.stone400}
+                />
+                <Text style={[styles.locationItemText, l === location && styles.locationItemActive]}>{l}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
 
       <FlatList
         data={properties}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={[styles.listContent, isDesktop && styles.listContentDesktop]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         ListHeaderComponent={
           <View>
@@ -182,11 +189,11 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       key={p.id}
                       testID={`home-featured-${p.id}`}
-                      style={styles.featuredCard}
+                      style={[styles.featuredCard, isDesktop && styles.featuredCardDesktop]}
                       onPress={() => router.push(`/property/${p.id}`)}
                       activeOpacity={0.9}
                     >
-                      <Image source={{ uri: p.image }} style={styles.featuredImage} />
+                      <PropertyMedia image={p.image} videoUrl={p.videoUrl} style={styles.featuredImage} />
                       <View style={styles.featuredOverlay} />
                       <View style={styles.featuredContent}>
                         <View style={styles.categoryPillSmall}>
@@ -290,7 +297,13 @@ export default function HomeScreen() {
             </View>
           </View>
         }
-        renderItem={({ item }) => <PropertyCard property={item} onPress={() => router.push(`/property/${item.id}`)} />}
+        renderItem={({ item }) => (
+          <PropertyCard
+            property={item}
+            onPress={() => router.push(`/property/${item.id}`)}
+            onAvailability={() => router.push(`/layout/${item.id}`)}
+          />
+        )}
         ListEmptyComponent={
           loading ? (
             <View style={styles.empty}>
@@ -304,11 +317,12 @@ export default function HomeScreen() {
           )
         }
       />
+      </View>
     </SafeAreaView>
   );
 }
 
-function PropertyCard({ property, onPress }: { property: any; onPress: () => void }) {
+function PropertyCard({ property, onPress, onAvailability }: { property: any; onPress: () => void; onAvailability: () => void }) {
   return (
     <TouchableOpacity
       testID={`home-property-${property.id}`}
@@ -316,7 +330,7 @@ function PropertyCard({ property, onPress }: { property: any; onPress: () => voi
       onPress={onPress}
       activeOpacity={0.9}
     >
-      <Image source={{ uri: property.image }} style={styles.propertyImage} />
+      <PropertyMedia image={property.image} videoUrl={property.videoUrl} style={styles.propertyImage} />
       <View style={styles.propertyImageOverlay}>
         <View style={styles.availabilityBadge}>
           <View style={styles.availabilityDot} />
@@ -355,6 +369,32 @@ function PropertyCard({ property, onPress }: { property: any; onPress: () => voi
             <Feather name="arrow-right" size={14} color={colors.white} />
           </View>
         </View>
+        <View style={styles.availabilitySection}>
+          <View style={styles.availabilityHeader}>
+            <Text style={styles.availabilitySectionTitle}>Availability</Text>
+          </View>
+          <View style={styles.availabilityPanel}>
+            <View style={styles.availabilityPanelIcon}>
+              <Feather name="map" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.availabilityPanelBody}>
+              <Text style={styles.availabilityPanelTitle}>Interactive live map</Text>
+              <Text style={styles.availabilityPanelText} numberOfLines={2}>
+                Explore available plots, villas, and units with status markers, pricing, and booking details.
+              </Text>
+            </View>
+            <TouchableOpacity
+              testID={`home-availability-${property.id}`}
+              style={styles.availabilityActionBtn}
+              onPress={onAvailability}
+              accessibilityRole="button"
+              accessibilityLabel={`Open availability map for ${property.name}`}
+            >
+              <Text style={styles.availabilityActionText}>Availability</Text>
+              <Feather name="arrow-up-right" size={15} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -362,6 +402,10 @@ function PropertyCard({ property, onPress }: { property: any; onPress: () => voi
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
+  shell: { flex: 1, width: "100%", alignSelf: "center" },
+  shellDesktop: { paddingHorizontal: spacing.lg },
+  listContent: { paddingBottom: 80 },
+  listContentDesktop: { paddingBottom: 120 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -428,6 +472,7 @@ const styles = StyleSheet.create({
   featuredTagText: { ...typography.label, color: colors.accentDark, fontSize: 10 },
   featuredScroll: { gap: spacing.md, paddingRight: spacing.lg },
   featuredCard: { width: 280, height: 200, borderRadius: radii.lg, overflow: "hidden", ...shadow.md },
+  featuredCardDesktop: { width: 360, height: 230 },
   featuredImage: { width: "100%", height: "100%", position: "absolute" },
   featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(5,47,15,0.45)" },
   featuredContent: { flex: 1, padding: spacing.md, justifyContent: "flex-end", gap: 4 },
@@ -456,8 +501,8 @@ const styles = StyleSheet.create({
   quickAction: { alignItems: "center", gap: 6 },
   quickIcon: { width: 52, height: 52, borderRadius: radii.md, alignItems: "center", justifyContent: "center" },
   quickLabel: { ...typography.small, color: colors.stone700, fontWeight: "600" },
-  propertyCard: { backgroundColor: colors.white, marginHorizontal: spacing.lg, marginBottom: spacing.md, borderRadius: radii.lg, overflow: "hidden", ...shadow.sm },
-  propertyImage: { width: "100%", height: 180 },
+  propertyCard: { backgroundColor: colors.white, marginHorizontal: spacing.lg, marginBottom: spacing.md, borderRadius: radii.lg, overflow: "hidden", ...shadow.sm, width: "100%", maxWidth: 1200, alignSelf: "center" },
+  propertyImage: { width: "100%", height: 180, backgroundColor: colors.stone100 },
   propertyImageOverlay: { position: "absolute", top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: "row", justifyContent: "space-between" },
   availabilityBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(16,185,129,0.95)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.sm },
   availabilityDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.white },
@@ -472,6 +517,68 @@ const styles = StyleSheet.create({
   price: { ...typography.h4, color: colors.primary, fontWeight: "700" },
   viewBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radii.md },
   viewBtnText: { ...typography.body, color: colors.white, fontWeight: "700" },
+  availabilitySection: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.stone100,
+    gap: spacing.sm,
+  },
+  availabilityHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  availabilitySectionTitle: {
+    ...typography.body,
+    color: colors.primaryDeepest,
+    fontWeight: "700",
+  },
+  availabilityPanel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.offWhite,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+  },
+  availabilityPanelIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#E6F4EA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  availabilityPanelBody: {
+    flex: 1,
+    gap: 3,
+  },
+  availabilityPanelTitle: {
+    ...typography.body,
+    color: colors.primaryDeepest,
+    fontWeight: "700",
+  },
+  availabilityPanelText: {
+    ...typography.small,
+    color: colors.stone600,
+  },
+  availabilityActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+  },
+  availabilityActionText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: "700",
+  },
   empty: { padding: spacing.xl, alignItems: "center", gap: spacing.sm },
   emptyText: { ...typography.body, color: colors.stone500 },
 });

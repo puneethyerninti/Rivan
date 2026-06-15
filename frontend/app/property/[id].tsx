@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, Alert, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Linking, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api } from "@/src/api";
+import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { colors, radii, spacing, typography, shadow, formatINR, formatINRFull } from "@/src/theme";
-
-const { width } = Dimensions.get("window");
 
 export default function PropertyDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const heroWidth = Math.min(width, 1200);
   const [property, setProperty] = useState<any>(null);
   const [plots, setPlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,10 +64,15 @@ export default function PropertyDetails() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / width))}
+            onMomentumScrollEnd={(e) => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / heroWidth))}
           >
-            {images.map((url, i) => (
-              <Image key={i} source={{ uri: url }} style={styles.heroImage} />
+            {(property.videoUrl ? [property.image] : images).map((media, i) => (
+              <PropertyMedia
+                key={i}
+                image={media}
+                videoUrl={property.videoUrl}
+                style={[styles.heroImage, { width: heroWidth }]}
+              />
             ))}
           </ScrollView>
           <View style={styles.heroOverlay} />
@@ -86,7 +92,7 @@ export default function PropertyDetails() {
             </View>
           </SafeAreaView>
           <View style={styles.dots}>
-            {images.map((_, i) => (
+            {(property.videoUrl ? [0] : images).map((_, i) => (
               <View key={i} style={[styles.dot, i === imgIdx && styles.dotActive]} />
             ))}
           </View>
@@ -212,10 +218,12 @@ export default function PropertyDetails() {
               testID="property-layout-button"
               style={[styles.actionBtn, styles.actionBtnPrimary]}
               onPress={() => router.push(`/layout/${id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open availability map for ${property.name}`}
             >
-              <Feather name="grid" size={16} color={colors.white} />
+              <Feather name="map" size={16} color={colors.white} />
               <Text style={styles.actionBtnTextPrimary}>
-                {property.category === "Open Plots" || property.category === "Layouts" ? "View Layout" : "View Availability"}
+                Availability
               </Text>
             </TouchableOpacity>
           ) : (
@@ -248,8 +256,8 @@ function SpecItem({ icon, label, value }: { icon: any; label: string; value?: st
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.white },
-  galleryWrap: { width, height: 320, position: "relative", backgroundColor: colors.stone200 },
-  heroImage: { width, height: 320 },
+  galleryWrap: { width: "100%", maxWidth: 1200, alignSelf: "center", height: 280, position: "relative", backgroundColor: colors.stone200 },
+  heroImage: { width: "100%", height: 280 },
   heroOverlay: { position: "absolute", left: 0, right: 0, top: 0, height: 120, backgroundColor: "rgba(0,0,0,0.25)" },
   heroNav: { position: "absolute", top: 0, left: 0, right: 0 },
   heroNavRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md },
@@ -260,7 +268,7 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.white, width: 20 },
   categoryPill: { position: "absolute", top: 80, right: spacing.md, backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.sm },
   categoryText: { color: colors.white, fontSize: 10, fontWeight: "700", letterSpacing: 1 },
-  content: { padding: spacing.lg, gap: spacing.sm },
+  content: { padding: spacing.lg, gap: spacing.sm, width: "100%", maxWidth: 1200, alignSelf: "center" },
   title: { ...typography.h1, color: colors.primaryDeepest, fontWeight: "700" },
   row: { flexDirection: "row", alignItems: "center", gap: 4 },
   location: { ...typography.body, color: colors.stone600 },
@@ -292,7 +300,7 @@ const styles = StyleSheet.create({
   brochureTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
   brochureSub: { ...typography.small, color: colors.stone500 },
   actionBarWrap: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.stone100, ...shadow.lg },
-  actionBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
+  actionBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, width: "100%", maxWidth: 1200, alignSelf: "center" },
   iconAction: { width: 48, height: 48, borderRadius: radii.md, backgroundColor: "#E6F9EE", alignItems: "center", justifyContent: "center" },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14, borderRadius: radii.md },
   actionBtnSecondary: { borderWidth: 1.5, borderColor: colors.accent },

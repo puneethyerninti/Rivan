@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -33,9 +33,25 @@ export default function ProfileScreen() {
   }
 
   async function handleLogout() {
+    const performSignOut = async () => {
+      await signOut();
+      router.replace("/login");
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      if (window.confirm("Sign out of your Rivan account?")) {
+        await performSignOut();
+      }
+      return;
+    }
+
     Alert.alert("Sign out?", "You'll need to verify OTP to sign in again.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => signOut() },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: performSignOut,
+      },
     ]);
   }
 
@@ -89,6 +105,9 @@ export default function ProfileScreen() {
             <MenuItem icon="user" label="Personal Information" testID="profile-info" onPress={() => setEditing(true)} />
             <MenuItem icon="shield" label="KYC Verification" testID="profile-kyc" onPress={() => Alert.alert("KYC", "KYC documents can be uploaded via Document Locker")} />
             <MenuItem icon="settings" label="Notification Settings" testID="profile-settings" onPress={() => Alert.alert("Settings", "All notifications enabled")} />
+            {user?.role === "agent" || user?.role === "sub_agent" ? (
+              <MenuItem icon="briefcase" label="Agent Dashboard" testID="profile-agent" onPress={() => router.push("/agent")} accent />
+            ) : null}
             {user?.is_admin ? (
               <MenuItem icon="grid" label="Admin Dashboard" testID="profile-admin" onPress={() => router.push("/admin")} accent />
             ) : null}

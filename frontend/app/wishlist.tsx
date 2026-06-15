@@ -45,7 +45,7 @@ export default function WishlistScreen() {
             <Feather name="heart" size={56} color={colors.stone300} />
             <Text style={styles.emptyTitle}>No saved properties</Text>
             <Text style={styles.emptyText}>Tap the heart icon on any property to save it for later.</Text>
-            <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push("/(tabs)")}>
+            <TouchableOpacity style={styles.exploreBtn} onPress={() => router.push("/")}>
               <Text style={styles.exploreBtnText}>Explore Properties</Text>
             </TouchableOpacity>
           </View>

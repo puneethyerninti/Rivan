@@ -29,8 +29,18 @@ next-env.d.ts
 /build
 dist/
 dist
+frontend/dist/
 
 # Environment files (comprehensive coverage)
+.env
+.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+backend/.env
+frontend/.env
+frontend/google-services.json
+android/app/google-services.json
 
 *token.json*
 *credentials.json*
@@ -72,11 +82,20 @@ agenthub/agents/youtube/db
 *.pack
 *.deb
 *.dylib
+frontend/assets/videos/*.mp4
 
 # Build caches
 .cache/
+frontend/.metro-cache/
+.firebase/
+.expo/
 
 memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+android/app/debug.keystore
+
+# Local backend state
+backend/*.log
+backend/local_auth_store.json

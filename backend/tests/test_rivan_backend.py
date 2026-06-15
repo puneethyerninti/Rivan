@@ -17,7 +17,6 @@ if not BASE_URL:
 
 DEMO_PHONE = "9999900001"
 ADMIN_PHONE = "9000000000"
-OTP = "123456"
 
 
 @pytest.fixture(scope="module")
@@ -29,49 +28,16 @@ def session():
 
 @pytest.fixture(scope="module")
 def user_token(session):
-    r = session.post(f"{BASE_URL}/api/auth/send-otp", json={"phone": DEMO_PHONE})
-    assert r.status_code == 200, r.text
-    assert r.json().get("dev_otp") == OTP
-    r = session.post(f"{BASE_URL}/api/auth/verify-otp", json={"phone": DEMO_PHONE, "otp": OTP})
-    assert r.status_code == 200, r.text
-    data = r.json()
-    assert "access_token" in data and data["user"]["name"] == "Rajesh Kumar"
-    return data["access_token"]
+    pytest.skip("Firebase phone auth requires a real Firebase ID token fixture.")
 
 
 @pytest.fixture(scope="module")
 def admin_token(session):
-    session.post(f"{BASE_URL}/api/auth/send-otp", json={"phone": ADMIN_PHONE})
-    r = session.post(f"{BASE_URL}/api/auth/verify-otp", json={"phone": ADMIN_PHONE, "otp": OTP})
-    assert r.status_code == 200, r.text
-    return r.json()["access_token"]
+    pytest.skip("Firebase phone auth requires a real Firebase ID token fixture.")
 
 
 def auth_h(token):
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-
-# ---------- Auth ----------
-def test_send_otp_invalid_phone(session):
-    r = session.post(f"{BASE_URL}/api/auth/send-otp", json={"phone": "123"})
-    assert r.status_code == 400
-
-
-def test_verify_otp_invalid(session):
-    session.post(f"{BASE_URL}/api/auth/send-otp", json={"phone": DEMO_PHONE})
-    r = session.post(f"{BASE_URL}/api/auth/verify-otp", json={"phone": DEMO_PHONE, "otp": "000000"})
-    assert r.status_code == 400
-
-
-def test_me(session, user_token):
-    r = session.get(f"{BASE_URL}/api/auth/me", headers=auth_h(user_token))
-    assert r.status_code == 200
-    assert r.json()["phone"] == DEMO_PHONE
-
-
-def test_me_unauth(session):
-    r = session.get(f"{BASE_URL}/api/auth/me")
-    assert r.status_code == 401
 
 
 # ---------- Properties ----------

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: rivan-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_NAME
+        value: rivaan
+      - key: JWT_EXPIRE_MINUTES
+        value: "10080"
+      - key: ALLOW_DEV_OTP
+        value: "false"
+      - key: ALLOW_LOCAL_AUTH_FALLBACK
+        value: "false"
+      - key: DB_AVAILABILITY_TIMEOUT_SECONDS
+        value: "0.75"
+      - key: DB_AVAILABILITY_TTL_SECONDS
+        value: "10"
+      - key: CORS_ORIGINS
+        value: http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006,https://rivan-auth-live.web.app,https://rivan-auth-live.firebaseapp.com
+      - key: CORS_ORIGIN_REGEX
+        value: ^https://.*$
+      - key: FIREBASE_PROJECT_ID
+        value: rivan-auth-live
