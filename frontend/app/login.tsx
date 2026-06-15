@@ -42,6 +42,10 @@ const LOGIN_VIDEO_URL = "https://res.cloudinary.com/dzisksq78/video/upload/v1780
 const LOGIN_VIDEO_POSTER = "https://images.unsplash.com/photo-1512917774080-9991f1c4c750";
 const WEB_RECAPTCHA_CONTAINER_ID_PREFIX = "firebase-phone-recaptcha";
 
+function readPublicEnv(name: string) {
+  return (process.env[name] || "").trim().replace(/^['"]|['"]$/g, "");
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
@@ -68,9 +72,9 @@ export default function LoginScreen() {
   const [recaptchaReady, setRecaptchaReady] = useState(false);
   const [recaptchaSolved, setRecaptchaSolved] = useState(false);
 
-  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "";
-  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
-  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "";
+  const googleWebClientId = readPublicEnv("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID");
+  const googleAndroidClientId = readPublicEnv("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID");
+  const googleIosClientId = readPublicEnv("EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID");
   const isExpoGo = Constants.appOwnership === "expo";
   const isLocalhostWeb =
     Platform.OS === "web" &&
@@ -86,7 +90,7 @@ export default function LoginScreen() {
     default: googleWebClientId,
   });
   const googleRedirectUri =
-    process.env.EXPO_PUBLIC_GOOGLE_REDIRECT_URI?.trim() ||
+    readPublicEnv("EXPO_PUBLIC_GOOGLE_REDIRECT_URI") ||
     (Platform.OS === "web"
       ? isHostedWeb && typeof window !== "undefined"
         ? `${window.location.origin}${window.location.pathname || "/login"}`
@@ -150,7 +154,7 @@ export default function LoginScreen() {
   const phoneDigits = useMemo(() => phone.replace(/\D/g, "").slice(-10), [phone]);
   const validOtp = otp.every((digit) => digit.length === 1);
   const useFirebaseTestPhoneAuth =
-    isLocalhostWeb && process.env.EXPO_PUBLIC_FIREBASE_USE_TEST_PHONE_AUTH === "true";
+    isLocalhostWeb && readPublicEnv("EXPO_PUBLIC_FIREBASE_USE_TEST_PHONE_AUTH") === "true";
 
   useEffect(() => {
     if (!isLocalhostWeb || activeTab !== "phone" || !useFirebaseTestPhoneAuth) return;

@@ -41,10 +41,17 @@ load_dotenv(ROOT_DIR / '.env')
 
 def get_env_value(*keys: str, default: str = "") -> str:
     for key in keys:
-        value = os.environ.get(key, "").strip()
+        value = os.environ.get(key, "").strip().strip("\"'")
         if value:
             return value
     return default
+
+
+def get_env_bool(key: str, default: bool = False) -> bool:
+    raw = os.environ.get(key)
+    if raw is None:
+        return default
+    return raw.strip().strip("\"'").lower() in {"1", "true", "yes", "on"}
 
 
 # ---------- Config ----------
@@ -52,7 +59,7 @@ MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ.get("DB_NAME", "rivaan")
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
-ALLOW_LOCAL_AUTH_FALLBACK = os.environ.get("ALLOW_LOCAL_AUTH_FALLBACK", "true").lower() == "true"
+ALLOW_LOCAL_AUTH_FALLBACK = get_env_bool("ALLOW_LOCAL_AUTH_FALLBACK", True)
 GOOGLE_WEB_CLIENT_ID = get_env_value("GOOGLE_WEB_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID")
 GOOGLE_ANDROID_CLIENT_ID = get_env_value("GOOGLE_ANDROID_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID")
 GOOGLE_IOS_CLIENT_ID = get_env_value("GOOGLE_IOS_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID")

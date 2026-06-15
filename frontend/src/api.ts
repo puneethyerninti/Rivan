@@ -5,7 +5,11 @@ import { NativeModules, Platform } from "react-native";
 
 import { storage } from "@/src/utils/storage";
 
-const ENV_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+function readPublicEnv(name: string) {
+  return (process.env[name] || "").trim().replace(/^['"]|['"]$/g, "");
+}
+
+const ENV_BACKEND_URL = readPublicEnv("EXPO_PUBLIC_BACKEND_URL");
 const HOSTED_PRODUCTION_BACKEND_URL = "https://rivan.onrender.com";
 const TOKEN_KEY = "rivan_token";
 const GET_CACHE_TTL_MS = 120000;
