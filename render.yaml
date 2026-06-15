@@ -24,7 +24,9 @@ services:
       - key: ALLOW_DEV_OTP
         value: "false"
       - key: ALLOW_LOCAL_AUTH_FALLBACK
-        value: "false"
+        value: "true"
+      - key: GOOGLE_ALLOWED_CLIENT_IDS
+        sync: false
       - key: DB_AVAILABILITY_TIMEOUT_SECONDS
         value: "0.75"
       - key: DB_AVAILABILITY_TTL_SECONDS

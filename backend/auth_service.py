@@ -126,8 +126,12 @@ def verify_google_id_token(id_token: str, expected_audience: str | Sequence[str]
 
     payload = response.json()
     aud = payload.get("aud")
-    if aud not in valid_audiences:
-        raise HTTPException(status_code=401, detail="Google token audience mismatch")
+    azp = payload.get("azp")
+    if aud not in valid_audiences and azp not in valid_audiences:
+        raise HTTPException(
+            status_code=401,
+            detail="Google token audience mismatch. Ensure the frontend Google client ID and backend Google client ID match for this platform.",
+        )
     if payload.get("email_verified") not in ("true", True):
         raise HTTPException(status_code=401, detail="Google email is not verified")
     if not payload.get("sub") or not payload.get("email"):

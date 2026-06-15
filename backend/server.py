@@ -38,15 +38,29 @@ ROOT_DIR = Path(__file__).parent
 LOCAL_STORE_PATH = ROOT_DIR / "local_auth_store.json"
 load_dotenv(ROOT_DIR / '.env')
 
+
+def get_env_value(*keys: str, default: str = "") -> str:
+    for key in keys:
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    return default
+
+
 # ---------- Config ----------
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ.get("DB_NAME", "rivaan")
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
-ALLOW_LOCAL_AUTH_FALLBACK = os.environ.get("ALLOW_LOCAL_AUTH_FALLBACK", "false").lower() == "true"
-GOOGLE_WEB_CLIENT_ID = os.environ.get("GOOGLE_WEB_CLIENT_ID", "")
-GOOGLE_ANDROID_CLIENT_ID = os.environ.get("GOOGLE_ANDROID_CLIENT_ID", "")
-GOOGLE_IOS_CLIENT_ID = os.environ.get("GOOGLE_IOS_CLIENT_ID", "")
+ALLOW_LOCAL_AUTH_FALLBACK = os.environ.get("ALLOW_LOCAL_AUTH_FALLBACK", "true").lower() == "true"
+GOOGLE_WEB_CLIENT_ID = get_env_value("GOOGLE_WEB_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID")
+GOOGLE_ANDROID_CLIENT_ID = get_env_value("GOOGLE_ANDROID_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID")
+GOOGLE_IOS_CLIENT_ID = get_env_value("GOOGLE_IOS_CLIENT_ID", "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID")
+GOOGLE_ALLOWED_CLIENT_IDS = [
+    value.strip()
+    for value in get_env_value("GOOGLE_ALLOWED_CLIENT_IDS").split(",")
+    if value.strip()
+]
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 def get_firebase_project_id() -> str:
@@ -54,7 +68,16 @@ def get_firebase_project_id() -> str:
 
 
 def get_google_client_ids() -> List[str]:
-    return [client_id for client_id in (GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_IOS_CLIENT_ID) if client_id]
+    return [
+        client_id
+        for client_id in (
+            GOOGLE_WEB_CLIENT_ID,
+            GOOGLE_ANDROID_CLIENT_ID,
+            GOOGLE_IOS_CLIENT_ID,
+            *GOOGLE_ALLOWED_CLIENT_IDS,
+        )
+        if client_id
+    ]
 
 
 VILLA_VIDEO_URL = "https://res.cloudinary.com/dzisksq78/video/upload/v1780939161/villa_1_ltxt2q.mp4"
