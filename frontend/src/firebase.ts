@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { FirebaseApp } from "firebase/app";
 import { initializeApp, getApps } from "firebase/app";
 import { Platform } from "react-native";
 import { getAuth, getReactNativePersistence, initializeAuth } from "firebase/auth";
@@ -16,19 +17,29 @@ const firebaseConfig = {
   appId: readPublicEnv("EXPO_PUBLIC_FIREBASE_APP_ID"),
 };
 
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
-  throw new Error(
-    `Firebase configuration is missing for ${Platform.OS}. Set EXPO_PUBLIC_FIREBASE_* variables before starting or building the app.`
-  );
-}
+export const hasFirebaseConfig = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId
+);
 
-export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+export const firebaseConfigError = hasFirebaseConfig
+  ? ""
+  : `Firebase configuration is missing for ${Platform.OS}. Set EXPO_PUBLIC_FIREBASE_* variables before starting or building the app.`;
+
+export const firebaseApp: FirebaseApp | null = hasFirebaseConfig
+  ? getApps().length
+    ? getApps()[0]
+    : initializeApp(firebaseConfig)
+  : null;
 
 let firebaseAuthInstance: ReturnType<typeof getAuth> | null = null;
 
 export function getFirebaseAuth() {
   if (firebaseAuthInstance) {
     return firebaseAuthInstance;
+  }
+
+  if (!firebaseApp || !hasFirebaseConfig) {
+    throw new Error(firebaseConfigError || "Firebase configuration is unavailable.");
   }
 
   if (Platform.OS === "web") {

@@ -25,7 +25,7 @@ import { getIdToken, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/a
 import { Button } from "@/src/components/Button";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { useAuth } from "@/src/auth-context";
-import { getFirebaseAuth } from "@/src/firebase";
+import { firebaseConfigError, getFirebaseAuth, hasFirebaseConfig } from "@/src/firebase";
 import { api } from "@/src/api";
 import { colors, radii, spacing, typography } from "@/src/theme";
 
@@ -287,6 +287,9 @@ export default function LoginScreen() {
 
   async function handleSendOtp() {
     setErrorMessage("");
+    if (!hasFirebaseConfig) {
+      return showFormError(firebaseConfigError || "Firebase web configuration is missing.");
+    }
     if (phoneDigits.length !== 10) return showFormError("Please enter a valid 10-digit mobile number.");
     if (otpCooldownSeconds > 0) return showFormError(`Please wait ${otpCooldownSeconds}s before requesting another OTP.`);
 
@@ -357,6 +360,9 @@ export default function LoginScreen() {
 
   async function handleGoogleLogin() {
     setErrorMessage("");
+    if (!hasFirebaseConfig) {
+      return showFormError(firebaseConfigError || "Firebase web configuration is missing.");
+    }
     if (!googleWebClientId) {
       return showFormError("Google client ID is missing from the app configuration.");
     }
@@ -466,6 +472,15 @@ export default function LoginScreen() {
                 <View style={styles.errorBanner}>
                   <Feather name="alert-circle" size={14} color={colors.danger} />
                   <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {!hasFirebaseConfig ? (
+                <View style={styles.errorBanner}>
+                  <Feather name="tool" size={14} color={colors.danger} />
+                  <Text style={styles.errorBannerText}>
+                    {firebaseConfigError} Rebuild the web app after setting the EXPO_PUBLIC_FIREBASE_* variables.
+                  </Text>
                 </View>
               ) : null}
 
