@@ -23,7 +23,8 @@ function RootLayoutInner() {
     if (isLoading) return;
     const rootSegment = segments[0];
     const isAgent = user?.role === "agent" || user?.role === "sub_agent";
-    const isPublicEntry = !rootSegment || rootSegment === "login" || rootSegment === "agent-login";
+    const guestAllowedSegments = new Set(["", "login", "agent-login", "property", "layout", "centre"]);
+    const isPublicEntry = !rootSegment || guestAllowedSegments.has(rootSegment);
     const allowPublicAgentPreview = Platform.OS === "web" && !isAuthed && rootSegment === "agent";
     const agentAllowedSegments = new Set(["agent", "layout", "booking", "property", "notifications"]);
     const customerRestrictedSegments = new Set(["agent", "agent-login", "admin"]);

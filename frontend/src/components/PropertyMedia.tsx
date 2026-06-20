@@ -1,14 +1,17 @@
 import React from "react";
-import { Image, Platform, StyleProp, View, ViewStyle } from "react-native";
+import { Image, ImageSourcePropType, Platform, StyleProp, View, ViewStyle } from "react-native";
 import { WebView } from "react-native-webview";
 
 type Props = {
-  image: string;
+  image: string | ImageSourcePropType;
   videoUrl?: string;
   style?: StyleProp<ViewStyle>;
 };
 
 export function PropertyMedia({ image, videoUrl, style }: Props) {
+  const imageSource = typeof image === "string" ? { uri: image } : image;
+  const poster = typeof image === "string" ? image : undefined;
+
   if (Platform.OS === "web" && videoUrl) {
     return (
       <View style={[style as any, { overflow: "hidden", backgroundColor: "#000" }]}>
@@ -22,7 +25,7 @@ export function PropertyMedia({ image, videoUrl, style }: Props) {
             backgroundColor: "#000",
           },
           src: videoUrl,
-          poster: image,
+          poster,
           preload: "auto",
           autoPlay: true,
           muted: true,
@@ -50,7 +53,7 @@ export function PropertyMedia({ image, videoUrl, style }: Props) {
           <body>
             <video
               src="${safeUri}"
-              poster="${image}"
+              poster="${poster || ""}"
               autoplay
               muted
               loop
@@ -81,5 +84,5 @@ export function PropertyMedia({ image, videoUrl, style }: Props) {
       );
   }
 
-  return <Image source={{ uri: image }} style={style as any} />;
+  return <Image source={imageSource} style={style as any} />;
 }

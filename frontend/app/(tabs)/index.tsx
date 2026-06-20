@@ -78,24 +78,16 @@ export function HomeScreen() {
 
   const openPropertyDetails = useCallback(
     (propertyId: string) => {
-      if (!isAuthed) {
-        openAuthModal("login", `/property/${propertyId}`);
-        return;
-      }
       router.push(`/property/${propertyId}`);
     },
-    [isAuthed, openAuthModal, router]
+    [router]
   );
 
   const openAvailability = useCallback(
     (propertyId: string) => {
-      if (!isAuthed) {
-        openAuthModal("login", `/layout/${propertyId}`);
-        return;
-      }
-      router.push(`/layout/${propertyId}`);
+      router.push(`/property/${propertyId}`);
     },
-    [isAuthed, openAuthModal, router]
+    [router]
   );
 
   const handleAuthSuccess = useCallback(() => {
@@ -109,14 +101,26 @@ export function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [props, feat, notifs, crmRelationship] = await Promise.all([
-        api.listProperties({ category: category === "all" ? undefined : category, search }),
-        api.featured(),
-        api.notifications().catch(() => []),
-        api.customerRelationship().catch(() => null),
+      const [, , notifs, crmRelationship] = await Promise.all([
+        api.listProperties({ category: category === "all" ? undefined : category, search }).catch(() => []),
+        api.featured().catch(() => []),
+        isAuthed ? api.notifications().catch(() => []) : Promise.resolve([]),
+        isAuthed ? api.customerRelationship().catch(() => null) : Promise.resolve(null),
       ]);
-      setProperties(props as any[]);
-      setFeatured(feat as any[]);
+      const normalizedCategory = category === "all" ? "" : category.toLowerCase();
+      const normalizedSearch = search.trim().toLowerCase();
+      const filtered = mockProperties.filter((property) => {
+        const categoryMatch = !normalizedCategory || property.category.toLowerCase() === normalizedCategory;
+        const searchMatch =
+          !normalizedSearch ||
+          property.name.toLowerCase().includes(normalizedSearch) ||
+          property.location.toLowerCase().includes(normalizedSearch) ||
+          property.category.toLowerCase().includes(normalizedSearch);
+        return categoryMatch && searchMatch;
+      });
+
+      setProperties(filtered);
+      setFeatured(mockFeaturedProperties);
       setUnreadCount((notifs as any[]).filter((n) => !n.read).length);
       setRelationship(crmRelationship);
     } catch (e: any) {
@@ -125,7 +129,7 @@ export function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [category, search]);
+  }, [category, search, isAuthed]);
 
   useEffect(() => {
     fetchData();
@@ -232,14 +236,7 @@ export function HomeScreen() {
         ListHeaderComponent={
           <View>
             <View style={[styles.heroBand, isDesktop && styles.heroBandDesktop]}>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroEyebrow}>Curated property discovery</Text>
-                <Text style={styles.heroTitle}>Move faster from browsing to site visit.</Text>
-                <Text style={styles.heroText}>
-                  Search projects, review live availability, and keep your relationship owner and saved actions close by.
-                </Text>
-              </View>
-              <View style={styles.heroSearchCard}>
+              <View style={[styles.heroSearchCard, styles.heroSearchCardExpanded]}>
                 <View style={styles.searchBox}>
                   <Feather name="search" size={18} color={colors.stone400} />
                   <TextInput
@@ -279,9 +276,9 @@ export function HomeScreen() {
                     <Text style={styles.quickLabel}>Documents</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    testID="home-quick-wishlist"
-                    style={styles.quickAction}
-                    onPress={() => openProtectedRoute("/wishlist")}
+                      testID="home-quick-wishlist"
+                      style={styles.quickAction}
+                      onPress={() => openProtectedRoute("/wishlist")}
                   >
                     <View style={[styles.quickIcon, { backgroundColor: "#FEE2E2" }]}>
                       <Feather name="heart" size={18} color={colors.danger} />
@@ -378,7 +375,7 @@ export function HomeScreen() {
                             {p.location}
                           </Text>
                         </View>
-                        <Text style={styles.featuredPrice}>From {formatINR(p.starting_price)}</Text>
+                      <Text style={styles.featuredPrice}>{p.starting_price > 0 ? `From ${formatINR(p.starting_price)}` : "Price on request"}</Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -415,19 +412,14 @@ export function HomeScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                {category === "all" ? "All Properties" : category} ({properties.length})
+            {category === "all" ? "All Properties" : category} ({properties.length})
               </Text>
             </View>
           </View>
         }
         renderItem={({ item }) => (
           <View style={[styles.propertyCell, propertyColumns > 1 && styles.propertyCellDesktop]}>
-            <PropertyCard
-              property={item}
-              onPress={() => openPropertyDetails(item.id)}
-              onAvailability={() => openAvailability(item.id)}
-              compact={useCompactPropertyCard}
-            />
+            <PropertyCard property={item} onPress={() => openPropertyDetails(item.id)} onAvailability={() => openAvailability(item.id)} compact={useCompactPropertyCard} />
           </View>
         )}
         ListEmptyComponent={
@@ -470,6 +462,8 @@ function formatRelationshipStatus(type?: string, status?: string) {
 }
 
 function PropertyCard({ property, onPress, onAvailability, compact }: { property: any; onPress: () => void; onAvailability: () => void; compact?: boolean }) {
+  const priceText = property.starting_price > 0 ? formatINR(property.starting_price) : "Price on request";
+
   return (
     <TouchableOpacity
       testID={`home-property-${property.id}`}
@@ -509,12 +503,12 @@ function PropertyCard({ property, onPress, onAvailability, compact }: { property
         <View style={styles.propertyFooter}>
           <View>
             <Text style={styles.priceLabel}>Starting at</Text>
-            <Text style={styles.price}>{formatINR(property.starting_price)}</Text>
+            <Text style={styles.price}>{priceText}</Text>
           </View>
-          <View style={styles.viewBtn}>
-            <Text style={styles.viewBtnText}>View</Text>
+          <TouchableOpacity testID={`home-view-${property.id}`} style={styles.viewBtn} onPress={onPress}>
+            <Text style={styles.viewBtnText}>View Property</Text>
             <Feather name="arrow-right" size={14} color={colors.white} />
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.availabilitySection}>
           <View style={styles.availabilityHeader}>
@@ -525,9 +519,9 @@ function PropertyCard({ property, onPress, onAvailability, compact }: { property
               <Feather name="map" size={18} color={colors.primary} />
             </View>
             <View style={styles.availabilityPanelBody}>
-              <Text style={styles.availabilityPanelTitle}>Interactive live map</Text>
+              <Text style={styles.availabilityPanelTitle}>Plans and availability</Text>
               <Text style={styles.availabilityPanelText} numberOfLines={2}>
-                Explore available plots, villas, and units with status markers, pricing, and booking details.
+                Open the property to review facade images, east and west floor plans, and the attached project map.
               </Text>
             </View>
             <TouchableOpacity
@@ -623,18 +617,7 @@ const styles = StyleSheet.create({
   locationDropdownDesktop: { maxWidth: 360 },
   heroBand: { marginHorizontal: spacing.lg, marginTop: spacing.lg, gap: spacing.md },
   heroBandDesktop: { flexDirection: "row", alignItems: "stretch" },
-  heroCopy: {
-    flex: 1.1,
-    backgroundColor: colors.primaryDeepest,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  heroEyebrow: { ...typography.label, color: colors.accentLight },
-  heroTitle: { ...typography.h2, color: colors.white, fontWeight: "800" },
-  heroText: { ...typography.body, color: "#D4E4D9", lineHeight: 21, maxWidth: 520 },
   heroSearchCard: {
-    flex: 0.9,
     backgroundColor: colors.white,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -643,6 +626,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     ...shadow.sm,
   },
+  heroSearchCardExpanded: { width: "100%" },
   locationItem: { flexDirection: "row", alignItems: "center", gap: 8, padding: spacing.sm },
   locationItemText: { ...typography.body, color: colors.stone700 },
   locationItemActive: { color: colors.primary, fontWeight: "600" },
@@ -764,11 +748,7 @@ const styles = StyleSheet.create({
     minWidth: 180,
     gap: 3,
   },
-  availabilityPanelTitle: {
-    ...typography.body,
-    color: colors.primaryDeepest,
-    fontWeight: "700",
-  },
+  availabilityPanelTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
   availabilityPanelText: {
     ...typography.small,
     color: colors.stone600,
