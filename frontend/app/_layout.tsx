@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as WebBrowser from "expo-web-browser";
 import { View, ActivityIndicator, Platform, StyleSheet } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -10,6 +11,7 @@ import { AuthProvider, useAuth } from "@/src/auth-context";
 import { colors } from "@/src/theme";
 
 SplashScreen.preventAutoHideAsync();
+WebBrowser.maybeCompleteAuthSession();
 export const unstable_settings = {
   initialRouteName: "index",
 };
@@ -23,7 +25,7 @@ function RootLayoutInner() {
     if (isLoading) return;
     const rootSegment = segments[0];
     const isAgent = user?.role === "agent" || user?.role === "sub_agent";
-    const guestAllowedSegments = new Set(["", "login", "agent-login", "property", "layout", "centre"]);
+    const guestAllowedSegments = new Set(["", "login", "admin-login", "agent-login", "agent-apply", "property", "layout", "centre"]);
     const isPublicEntry = !rootSegment || guestAllowedSegments.has(rootSegment);
     const allowPublicAgentPreview = Platform.OS === "web" && !isAuthed && rootSegment === "agent";
     const agentAllowedSegments = new Set(["agent", "layout", "booking", "property", "notifications"]);
@@ -31,12 +33,16 @@ function RootLayoutInner() {
     const inAgentArea = agentAllowedSegments.has(rootSegment || "");
     const inCustomerRestrictedArea = customerRestrictedSegments.has(rootSegment || "");
 
-    if (!isAuthed && !isPublicEntry && !allowPublicAgentPreview) {
+    if (!isAuthed && rootSegment === "admin") {
+      router.replace("/admin-login");
+    } else if (!isAuthed && !isPublicEntry && !allowPublicAgentPreview) {
       router.replace("/");
     } else if (isAuthed && isPublicEntry) {
-      router.replace(isAgent ? "/agent" : "/");
+      router.replace(user?.is_admin ? "/admin" : isAgent ? "/agent" : "/");
     } else if (isAuthed && isAgent && !inAgentArea) {
       router.replace("/agent");
+    } else if (isAuthed && user?.is_admin && rootSegment !== "admin") {
+      router.replace("/admin");
     } else if (isAuthed && !isAgent && inCustomerRestrictedArea) {
       router.replace("/");
     }

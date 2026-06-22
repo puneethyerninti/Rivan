@@ -369,10 +369,20 @@ export const api = {
 
   login: (email: string, password: string) =>
     apiRequest<{ access_token: string; user: any }>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
+  adminLogin: (phone: string, password: string) =>
+    apiRequest<{ access_token: string; user: any }>("/auth/admin/login", { method: "POST", body: { phone, password }, auth: false }),
   googleAuth: (id_token: string) =>
     apiRequest<{ access_token: string; user: any }>("/auth/google", { method: "POST", body: { id_token }, auth: false }),
   firebaseAuth: (id_token: string, phone: string, name?: string) =>
     apiRequest<{ access_token: string; user: any }>("/auth/firebase", { method: "POST", body: { id_token, phone, name }, auth: false }),
+  agentFirebaseAuth: (id_token: string, phone: string) =>
+    apiRequest<{ access_token: string; user: any }>("/auth/agent/firebase", { method: "POST", body: { id_token, phone }, auth: false }),
+  agentApply: (body: any) =>
+    apiRequest<{ success: boolean; already_approved?: boolean; message: string; agent: any }>("/auth/agent/apply", {
+      method: "POST",
+      body,
+      auth: false,
+    }),
   sendOtp: (phone: string) =>
     apiRequest<{ success: boolean; phone: string; message: string }>("/auth/send-otp", { method: "POST", body: { phone }, auth: false }),
   verifyOtp: (phone: string, otp: string, name?: string) =>
@@ -421,6 +431,8 @@ export const api = {
   adminConfirmBooking: (id: string) => apiRequest(`/admin/bookings/${id}/confirm`, { method: "POST" }),
   adminAgents: () => apiRequest("/admin/agents"),
   adminApproveAgent: (id: string) => apiRequest(`/admin/agents/${id}/approve`, { method: "POST" }),
+  adminUpdateAgentStatus: (id: string, approval_status: string, review_notes?: string) =>
+    apiRequest(`/admin/agents/${id}/status`, { method: "POST", body: { approval_status, review_notes } }),
   adminServices: () => apiRequest("/admin/service-requests"),
   adminUpdateService: (id: string, status_val: string) =>
     apiRequest(`/admin/service-requests/${id}/status`, { method: "POST", query: { status_val } }),

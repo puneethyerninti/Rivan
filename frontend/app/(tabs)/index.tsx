@@ -207,6 +207,13 @@ export function HomeScreen() {
                 >
                   <Text style={styles.authPrimaryText}>Agent Login</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  testID="home-header-admin-login"
+                  style={styles.authGhostBtn}
+                  onPress={() => router.push("/admin-login")}
+                >
+                  <Text style={styles.authGhostText}>Admin Login</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>

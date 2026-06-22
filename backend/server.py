@@ -737,12 +737,25 @@ def is_agent_role(role: Optional[str]) -> bool:
     return role in {"agent", "sub_agent"}
 
 
+def agent_approval_error_message(user: Dict[str, Any]) -> str:
+    approval_status = str(user.get("approval_status") or "pending").strip().lower()
+    if approval_status == "approved":
+        return ""
+    if approval_status == "rejected":
+        return "Your agent application was rejected. Please contact your manager for the next steps."
+    if approval_status == "suspended":
+        return "Your agent access is suspended. Please contact your manager."
+    return "Your agent account is pending manager approval"
+
+
 async def get_agent_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
     user = await get_current_user(token)
     if not is_agent_role(user.get("role")):
         raise HTTPException(status_code=403, detail="Agent access required")
     if user.get("approval_status") != "approved":
-        raise HTTPException(status_code=403, detail="Agent approval is still pending")
+        raise HTTPException(status_code=403, detail=agent_approval_error_message(user))
+    if str(user.get("status") or "active").lower() == "suspended":
+        raise HTTPException(status_code=403, detail="Your agent access is suspended. Please contact your manager.")
     return user
 
 
@@ -772,6 +785,10 @@ class RegisterReq(BaseModel):
 class LoginReq(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+class AdminLoginReq(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+    password: str = Field(min_length=6, max_length=128)
 
 class GoogleAuthReq(BaseModel):
     id_token: str = Field(min_length=20)
@@ -848,8 +865,24 @@ class AgentUpsertReq(BaseModel):
     bank_details: Optional[str] = None
     status: Optional[str] = "active"
 
+class AgentApplicationReq(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    phone: str = Field(min_length=8, max_length=20)
+    email: Optional[EmailStr] = None
+    occupation: Optional[str] = None
+    age: Optional[int] = None
+    aadhaar_number: Optional[str] = None
+    bank_details: Optional[str] = None
+    address: Optional[str] = None
+    agent_brand_name: Optional[str] = None
+    notes: Optional[str] = None
+
 class AgentStatusReq(BaseModel):
     status: str
+
+class AdminAgentApprovalReq(BaseModel):
+    approval_status: str
+    review_notes: Optional[str] = None
 
 class AgentAssignReq(BaseModel):
     plot_ids: List[str] = Field(default_factory=list)
@@ -2230,6 +2263,7 @@ async def login(req: LoginReq):
     if await is_database_available():
         user = await db.users.find_one({"email": email})
     elif ALLOW_LOCAL_AUTH_FALLBACK:
+        ensure_local_demo_users()
         user = local_find_user(email=email)
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
@@ -2238,7 +2272,7 @@ async def login(req: LoginReq):
     if not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if is_agent_role(user.get("role")) and user.get("approval_status") != "approved":
-        raise HTTPException(status_code=403, detail="Your agent account is pending manager approval")
+        raise HTTPException(status_code=403, detail=agent_approval_error_message(user))
 
     if await is_database_available():
         await db.users.update_one(
@@ -2251,6 +2285,40 @@ async def login(req: LoginReq):
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["updated_at"] = now_utc().isoformat()
     user["last_login_at"] = now_utc().isoformat()
+    local_save_user(user)
+    return await issue_token_response(user)
+
+
+@api_router.post("/auth/admin/login", response_model=TokenResp)
+async def admin_login(req: AdminLoginReq):
+    phone = normalize_phone(req.phone)
+    if await is_database_available():
+        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        ensure_local_demo_users()
+        user = local_find_user(phone=phone)
+    else:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+
+    if not user or not user.get("password_hash") or not user.get("is_admin"):
+        raise HTTPException(status_code=401, detail="Invalid admin phone or password")
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid admin phone or password")
+
+    timestamp = now_utc().isoformat()
+    if await is_database_available():
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"updated_at": timestamp, "last_login_at": timestamp, "phone_verified": True}},
+        )
+        refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
+        return await issue_token_response(refreshed)
+
+    if not ALLOW_LOCAL_AUTH_FALLBACK:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+    user["updated_at"] = timestamp
+    user["last_login_at"] = timestamp
+    user["phone_verified"] = True
     local_save_user(user)
     return await issue_token_response(user)
 
@@ -2277,6 +2345,100 @@ async def verify_otp(req: VerifyOtpReq):
         auth_method="phone",
     )
     return await issue_token_response(user)
+
+
+@api_router.post("/auth/agent/apply")
+async def apply_agent_access(req: AgentApplicationReq):
+    phone = normalize_phone(req.phone)
+    email = normalize_email(req.email) if req.email else ""
+    now_iso = now_utc().isoformat()
+    application_updates = {
+        "name": req.name.strip(),
+        "phone": phone,
+        "email": email,
+        "occupation": (req.occupation or "").strip(),
+        "age": req.age,
+        "aadhaar_number": req.aadhaar_number,
+        "bank_details": req.bank_details,
+        "address": (req.address or "").strip(),
+        "agent_brand_name": (req.agent_brand_name or "").strip(),
+        "application_notes": (req.notes or "").strip(),
+        "approval_status": "pending",
+        "status": "pending",
+        "role": "agent",
+        "kyc_status": "pending",
+        "agent_application_submitted_at": now_iso,
+        "updated_at": now_iso,
+    }
+
+    if await is_database_available():
+        existing = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+        if not existing and email:
+            existing = await db.users.find_one({"email": email})
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        existing = local_find_user(phone=phone) or (local_find_user(email=email) if email else None)
+    else:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+
+    if existing:
+        if not is_agent_role(existing.get("role")):
+            raise HTTPException(
+                status_code=409,
+                detail="This phone number is already linked to a customer account. Ask your manager to convert it into an agent account.",
+            )
+        if existing.get("approval_status") == "approved":
+            return {
+                "success": True,
+                "already_approved": True,
+                "message": "This phone number is already approved for agent access.",
+                "agent": clean_user(existing),
+            }
+        application_updates["auth_methods"] = auth_methods_union(existing.get("auth_methods"), "agent_application")
+        application_updates["review_notes"] = ""
+        application_updates["reviewed_at"] = None
+        application_updates["reviewed_by_manager"] = None
+        application_updates["approved_by_manager"] = None
+        if await is_database_available():
+            await db.users.update_one({"_id": existing["_id"]}, {"$set": application_updates})
+            updated = await db.users.find_one({"_id": existing["_id"]}, {"_id": 0})
+        else:
+            existing.update(application_updates)
+            local_save_user(existing)
+            updated = local_find_user(user_id=existing["id"])
+        return {
+            "success": True,
+            "already_approved": False,
+            "message": "Agent application submitted. Manager approval is required before login.",
+            "agent": clean_user(updated or existing),
+        }
+
+    agent = {
+        "id": str(uuid.uuid4()),
+        **application_updates,
+        "auth_methods": ["agent_application"],
+        "email_verified": False,
+        "phone_verified": False,
+        "is_admin": False,
+        "created_at": now_iso,
+        "last_login_at": None,
+        "sub_agent_ids": [],
+        "review_notes": "",
+        "reviewed_at": None,
+        "reviewed_by_manager": None,
+        "approved_by_manager": None,
+    }
+
+    if await is_database_available():
+        await db.users.insert_one(agent.copy())
+    else:
+        local_save_user(agent)
+
+    return {
+        "success": True,
+        "already_approved": False,
+        "message": "Agent application submitted. Manager approval is required before login.",
+        "agent": clean_user(agent),
+    }
 
 
 @api_router.post("/auth/google", response_model=TokenResp)
@@ -2424,7 +2586,9 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq):
     if not is_agent_role(user.get("role")):
         raise HTTPException(status_code=403, detail="This phone number does not belong to an agent account")
     if user.get("approval_status") != "approved":
-        raise HTTPException(status_code=403, detail="Your agent account is pending manager approval")
+        raise HTTPException(status_code=403, detail=agent_approval_error_message(user))
+    if str(user.get("status") or "active").lower() == "suspended":
+        raise HTTPException(status_code=403, detail="Your agent access is suspended. Please contact your manager.")
 
     updates = {
         "firebase_uid": payload.get("user_id") or payload.get("sub"),
@@ -3570,29 +3734,60 @@ async def admin_agents(user: Dict[str, Any] = Depends(get_admin_user)):
     return agents
 
 
-@api_router.post("/admin/agents/{agent_id}/approve")
-async def admin_approve_agent(agent_id: str, user: Dict[str, Any] = Depends(get_admin_user)):
+@api_router.post("/admin/agents/{agent_id}/status")
+async def admin_update_agent_status(
+    agent_id: str,
+    req: AdminAgentApprovalReq,
+    user: Dict[str, Any] = Depends(get_admin_user),
+):
+    allowed_statuses = {"pending", "approved", "rejected", "suspended"}
+    approval_status = req.approval_status.strip().lower()
+    if approval_status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Invalid approval status")
+
+    manager_name = user.get("name", "Manager")
+    now_iso = now_utc().isoformat()
+    updates: Dict[str, Any] = {
+        "approval_status": approval_status,
+        "review_notes": (req.review_notes or "").strip(),
+        "reviewed_at": now_iso,
+        "reviewed_by_manager": manager_name,
+        "updated_at": now_iso,
+    }
+    if approval_status == "approved":
+        updates["approved_by_manager"] = manager_name
+        updates["status"] = "active"
+    elif approval_status == "suspended":
+        updates["status"] = "suspended"
+    else:
+        updates["status"] = "pending"
+        updates["approved_by_manager"] = None
+
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Authentication database is unavailable")
         agent = local_find_user(user_id=agent_id)
         if not agent or not is_agent_role(agent.get("role")):
             raise HTTPException(status_code=404, detail="Agent not found")
-        agent["approval_status"] = "approved"
-        agent["approved_by_manager"] = user.get("name", "Manager")
-        agent["updated_at"] = now_utc().isoformat()
+        agent.update(updates)
         local_save_user(agent)
         return {"success": True, "agent": clean_user(agent)}
 
     agent = await db.users.find_one({"id": agent_id}, {"_id": 0})
     if not agent or not is_agent_role(agent.get("role")):
         raise HTTPException(status_code=404, detail="Agent not found")
-    await db.users.update_one(
-        {"id": agent_id},
-        {"$set": {"approval_status": "approved", "approved_by_manager": user.get("name", "Manager"), "updated_at": now_utc().isoformat()}}
-    )
+    await db.users.update_one({"id": agent_id}, {"$set": updates})
     updated = await db.users.find_one({"id": agent_id}, {"_id": 0})
     return {"success": True, "agent": clean_user(updated)}
+
+
+@api_router.post("/admin/agents/{agent_id}/approve")
+async def admin_approve_agent(agent_id: str, user: Dict[str, Any] = Depends(get_admin_user)):
+    return await admin_update_agent_status(
+        agent_id,
+        AdminAgentApprovalReq(approval_status="approved"),
+        user,
+    )
 
 
 @api_router.get("/admin/service-requests")

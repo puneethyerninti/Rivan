@@ -678,6 +678,13 @@ export default function LoginScreen() {
                   onPress={() => router.push("/agent-login")}
                   testID="login-agent-link"
                 />
+                <Button
+                  title="Open Admin Login"
+                  variant="ghost"
+                  onPress={() => router.push("/admin-login")}
+                  testID="login-admin-link"
+                  style={{ marginTop: spacing.xs }}
+                />
               </View>
 
               <Text style={styles.footer}>By continuing, you agree to Rivan&apos;s Terms and Privacy Policy.</Text>

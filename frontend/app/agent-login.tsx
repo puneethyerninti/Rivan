@@ -304,13 +304,26 @@ export default function AgentLoginScreen() {
                 <Feather name="smartphone" size={14} color={colors.accentDark} />
                 <Text style={styles.badgeText}>PHONE ONLY LOGIN</Text>
               </View>
-              <TouchableOpacity onPress={() => router.replace("/login")} testID="agent-login-back">
-                <Text style={styles.backLink}>Customer Login</Text>
-              </TouchableOpacity>
+              <View style={styles.topLinks}>
+                <TouchableOpacity onPress={() => router.push("/agent-apply")} testID="agent-apply-link">
+                  <Text style={styles.backLink}>Apply as Agent</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.replace("/login")} testID="agent-login-back">
+                  <Text style={styles.backLink}>Customer Login</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={styles.cardTitle}>Enter Agent Dashboard</Text>
             <Text style={styles.cardSubtitle}>Use the same phone number that your manager registered for your approved agent account.</Text>
+
+            <View style={styles.applyBanner}>
+              <Feather name="user-plus" size={16} color={colors.primary} />
+              <Text style={styles.applyBannerText}>New agent? Submit your details first and wait for manager approval before OTP login.</Text>
+              <TouchableOpacity onPress={() => router.push("/agent-apply")}>
+                <Text style={styles.applyBannerLink}>Open application</Text>
+              </TouchableOpacity>
+            </View>
 
             {showLocalDemoHelp ? (
               <View style={styles.quickRow}>
@@ -514,6 +527,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
   cardSubtitle: { ...typography.body, color: colors.stone600, lineHeight: 21 },
   badgeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  topLinks: { flexDirection: "row", alignItems: "center", gap: spacing.md, flexWrap: "wrap", justifyContent: "flex-end" },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -525,6 +539,20 @@ const styles = StyleSheet.create({
   },
   badgeText: { ...typography.label, color: colors.accentDark, fontSize: 9 },
   backLink: { ...typography.small, color: colors.primary, fontWeight: "700" },
+  applyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+    borderWidth: 1,
+    borderColor: "#D8E8DB",
+    backgroundColor: "#F5FAF6",
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  applyBannerText: { ...typography.small, color: colors.stone600, flex: 1, minWidth: 220, lineHeight: 18 },
+  applyBannerLink: { ...typography.small, color: colors.primary, fontWeight: "800" },
   quickRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   quickButton: {
     borderWidth: 1,

@@ -8,6 +8,7 @@ type User = {
   name: string;
   email?: string;
   role?: string;
+  occupation?: string;
   age?: number;
   aadhaar_number?: string;
   bank_details?: string;
@@ -17,6 +18,9 @@ type User = {
   sub_agent_ids?: string[];
   approval_status?: string;
   approved_by_manager?: string;
+  review_notes?: string;
+  reviewed_by_manager?: string;
+  application_notes?: string;
   address?: string;
   kyc_status?: string;
   is_admin?: boolean;
@@ -29,6 +33,7 @@ type User = {
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
+  isSessionRefreshing: boolean;
   isAuthed: boolean;
   signIn: (token: string, user: User) => Promise<void>;
   signOut: () => Promise<void>;
@@ -52,6 +57,7 @@ function isTemporaryBackendError(error: unknown) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSessionRefreshing, setIsSessionRefreshing] = useState(false);
 
   async function load() {
     let usedCachedUser = false;
@@ -60,15 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await getToken();
       if (!token) {
         setUser(null);
+        setIsSessionRefreshing(false);
         return;
       }
+      setIsSessionRefreshing(true);
       const cachedUserRaw = await storage.secureGet(USER_CACHE_KEY, "");
       if (cachedUserRaw && typeof cachedUserRaw === "string") {
         try {
           const cachedUser = JSON.parse(cachedUserRaw) as User;
           setUser(cachedUser);
           usedCachedUser = true;
-          setIsLoading(false);
         } catch {
           // ignore malformed cache and continue with live fetch
         }
@@ -84,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await storage.secureRemove(USER_CACHE_KEY);
       setUser(null);
     } finally {
+      setIsSessionRefreshing(false);
       setIsLoading(false);
     }
   }
@@ -96,16 +104,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setToken(token);
     await storage.secureSet(USER_CACHE_KEY, JSON.stringify(u));
     setUser(u);
+    setIsSessionRefreshing(false);
+    setIsLoading(false);
   }
 
   async function signOut() {
     await clearToken();
     await storage.secureRemove(USER_CACHE_KEY);
     setUser(null);
+    setIsSessionRefreshing(false);
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthed: !!user, signIn, signOut, refresh: load }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isSessionRefreshing, isAuthed: !!user, signIn, signOut, refresh: load }}
+    >
       {children}
     </AuthContext.Provider>
   );
