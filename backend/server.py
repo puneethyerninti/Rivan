@@ -3,6 +3,7 @@ Rivan Reality LLP - Customer App Backend
 FastAPI + MongoDB customer platform with production auth flows.
 """
 import asyncio
+import base64
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,6 +96,36 @@ def get_google_client_ids() -> List[str]:
         )
         if client_id
     ]
+
+
+def peek_jwt_payload(token: str) -> Dict[str, Any]:
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return {}
+        payload_segment = parts[1]
+        padding = "=" * (-len(payload_segment) % 4)
+        decoded = base64.urlsafe_b64decode(payload_segment + padding)
+        payload = json.loads(decoded.decode("utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except Exception:
+        return {}
+
+
+def looks_like_firebase_google_token(token: str, project_id: str) -> bool:
+    payload = peek_jwt_payload(token)
+    issuer = str(payload.get("iss") or "")
+    sign_in_provider = str(payload.get("firebase", {}).get("sign_in_provider") or "")
+    audience = str(payload.get("aud") or "")
+    expected_issuer = f"https://securetoken.google.com/{project_id}" if project_id else ""
+    return bool(
+        project_id
+        and (
+            issuer == expected_issuer
+            or audience == project_id
+            or sign_in_provider == "google.com"
+        )
+    )
 
 
 VILLA_VIDEO_URL = "https://res.cloudinary.com/dzisksq78/video/upload/v1780939161/villa_1_ltxt2q.mp4"
@@ -720,6 +751,10 @@ class FirebaseAuthReq(BaseModel):
     id_token: str
     phone: str
     name: Optional[str] = None
+
+class AgentFirebaseAuthReq(BaseModel):
+    id_token: str
+    phone: str
 
 class SendOtpReq(BaseModel):
     phone: str
@@ -2247,14 +2282,62 @@ async def verify_otp(req: VerifyOtpReq):
 @api_router.post("/auth/google", response_model=TokenResp)
 async def google_auth(req: GoogleAuthReq):
     google_client_ids = get_google_client_ids()
-    if not google_client_ids:
-        logger.error("Google auth failed: Google OAuth client IDs are not configured on the backend")
+    firebase_project_id = get_firebase_project_id()
+
+    payload: Dict[str, Any] | None = None
+    google_error: HTTPException | None = None
+    firebase_error: HTTPException | None = None
+    should_try_firebase_first = looks_like_firebase_google_token(req.id_token, firebase_project_id)
+
+    if should_try_firebase_first and firebase_project_id:
+        try:
+            firebase_payload = verify_firebase_id_token(req.id_token, firebase_project_id)
+            if firebase_payload.get("firebase", {}).get("sign_in_provider") == "google.com":
+                payload = {
+                    "sub": firebase_payload.get("user_id") or firebase_payload.get("sub"),
+                    "email": firebase_payload.get("email"),
+                    "name": firebase_payload.get("name"),
+                    "given_name": firebase_payload.get("name"),
+                }
+            else:
+                raise HTTPException(status_code=401, detail="Firebase token is not from Google sign-in")
+        except HTTPException as exc:
+            firebase_error = exc
+
+    if payload is None and google_client_ids:
+        try:
+            payload = verify_google_id_token(
+                req.id_token,
+                google_client_ids,
+            )
+        except HTTPException as exc:
+            google_error = exc
+
+    if payload is None and firebase_project_id and not should_try_firebase_first:
+        try:
+            firebase_payload = verify_firebase_id_token(req.id_token, firebase_project_id)
+            if firebase_payload.get("firebase", {}).get("sign_in_provider") == "google.com":
+                payload = {
+                    "sub": firebase_payload.get("user_id") or firebase_payload.get("sub"),
+                    "email": firebase_payload.get("email"),
+                    "name": firebase_payload.get("name"),
+                    "given_name": firebase_payload.get("name"),
+                }
+            else:
+                raise HTTPException(status_code=401, detail="Firebase token is not from Google sign-in")
+        except HTTPException as exc:
+            firebase_error = exc
+
+    if payload is None:
+        if firebase_error and should_try_firebase_first:
+            raise firebase_error
+        if google_error:
+            raise google_error
+        if firebase_error:
+            raise firebase_error
+        logger.error("Google auth failed: Google OAuth client IDs and Firebase project ID are not configured on the backend")
         raise HTTPException(status_code=503, detail="Google sign-in is not configured on the backend")
 
-    payload = verify_google_id_token(
-        req.id_token,
-        google_client_ids,
-    )
     user = await upsert_user_identity(
         name=payload.get("name") or payload.get("given_name") or payload["email"].split("@")[0],
         email=payload["email"],
@@ -2306,6 +2389,61 @@ async def firebase_auth(req: FirebaseAuthReq):
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
     logger.info("Firebase phone auth succeeded for user_id=%s", user.get("id"))
+    return await issue_token_response(user)
+
+
+@api_router.post("/auth/agent/firebase", response_model=TokenResp)
+async def agent_firebase_auth(req: AgentFirebaseAuthReq):
+    project_id = get_firebase_project_id()
+    if not project_id:
+        logger.error("Agent Firebase auth failed: FIREBASE project id is not configured")
+        raise HTTPException(status_code=500, detail="Firebase project is not configured")
+
+    try:
+        payload = verify_firebase_id_token(req.id_token, project_id)
+    except HTTPException as exc:
+        logger.warning("Agent Firebase auth token verification failed: %s", exc.detail)
+        raise
+
+    phone = normalize_phone(req.phone or payload.get("phone_number") or "")
+    token_phone = normalize_phone(payload.get("phone_number") or "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Firebase phone number is missing")
+    if token_phone and token_phone != phone:
+        raise HTTPException(status_code=401, detail="Firebase phone token does not match requested phone")
+
+    if await is_database_available():
+        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        user = local_find_user(phone=phone)
+    else:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No approved agent account exists for this phone number")
+    if not is_agent_role(user.get("role")):
+        raise HTTPException(status_code=403, detail="This phone number does not belong to an agent account")
+    if user.get("approval_status") != "approved":
+        raise HTTPException(status_code=403, detail="Your agent account is pending manager approval")
+
+    updates = {
+        "firebase_uid": payload.get("user_id") or payload.get("sub"),
+        "phone": phone,
+        "phone_verified": True,
+        "updated_at": now_utc().isoformat(),
+        "last_login_at": now_utc().isoformat(),
+        "auth_methods": auth_methods_union(user.get("auth_methods"), "phone"),
+    }
+
+    if await is_database_available():
+        await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
+        refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
+        logger.info("Agent Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
+        return await issue_token_response(refreshed)
+
+    user.update(updates)
+    local_save_user(user)
+    logger.info("Agent Firebase phone auth succeeded for user_id=%s", user.get("id"))
     return await issue_token_response(user)
 
 

@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   Linking,
   Modal,
+  PanResponder,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { api } from "@/src/api";
+import { useAuth } from "@/src/auth-context";
 import { findMockPropertyById, mockProperties } from "@/src/mock-data";
 import { colors, radii, spacing, typography, shadow } from "@/src/theme";
 
@@ -51,25 +54,81 @@ const FEATURES_TEXT = [
   "Steel Plant to Nakkapalli development stretch",
 ];
 
+const MAP_MIN_ZOOM = 1;
+const MAP_MAX_ZOOM = 3.2;
+const SALES_CONTACT_NUMBER = "+919966826567";
+
 function formatStartPrice(value?: number) {
   if (!value) return "Rs 16 Lakhs onwards";
   const lakhs = value / 100000;
   return `Rs ${lakhs.toFixed(0)} Lakhs onwards`;
 }
 
+function formatCompactPrice(value?: number) {
+  if (!value) return "Price on request";
+  const lakhs = value / 100000;
+  return `Rs ${lakhs.toFixed(1)} Lakhs`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function blockColor(status?: string) {
   switch (status) {
     case "available":
-      return "rgba(16,185,129,0.78)";
+      return "#0F8A4B";
     case "reserved":
-      return "rgba(245,158,11,0.8)";
+      return "#D18A11";
     case "booked":
-      return "rgba(59,130,246,0.8)";
+      return "#3B82F6";
     case "sold":
-      return "rgba(239,68,68,0.8)";
+      return "#D84A4A";
     default:
-      return "rgba(107,114,128,0.78)";
+      return "#64748B";
   }
+}
+
+function blockSurface(status?: string) {
+  switch (status) {
+    case "available":
+      return "#EAF8F0";
+    case "reserved":
+      return "#FFF6E4";
+    case "booked":
+      return "#EAF2FF";
+    case "sold":
+      return "#FDECEC";
+    default:
+      return "#F4F6F8";
+  }
+}
+
+function blockStatusLabel(status?: string) {
+  const value = String(status || "open");
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function facingShortLabel(facing?: string) {
+  const normalized = String(facing || "").toLowerCase();
+  if (!normalized) return "N/A";
+  if (normalized.includes("north-east")) return "NE";
+  if (normalized.includes("north-west")) return "NW";
+  if (normalized.includes("south-east")) return "SE";
+  if (normalized.includes("south-west")) return "SW";
+  if (normalized.includes("north")) return "N";
+  if (normalized.includes("south")) return "S";
+  if (normalized.includes("east")) return "E";
+  if (normalized.includes("west")) return "W";
+  return String(facing).slice(0, 3).toUpperCase();
+}
+
+function getTouchDistance(touches: Array<{ pageX: number; pageY: number }>) {
+  if (touches.length < 2) return 0;
+  const [firstTouch, secondTouch] = touches;
+  const deltaX = secondTouch.pageX - firstTouch.pageX;
+  const deltaY = secondTouch.pageY - firstTouch.pageY;
+  return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 }
 
 function useRemoteImageSize(uri?: string) {
@@ -126,107 +185,513 @@ function ResponsiveImagePanel({
 }
 
 function InteractiveMapViewer({
-  uri,
   blocks,
   selectedBlock,
   onSelectBlock,
   onOpenInterest,
+  onScheduleVisit,
 }: {
-  uri?: string;
   blocks?: any[];
   selectedBlock?: any;
   onSelectBlock: (block: any) => void;
   onOpenInterest: () => void;
+  onScheduleVisit: () => void;
 }) {
+  const [facingFilter, setFacingFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [zoom, setZoom] = useState(1);
-  const ratio = useRemoteImageSize(uri);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const animatedPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const startPanRef = useRef({ x: 0, y: 0 });
+  const pinchRef = useRef({ distance: 0, zoom: 1 });
+  const boardWidth = 1560;
+  const boardHeight = 1220;
 
-  if (!uri) return null;
+  const allBlocks = useMemo(() => blocks || [], [blocks]);
+  const stats = useMemo(
+    () => ({
+      total: allBlocks.length,
+      available: allBlocks.filter((block) => block.status === "available").length,
+      reserved: allBlocks.filter((block) => block.status === "reserved").length,
+      sold: allBlocks.filter((block) => block.status === "sold").length,
+    }),
+    [allBlocks]
+  );
 
-  const baseWidth = 1100;
-  const contentWidth = baseWidth * zoom;
-  const contentHeight = (baseWidth / ratio) * zoom;
+  const filteredBlocks = useMemo(
+    () =>
+      allBlocks.filter((block) => {
+        const facingMatch = facingFilter === "all" || facingShortLabel(block.facing) === facingFilter;
+        const statusMatch = statusFilter === "all" || block.status === statusFilter;
+        return facingMatch && statusMatch;
+      }),
+    [allBlocks, facingFilter, statusFilter]
+  );
+
+  const zoneLayouts = useMemo(
+    () =>
+      Object.values(
+        filteredBlocks.reduce((acc, block) => {
+          const zoneId = block.zoneId || "sripuram-master";
+          if (!acc[zoneId]) {
+            acc[zoneId] = {
+              id: zoneId,
+              title: block.zoneTitle || "Master Layout",
+              subtitle: block.zoneSubtitle || "Plotted Zone",
+              left: block.zoneLeft || "8%",
+              top: block.zoneTop || "10%",
+              width: block.zoneWidth || "24%",
+              columns: Number(block.zoneColumns || 4),
+              order: Number(block.zoneOrder || 999),
+              blocks: [],
+            };
+          }
+          acc[zoneId].blocks.push(block);
+          return acc;
+        }, {} as Record<string, any>)
+      )
+        .sort((a: any, b: any) => a.order - b.order)
+        .map((zone: any) => ({
+          ...zone,
+          blocks: zone.blocks.sort((a: any, b: any) => Number(a.label) - Number(b.label)),
+        })),
+    [filteredBlocks]
+  );
+
+  const quickPicks = filteredBlocks.slice(0, 18);
+  const hasPlots = filteredBlocks.length > 0;
+
+  const clampPan = (nextZoom: number, candidatePan: { x: number; y: number }) => {
+    const scaledWidth = boardWidth * nextZoom;
+    const scaledHeight = boardHeight * nextZoom;
+    const boundedX =
+      scaledWidth <= viewport.width
+        ? (viewport.width - scaledWidth) / 2
+        : clamp(candidatePan.x, viewport.width - scaledWidth, 0);
+    const boundedY =
+      scaledHeight <= viewport.height
+        ? (viewport.height - scaledHeight) / 2
+        : clamp(candidatePan.y, viewport.height - scaledHeight, 0);
+
+    return { x: boundedX, y: boundedY };
+  };
+
+  const applyTransform = (nextZoom: number, nextPan: { x: number; y: number }) => {
+    const boundedPan = clampPan(nextZoom, nextPan);
+    setZoom(nextZoom);
+    setPan(boundedPan);
+    animatedPan.setValue(boundedPan);
+  };
+
+  const updateZoom = (delta: number) => {
+    const nextZoom = clamp(Number((zoom + delta).toFixed(2)), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+    applyTransform(nextZoom, pan);
+  };
+
+  const resetView = () => {
+    applyTransform(MAP_MIN_ZOOM, { x: 0, y: 0 });
+  };
+
+  const focusViewportOnBlock = (block: any, targetZoom = Math.max(zoom, 1.85)) => {
+    if (!viewport.width || !viewport.height) return;
+    const nextZoom = clamp(targetZoom, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+    const blockCenterX = ((block.x + block.w / 2) / 100) * boardWidth * nextZoom;
+    const blockCenterY = ((block.y + block.h / 2) / 100) * boardHeight * nextZoom;
+    applyTransform(nextZoom, {
+      x: viewport.width / 2 - blockCenterX,
+      y: viewport.height / 2 - blockCenterY,
+    });
+  };
+
+  useEffect(() => {
+    animatedPan.setValue(pan);
+  }, [animatedPan, pan]);
+
+  useEffect(() => {
+    if (!viewport.width || !viewport.height) return;
+    setPan((currentPan) => {
+      const boundedPan = clampPan(zoom, currentPan);
+      animatedPan.setValue(boundedPan);
+      return boundedPan;
+    });
+  }, [animatedPan, viewport.width, viewport.height, zoom]);
+
+  useEffect(() => {
+    if (selectedBlock) {
+      focusViewportOnBlock(selectedBlock);
+    }
+  }, [selectedBlock]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_event, gestureState) =>
+          gestureState.numberActiveTouches > 1 || Math.abs(gestureState.dx) + Math.abs(gestureState.dy) > 4,
+        onPanResponderGrant: (event) => {
+          startPanRef.current = pan;
+          const touches = event.nativeEvent.touches || [];
+          if (touches.length >= 2) {
+            pinchRef.current = {
+              distance: getTouchDistance(touches),
+              zoom,
+            };
+          }
+        },
+        onPanResponderMove: (event, gestureState) => {
+          const touches = event.nativeEvent.touches || [];
+          if (touches.length >= 2) {
+            const distance = getTouchDistance(touches);
+            if (!pinchRef.current.distance) {
+              pinchRef.current = { distance, zoom };
+              return;
+            }
+            const nextZoom = clamp(
+              Number(((distance / pinchRef.current.distance) * pinchRef.current.zoom).toFixed(2)),
+              MAP_MIN_ZOOM,
+              MAP_MAX_ZOOM
+            );
+            applyTransform(nextZoom, startPanRef.current);
+            return;
+          }
+
+          if (zoom <= 1 && Math.abs(gestureState.dx) < 6 && Math.abs(gestureState.dy) < 6) return;
+
+          applyTransform(zoom, {
+            x: startPanRef.current.x + gestureState.dx,
+            y: startPanRef.current.y + gestureState.dy,
+          });
+        },
+        onPanResponderRelease: () => {
+          startPanRef.current = pan;
+          pinchRef.current = { distance: 0, zoom };
+        },
+        onPanResponderTerminate: () => {
+          startPanRef.current = pan;
+          pinchRef.current = { distance: 0, zoom };
+        },
+      }),
+    [pan, zoom, viewport.width, viewport.height]
+  );
+
+  const wheelProps =
+    Platform.OS === "web"
+      ? ({
+          onWheel: (event: any) => {
+            const deltaY = event?.nativeEvent?.deltaY ?? event?.deltaY ?? 0;
+            if (!deltaY) return;
+            event.preventDefault?.();
+            const nextZoom = clamp(Number((zoom + (deltaY > 0 ? -0.12 : 0.12)).toFixed(2)), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+            applyTransform(nextZoom, pan);
+          },
+        } as any)
+      : {};
+
+  function focusBlock(block: any) {
+    onSelectBlock(block);
+    focusViewportOnBlock(block, 2.1);
+    onOpenInterest();
+  }
 
   return (
     <View style={styles.mapShell}>
       <View style={styles.mapToolbar}>
-        <Text style={styles.mapToolbarText}>Drag to inspect the map</Text>
-        <View style={styles.mapControls}>
-          <TouchableOpacity style={styles.mapLeadBtn} onPress={onOpenInterest}>
-            <Feather name="send" size={14} color={colors.white} />
-            <Text style={styles.mapLeadBtnText}>Show interest</Text>
+        <View style={styles.mapToolbarCopy}>
+          <Text style={styles.mapToolbarTitle}>Interactive Site Layout</Text>
+          <Text style={styles.mapToolbarText}>
+            A cleaner plotted layout built for fast browsing. Tap any box to enquire instantly, or filter by facing and live status.
+          </Text>
+        </View>
+        <View style={styles.mapToolbarActions}>
+          <TouchableOpacity testID="map-visit-button" style={styles.mapLeadBtn} onPress={onScheduleVisit}>
+            <Feather name="calendar" size={14} color={colors.white} />
+            <Text style={styles.mapLeadBtnText}>Schedule visit</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.mapControlBtn}
-            onPress={() => setZoom((current) => Math.max(1, Number((current - 0.3).toFixed(2))))}
-          >
-            <Feather name="minus" size={16} color={colors.primaryDeepest} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.mapControlBtn} onPress={() => setZoom(1)}>
-            <Feather name="refresh-ccw" size={15} color={colors.primaryDeepest} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.mapControlBtn}
-            onPress={() => setZoom((current) => Math.min(2.8, Number((current + 0.3).toFixed(2))))}
-          >
-            <Feather name="plus" size={16} color={colors.primaryDeepest} />
-          </TouchableOpacity>
+          <View style={styles.mapControls}>
+            <TouchableOpacity testID="map-control-zoom-out" style={styles.mapControlBtn} onPress={() => updateZoom(-0.2)}>
+              <Feather name="minus" size={16} color={colors.primaryDeepest} />
+            </TouchableOpacity>
+            <TouchableOpacity testID="map-control-reset" style={styles.mapControlBtn} onPress={resetView}>
+              <Feather name="maximize" size={15} color={colors.primaryDeepest} />
+            </TouchableOpacity>
+            <TouchableOpacity testID="map-control-zoom-in" style={styles.mapControlBtn} onPress={() => updateZoom(0.2)}>
+              <Feather name="plus" size={16} color={colors.primaryDeepest} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveBadgeText}>Live layout</Text>
+          </View>
         </View>
       </View>
 
-      {selectedBlock ? (
-        <View style={styles.selectedBlockCard}>
-          <View style={styles.selectedBlockHeader}>
-            <View style={[styles.selectedBlockDot, { backgroundColor: blockColor(selectedBlock.status) }]} />
-            <Text style={styles.selectedBlockTitle}>Plot {selectedBlock.label}</Text>
-            <Text style={styles.selectedBlockStatus}>{selectedBlock.status}</Text>
-          </View>
-          <Text style={styles.selectedBlockMeta}>
-            {selectedBlock.size} | {selectedBlock.facing} facing | {formatStartPrice(selectedBlock.price)}
-          </Text>
+      <View style={styles.mapInsightsRow}>
+        <View style={styles.mapInsightCard}>
+          <Text style={styles.mapInsightValue}>{stats.available}</Text>
+          <Text style={styles.mapInsightLabel}>Available</Text>
         </View>
-      ) : (
-        <View style={styles.selectedBlockCard}>
-          <Text style={styles.selectedBlockPlaceholder}>Tap any highlighted plot block to inspect it.</Text>
+        <View style={styles.mapInsightCard}>
+          <Text style={styles.mapInsightValue}>{stats.reserved}</Text>
+          <Text style={styles.mapInsightLabel}>Reserved</Text>
         </View>
-      )}
+        <View style={styles.mapInsightCard}>
+          <Text style={styles.mapInsightValue}>{stats.sold}</Text>
+          <Text style={styles.mapInsightLabel}>Sold</Text>
+        </View>
+        <View style={styles.mapInsightCard}>
+          <Text style={styles.mapInsightValue}>{stats.total}</Text>
+          <Text style={styles.mapInsightLabel}>Total plots</Text>
+        </View>
+      </View>
 
-      <TouchableOpacity activeOpacity={1} onPress={onOpenInterest}>
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.mapScrollContent}>
-          <ScrollView showsVerticalScrollIndicator maximumZoomScale={3} minimumZoomScale={1} contentContainerStyle={styles.mapScrollContent}>
-            <View style={{ width: contentWidth, height: contentHeight }}>
-              <Image
-                source={{ uri }}
-                resizeMode="contain"
-                accessibilityLabel="Interactive availability map"
-                style={[styles.mapInteractiveImage, { width: contentWidth, height: contentHeight }]}
-              />
-              {blocks?.map((block) => {
-                const isActive = selectedBlock?.id === block.id;
-                return (
-                  <TouchableOpacity
-                    key={block.id}
-                    style={[
-                      styles.mapBlock,
-                      {
-                        left: `${block.x}%`,
-                        top: `${block.y}%`,
-                        width: `${block.w}%`,
-                        height: `${block.h}%`,
-                        backgroundColor: blockColor(block.status),
-                      },
-                      isActive && styles.mapBlockActive,
-                    ]}
-                    onPress={() => onSelectBlock(block)}
-                  >
-                    <Text style={styles.mapBlockLabel}>{block.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
+      <View style={styles.mapFilterWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mapFilterRail}>
+          {["all", "E", "N", "S", "W"].map((item) => (
+            <TouchableOpacity
+              key={item}
+              style={[styles.filterPill, facingFilter === item && styles.filterPillActive]}
+              onPress={() => setFacingFilter(item)}
+            >
+              <Text style={[styles.filterPillText, facingFilter === item && styles.filterPillTextActive]}>
+                {item === "all" ? "All facings" : `${item} Facing`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {["all", "available", "reserved", "booked", "sold"].map((item) => (
+            <TouchableOpacity
+              key={item}
+              style={[styles.filterPill, statusFilter === item && styles.filterPillActive]}
+              onPress={() => setStatusFilter(item)}
+            >
+              <Text style={[styles.filterPillText, statusFilter === item && styles.filterPillTextActive]}>
+                {item === "all" ? "All status" : blockStatusLabel(item)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
-      </TouchableOpacity>
+      </View>
+
+      <View style={styles.mapSelectedCard}>
+        {selectedBlock ? (
+          <>
+            <View style={styles.selectedBlockTopRow}>
+              <View>
+                <View style={styles.selectedBlockHeader}>
+                  <View style={[styles.selectedBlockDot, { backgroundColor: colors.primary }]} />
+                  <Text style={styles.selectedBlockTitle}>Plot {selectedBlock.label}</Text>
+                </View>
+                <Text style={styles.selectedBlockMeta}>
+                  {selectedBlock.size} | {selectedBlock.facing} facing | {formatCompactPrice(selectedBlock.price)}
+                </Text>
+              </View>
+              <View style={styles.selectedFacingPill}>
+                <Text style={styles.selectedFacingPillText}>{facingShortLabel(selectedBlock.facing)} Facing</Text>
+              </View>
+            </View>
+
+            <View style={styles.selectedStatGrid}>
+              <View style={styles.selectedStatCard}>
+                <Text style={styles.selectedStatLabel}>Plot Type</Text>
+                <Text style={styles.selectedStatValue}>Open plot</Text>
+              </View>
+              <View style={styles.selectedStatCard}>
+                <Text style={styles.selectedStatLabel}>Status</Text>
+                <Text style={styles.selectedStatValue}>{blockStatusLabel(selectedBlock.status)}</Text>
+              </View>
+              <View style={styles.selectedStatCard}>
+                <Text style={styles.selectedStatLabel}>Facing</Text>
+                <Text style={styles.selectedStatValue}>{selectedBlock.facing || "-"}</Text>
+              </View>
+            </View>
+
+            <View style={styles.selectedActions}>
+              <TouchableOpacity testID="map-selected-visit" style={styles.selectedActionGhost} onPress={onScheduleVisit}>
+                <Feather name="calendar" size={16} color={colors.accentDark} />
+                <Text style={styles.selectedActionGhostText}>Schedule visit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="map-selected-interest" style={styles.selectedActionPrimary} onPress={onOpenInterest}>
+                <Text style={styles.selectedActionPrimaryText}>Enquire for Plot {selectedBlock.label}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.selectedBlockEmpty}>
+            <Text style={styles.selectedBlockPlaceholder}>Choose a plot tile to inspect facing, size, and the current enquiry option.</Text>
+            <Text style={styles.selectedBlockHint}>The board below shows only the plotted layout, with each zone separated like a modern property app.</Text>
+          </View>
+        )}
+      </View>
+
+      <View
+        style={styles.layoutViewport}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setViewport({ width, height });
+        }}
+        {...wheelProps}
+        {...panResponder.panHandlers}
+      >
+        <Animated.View
+          style={[
+            styles.layoutBoardCanvas,
+            {
+              width: boardWidth,
+              height: boardHeight,
+              transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: zoom }],
+            },
+          ]}
+        >
+        <View style={[styles.layoutBoard, { width: boardWidth, height: boardHeight }]}>
+          <View style={styles.layoutBackdropGlow} />
+          <View style={styles.layoutPlaque}>
+            <Text style={styles.layoutPlaqueEyebrow}>Master Plan</Text>
+            <Text style={styles.layoutPlaqueTitle}>Sripuram Gardens</Text>
+            <Text style={styles.layoutPlaqueText}>Premium plotted layout with road-facing orientation and enquiry-ready inventory.</Text>
+          </View>
+
+          <View style={styles.layoutTextureBandTop} />
+          <View style={styles.layoutTextureBandBottom} />
+
+          <View style={[styles.layoutRoadHorizontal, styles.layoutRoadNorth]}>
+            <View style={styles.layoutRoadMedianHorizontal} />
+            <Text style={styles.layoutRoadText}>40 ft Main Road</Text>
+          </View>
+          <View style={[styles.layoutRoadHorizontal, styles.layoutRoadSouth]}>
+            <View style={styles.layoutRoadMedianHorizontal} />
+            <Text style={styles.layoutRoadText}>60 ft Garden Road</Text>
+          </View>
+          <View style={[styles.layoutRoadVertical, styles.layoutRoadCentre]}>
+            <View style={styles.layoutRoadMedianVertical} />
+            <Text style={styles.layoutRoadTextVertical}>30 ft Cross Road</Text>
+          </View>
+          <View style={[styles.layoutRoadVertical, styles.layoutRoadEast]}>
+            <View style={styles.layoutRoadMedianVertical} />
+          </View>
+
+          <View style={styles.layoutJunctionHub}>
+            <View style={styles.layoutJunctionInner} />
+          </View>
+
+          <View style={styles.layoutParkWest}>
+            <Feather name="sun" size={16} color={colors.primary} />
+            <Text style={styles.layoutParkTitle}>Central Greens</Text>
+            <Text style={styles.layoutParkText}>Open park edge</Text>
+          </View>
+
+          <View style={styles.layoutCompass}>
+            {["N", "E", "S", "W"].map((direction) => (
+              <View key={direction} style={styles.layoutCompassPill}>
+                <Text style={styles.layoutCompassText}>{direction}</Text>
+              </View>
+            ))}
+          </View>
+
+          {zoneLayouts.map((zone) => (
+            <View
+              key={zone.id}
+              style={[
+                styles.zoneCard,
+                {
+                  left: zone.left as any,
+                  top: zone.top as any,
+                  width: zone.width as any,
+                },
+              ]}
+            >
+                <View style={styles.zoneHeader}>
+                  <View>
+                    <Text style={styles.zoneOverline}>Residential Cluster</Text>
+                    <Text style={styles.zoneTitle}>{zone.title}</Text>
+                    <Text style={styles.zoneSubtitle}>{zone.subtitle}</Text>
+                  </View>
+                <View style={styles.zoneCountPill}>
+                  <Text style={styles.zoneCountPillText}>{zone.blocks.length}</Text>
+                </View>
+              </View>
+
+              <View style={styles.zoneGrid}>
+                {zone.blocks.map((block: any) => {
+                  const isActive = selectedBlock?.id === block.id;
+                  const tileWidth =
+                    zone.columns >= 6 ? "15.5%" : zone.columns === 5 ? "18.6%" : zone.columns === 3 ? "31.5%" : "23%";
+                  return (
+                    <TouchableOpacity
+                      key={block.id}
+                      testID={`map-hotspot-${block.id}`}
+                      activeOpacity={0.9}
+                      onPress={() => focusBlock(block)}
+                      style={[
+                        styles.plotTile,
+                        zone.columns >= 6 ? styles.plotTileDense : zone.columns === 5 ? styles.plotTileCompact : null,
+                        {
+                          width: tileWidth,
+                          backgroundColor: blockSurface(block.status),
+                          borderColor: isActive ? colors.primaryDeepest : blockColor(block.status),
+                        },
+                        isActive && styles.plotTileActive,
+                      ]}
+                    >
+                      <Text style={styles.plotTileNumber}>#{block.label}</Text>
+                      <Text style={styles.plotTileFacing}>{facingShortLabel(block.facing)}</Text>
+                      <Text style={styles.plotTileSize} numberOfLines={1}>
+                        {block.size}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          {!hasPlots ? (
+            <View style={styles.layoutEmptyState}>
+              <Feather name="sliders" size={20} color={colors.stone500} />
+              <Text style={styles.layoutEmptyTitle}>No plots match these filters</Text>
+              <Text style={styles.layoutEmptyText}>Try clearing facing or status to see more plotted boxes.</Text>
+            </View>
+          ) : null}
+        </View>
+        </Animated.View>
+      </View>
+
+      <View style={styles.layoutLegendRow}>
+        {["available", "reserved", "booked", "sold"].map((status) => (
+          <View key={status} style={styles.layoutLegendItem}>
+            <View style={[styles.layoutLegendDot, { backgroundColor: blockColor(status) }]} />
+            <Text style={styles.layoutLegendText}>{blockStatusLabel(status)}</Text>
+          </View>
+        ))}
+        <View style={styles.layoutLegendItem}>
+          <Feather name="move" size={14} color={colors.stone500} />
+          <Text style={styles.layoutLegendText}>Drag to pan</Text>
+        </View>
+        <View style={styles.layoutLegendItem}>
+          <Feather name="zoom-in" size={14} color={colors.stone500} />
+          <Text style={styles.layoutLegendText}>Pinch or scroll to zoom</Text>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.plotChipRail}>
+        {quickPicks.map((block) => {
+          const active = selectedBlock?.id === block.id;
+          return (
+            <TouchableOpacity
+              key={block.id}
+              testID={`map-chip-${block.id}`}
+              style={[
+                styles.plotChip,
+                { borderColor: colors.primaryLight },
+                active && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+              onPress={() => onSelectBlock(block)}
+            >
+              <Text style={[styles.plotChipLabel, active && styles.plotChipLabelActive]}>#{block.label}</Text>
+              <Text style={[styles.plotChipMeta, active && styles.plotChipMetaActive]}>{facingShortLabel(block.facing)} | {block.size}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -234,13 +699,14 @@ function InteractiveMapViewer({
 export default function PropertyDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const scrollRef = useRef<ScrollView | null>(null);
   const mapSectionOffset = useRef(0);
   const galleryRef = useRef<ScrollView | null>(null);
   const { width } = useWindowDimensions();
   const propertyFromMock = useMemo(() => findMockPropertyById(id) || mockProperties[0], [id]);
-  const [property, setProperty] = useState<any>(propertyFromMock);
-  const [loading, setLoading] = useState(!propertyFromMock);
+  const [property] = useState<any>(propertyFromMock);
+  const [loading, setLoading] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
   const [interestVisible, setInterestVisible] = useState(false);
@@ -249,40 +715,17 @@ export default function PropertyDetails() {
   const [interestEmail, setInterestEmail] = useState("");
 
   useEffect(() => {
-    let active = true;
-
-    if (propertyFromMock) {
-      setProperty(propertyFromMock);
-      setLoading(false);
-      return () => {
-        active = false;
-      };
-    }
-
-    (async () => {
-      try {
-        const response = await api.getProperty(id as string);
-        if (active) setProperty(response);
-      } catch (e: any) {
-        if (active) Alert.alert("Error", e.message);
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [id, propertyFromMock]);
+    setLoading(false);
+  }, [propertyFromMock]);
 
   const curatedFallback = propertyFromMock || mockProperties[0];
   const images: string[] = property?.images?.length ? property.images : curatedFallback.images || [curatedFallback.image];
   const plans: any[] = property?.layoutPlans?.length ? property.layoutPlans : curatedFallback.layoutPlans || [];
-  const availabilityImage = property?.availabilityImage || curatedFallback.availabilityImage;
   const mapBlocks: any[] = property?.mapBlocks?.length ? property.mapBlocks : curatedFallback.mapBlocks || [];
   const heroRatio = useRemoteImageSize(images[imgIdx] || images[0]);
   const heroWidth = Math.min(width, 1280);
   const heroHeight = Math.min(heroWidth / heroRatio, width > 900 ? 620 : 420);
+  const isAgent = user?.role === "agent" || user?.role === "sub_agent";
 
   useEffect(() => {
     if (images.length <= 1) return;
@@ -307,7 +750,7 @@ export default function PropertyDetails() {
   }
 
   function openCall() {
-    Linking.openURL("tel:+919966826567").catch(() => Alert.alert("Call unavailable", "Unable to open the dialer."));
+    Linking.openURL(`tel:${SALES_CONTACT_NUMBER}`).catch(() => Alert.alert("Call unavailable", "Unable to open the dialer."));
   }
 
   function jumpToMap() {
@@ -381,7 +824,7 @@ export default function PropertyDetails() {
             </View>
             <View style={styles.plotInfo}>
               <View style={styles.plotInfoDot} />
-              <Text style={styles.plotInfoText}>{property.availability}</Text>
+              <Text style={styles.plotInfoText}>{isAgent ? property.availability : "Enquiry open"}</Text>
             </View>
           </View>
 
@@ -437,16 +880,13 @@ export default function PropertyDetails() {
               mapSectionOffset.current = event.nativeEvent.layout.y;
             }}
           >
-            <Text style={styles.sectionTitle}>Availability Map</Text>
+            <Text style={styles.sectionTitle}>{isAgent ? "Availability Map" : "Site Layout Map"}</Text>
             <InteractiveMapViewer
-              uri={availabilityImage}
               blocks={mapBlocks}
               selectedBlock={selectedBlock}
-              onSelectBlock={(block) => {
-                setSelectedBlock(block);
-                setInterestVisible(true);
-              }}
+              onSelectBlock={setSelectedBlock}
               onOpenInterest={() => setInterestVisible(true)}
+              onScheduleVisit={() => router.push(`/centre/site-${id}`)}
             />
           </View>
         </View>
@@ -470,11 +910,14 @@ export default function PropertyDetails() {
             style={[styles.actionBtn, styles.actionBtnPrimary]}
             onPress={() => {
               jumpToMap();
-              setTimeout(() => setInterestVisible(true), 250);
+              if (!selectedBlock && mapBlocks.length) {
+                const firstOpenBlock = mapBlocks.find((block) => block.status === "available") || mapBlocks[0];
+                setSelectedBlock(firstOpenBlock);
+              }
             }}
           >
             <Feather name="map" size={16} color={colors.white} />
-            <Text style={styles.actionBtnTextPrimary}>Explore Map</Text>
+            <Text style={styles.actionBtnTextPrimary}>Explore Layout</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -676,11 +1119,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.stone100,
     overflow: "hidden",
+    gap: spacing.sm,
   },
   mapToolbar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: spacing.sm,
     padding: spacing.md,
     borderBottomWidth: 1,
@@ -688,7 +1132,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     flexWrap: "wrap",
   },
-  mapToolbarText: { ...typography.body, color: colors.stone700, fontWeight: "600" },
+  mapToolbarCopy: { flex: 1, minWidth: 220, gap: 4 },
+  mapToolbarTitle: { ...typography.bodyLarge, color: colors.primaryDeepest, fontWeight: "800" },
+  mapToolbarText: { ...typography.small, color: colors.stone700, lineHeight: 18 },
+  mapToolbarActions: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#E9F8EF",
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#CDEED7",
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  liveBadgeText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800" },
   mapControls: { flexDirection: "row", gap: 8 },
   mapLeadBtn: {
     flexDirection: "row",
@@ -701,6 +1161,40 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   mapLeadBtnText: { ...typography.small, color: colors.white, fontWeight: "700" },
+  mapInsightsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  mapInsightCard: {
+    flex: 1,
+    minWidth: 110,
+    backgroundColor: colors.white,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+    padding: spacing.sm,
+    gap: 2,
+  },
+  mapInsightValue: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
+  mapInsightLabel: { ...typography.small, color: colors.stone500, fontWeight: "600" },
+  mapFilterWrap: { paddingHorizontal: spacing.md },
+  mapFilterRail: { gap: spacing.sm, paddingRight: spacing.md },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+    backgroundColor: colors.white,
+  },
+  filterPillActive: {
+    backgroundColor: colors.primaryDeepest,
+    borderColor: colors.primaryDeepest,
+  },
+  filterPillText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  filterPillTextActive: { color: colors.white },
   mapControlBtn: {
     width: 38,
     height: 38,
@@ -711,37 +1205,394 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.stone200,
   },
-  mapScrollContent: { alignItems: "center", justifyContent: "center" },
-  mapInteractiveImage: { backgroundColor: colors.white },
-  selectedBlockCard: {
+  mapSelectedCard: {
     marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
+    padding: spacing.md,
     borderRadius: radii.md,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.stone100,
+    gap: spacing.sm,
+  },
+  selectedBlockTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    flexWrap: "wrap",
   },
   selectedBlockHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   selectedBlockDot: { width: 10, height: 10, borderRadius: 5 },
-  selectedBlockTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  selectedBlockStatus: { ...typography.small, color: colors.stone500, textTransform: "capitalize" },
-  selectedBlockMeta: { ...typography.small, color: colors.stone700 },
-  selectedBlockPlaceholder: { ...typography.small, color: colors.stone500 },
-  mapBlock: {
-    position: "absolute",
-    borderRadius: 4,
+  selectedBlockTitle: { ...typography.bodyLarge, color: colors.primaryDeepest, fontWeight: "800" },
+  selectedBlockMeta: { ...typography.small, color: colors.stone700, lineHeight: 18 },
+  selectedFacingPill: {
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    backgroundColor: colors.primaryDeepest,
+  },
+  selectedFacingPillText: { ...typography.small, color: colors.white, fontWeight: "800" },
+  selectedStatGrid: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  selectedStatCard: {
+    flex: 1,
+    minWidth: 140,
+    borderRadius: radii.md,
+    backgroundColor: colors.offWhite,
+    padding: spacing.sm,
+    gap: 4,
+  },
+  selectedStatLabel: { ...typography.small, color: colors.stone500, fontWeight: "700" },
+  selectedStatValue: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
+  selectedActions: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  selectedActionGhost: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.offWhite,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.92)",
+    borderColor: colors.stone200,
+  },
+  selectedActionGhostText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  selectedActionPrimary: {
+    flex: 1,
+    minWidth: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  selectedActionPrimaryText: { ...typography.small, color: colors.white, fontWeight: "800" },
+  selectedBlockEmpty: { gap: 4 },
+  selectedBlockPlaceholder: { ...typography.small, color: colors.stone500 },
+  selectedBlockHint: { ...typography.small, color: colors.accentDark, fontWeight: "700" },
+  layoutViewport: {
+    marginHorizontal: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: "#E5F0E7",
+    borderWidth: 1,
+    borderColor: "#D3E3D7",
+    overflow: "hidden",
+    height: 640,
+    position: "relative",
+  },
+  layoutBoardCanvas: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+  },
+  layoutBoard: {
+    position: "relative",
+    backgroundColor: "#EEF4EC",
+  },
+  layoutBackdropGlow: {
+    position: "absolute",
+    top: -80,
+    right: -40,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(255,255,255,0.38)",
+  },
+  layoutPlaque: {
+    position: "absolute",
+    left: spacing.md,
+    top: spacing.md,
+    width: 248,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: "#D9E6DD",
+    padding: spacing.md,
+    gap: 4,
+    ...shadow.md,
+    zIndex: 2,
+  },
+  layoutPlaqueEyebrow: { ...typography.label, color: colors.accentDark, fontSize: 10, letterSpacing: 0.8 },
+  layoutPlaqueTitle: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "800" },
+  layoutPlaqueText: { ...typography.small, color: colors.stone600, lineHeight: 18 },
+  layoutTextureBandTop: {
+    position: "absolute",
+    top: "8%",
+    left: "5%",
+    right: "5%",
+    height: 1,
+    backgroundColor: "rgba(73,88,75,0.08)",
+  },
+  layoutTextureBandBottom: {
+    position: "absolute",
+    bottom: "10%",
+    left: "7%",
+    right: "8%",
+    height: 1,
+    backgroundColor: "rgba(73,88,75,0.08)",
+  },
+  layoutRoadHorizontal: {
+    position: "absolute",
+    left: "6%",
+    right: "6%",
+    height: 34,
+    borderRadius: 20,
+    backgroundColor: "#475649",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#607263",
+  },
+  layoutRoadNorth: { top: "26%" },
+  layoutRoadSouth: { top: "52%" },
+  layoutRoadVertical: {
+    position: "absolute",
+    width: 32,
+    borderRadius: 20,
+    backgroundColor: "#475649",
+    borderWidth: 1,
+    borderColor: "#607263",
+  },
+  layoutRoadCentre: {
+    top: "22%",
+    bottom: "16%",
+    left: "48.5%",
     alignItems: "center",
     justifyContent: "center",
   },
-  mapBlockActive: {
-    borderWidth: 2,
-    borderColor: colors.primaryDeepest,
-    transform: [{ scale: 1.08 }],
+  layoutRoadEast: {
+    top: "10%",
+    height: "56%",
+    left: "83%",
   },
-  mapBlockLabel: { color: colors.white, fontSize: 9, fontWeight: "800" },
+  layoutRoadMedianHorizontal: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  layoutRoadMedianVertical: {
+    position: "absolute",
+    top: 18,
+    bottom: 18,
+    alignSelf: "center",
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  layoutRoadText: { ...typography.small, color: colors.white, fontWeight: "700" },
+  layoutRoadTextVertical: {
+    ...typography.small,
+    color: colors.white,
+    fontWeight: "700",
+    transform: [{ rotate: "-90deg" }],
+    width: 140,
+    textAlign: "center",
+  },
+  layoutJunctionHub: {
+    position: "absolute",
+    left: "46.8%",
+    top: "49.2%",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#5A6A5D",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#708273",
+    ...shadow.sm,
+  },
+  layoutJunctionInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#D8E4DA",
+  },
+  layoutParkWest: {
+    position: "absolute",
+    left: "8%",
+    top: "54%",
+    width: "22%",
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(223,244,228,0.98)",
+    borderWidth: 1,
+    borderColor: "#BFE0C7",
+    padding: spacing.md,
+    gap: 4,
+    ...shadow.sm,
+  },
+  layoutParkTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
+  layoutParkText: { ...typography.small, color: colors.stone600 },
+  layoutCompass: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    gap: 8,
+  },
+  layoutCompassPill: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.sm,
+  },
+  layoutCompassText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800" },
+  zoneCard: {
+    position: "absolute",
+    backgroundColor: "rgba(255,255,255,0.98)",
+    borderWidth: 1,
+    borderColor: "#D6E3DA",
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    ...shadow.md,
+  },
+  zoneHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  zoneOverline: { ...typography.label, color: colors.accentDark, fontSize: 10, marginBottom: 2 },
+  zoneTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "800" },
+  zoneSubtitle: { ...typography.small, color: colors.stone500 },
+  zoneCountPill: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.offWhite,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoneCountPillText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800" },
+  zoneGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  plotTile: {
+    minWidth: 58,
+    aspectRatio: 1,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    padding: 6,
+    justifyContent: "space-between",
+    shadowColor: "#0B2813",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  plotTileCompact: {
+    minWidth: 52,
+    padding: 5,
+  },
+  plotTileDense: {
+    minWidth: 44,
+    padding: 4,
+    aspectRatio: 0.88,
+  },
+  plotTileActive: {
+    borderWidth: 2.5,
+    transform: [{ translateY: -2 }],
+    shadowColor: "#0B2813",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  plotTileNumber: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800", fontSize: 11 },
+  plotTileFacing: { ...typography.small, color: colors.primary, fontWeight: "800", fontSize: 10 },
+  plotTileSize: { fontSize: 9, color: colors.stone600, fontWeight: "600" },
+  layoutEmptyState: {
+    position: "absolute",
+    left: "34%",
+    top: "42%",
+    width: "32%",
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+    padding: spacing.lg,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  layoutEmptyTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "800" },
+  layoutEmptyText: { ...typography.small, color: colors.stone600, textAlign: "center", lineHeight: 18 },
+  layoutLegendRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+  },
+  layoutLegendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  layoutLegendDot: { width: 10, height: 10, borderRadius: 5 },
+  layoutLegendText: { ...typography.small, color: colors.stone600, fontWeight: "700" },
+  mapViewport: {
+    marginHorizontal: spacing.md,
+    height: 520,
+    borderRadius: radii.lg,
+    backgroundColor: "#E8EFE9",
+    overflow: "hidden",
+  },
+  mapCanvas: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+  },
+  mapInteractiveImage: { backgroundColor: colors.white },
+  mapBlock: {
+    position: "absolute",
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 4,
+    ...shadow.sm,
+  },
+  mapBlockActive: {
+    borderWidth: 3,
+    borderColor: colors.primaryDeepest,
+    transform: [{ scale: 1.12 }],
+  },
+  mapBlockLabelDark: { color: colors.primaryDeepest, fontSize: 10, fontWeight: "800" },
+  mapFacingTag: {
+    position: "absolute",
+    right: 3,
+    bottom: 3,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  mapFacingTagText: { color: colors.white, fontSize: 8, fontWeight: "800" },
+  plotChipRail: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  plotChip: {
+    minWidth: 94,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    gap: 2,
+  },
+  plotChipLabel: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800" },
+  plotChipLabelActive: { color: colors.white },
+  plotChipMeta: { ...typography.small, color: colors.stone500 },
+  plotChipMetaActive: { color: "rgba(255,255,255,0.84)" },
   actionBarWrap: {
     position: "absolute",
     bottom: 0,

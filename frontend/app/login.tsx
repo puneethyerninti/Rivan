@@ -24,7 +24,13 @@ import Constants from "expo-constants";
 import { Button } from "@/src/components/Button";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { useAuth } from "@/src/auth-context";
-import { firebaseConfigError, getFirebaseAuth, getFirebasePhoneAuthHelpers, hasFirebaseConfig } from "@/src/firebase";
+import {
+  firebaseConfigError,
+  getFirebaseAuth,
+  getFirebasePhoneAuthHelpers,
+  hasFirebaseConfig,
+  signInWithFirebaseGooglePopup,
+} from "@/src/firebase";
 import { api, warmBackendReady } from "@/src/api";
 import { colors, radii, spacing, typography } from "@/src/theme";
 
@@ -108,6 +114,11 @@ export default function LoginScreen() {
     scopes: ["openid", "profile", "email"],
     selectAccount: true,
   });
+
+  const googleLoginDisabled =
+    Platform.OS === "web"
+      ? isLocalhostWeb || !googleWebClientId
+      : !googleRequest || isExpoGo;
 
   useEffect(() => {
     const runGoogleAuth = async () => {
@@ -401,6 +412,14 @@ export default function LoginScreen() {
 
     setGoogleLoading(true);
     try {
+      if (Platform.OS === "web") {
+        const idToken = await signInWithFirebaseGooglePopup();
+        const session = await api.googleAuth(idToken);
+        await signIn(session.access_token, session.user);
+        setGoogleLoading(false);
+        return;
+      }
+
       const result = await promptGoogleAsync();
       if (result.type !== "success") {
         setGoogleLoading(false);
@@ -442,7 +461,7 @@ export default function LoginScreen() {
               <View style={styles.brandCopy}>
                 <Text style={styles.title}>Sign in to Rivan</Text>
                 <Text style={styles.subtitle}>
-                  Continue with your mobile number or Google account to access your properties, visits, and documents.
+                  Quick access to your properties, visits, and saved actions.
                 </Text>
               </View>
 
@@ -460,6 +479,36 @@ export default function LoginScreen() {
             </View>
 
             <View style={[styles.formCard, isWide && styles.formCardWide]}>
+              <View style={styles.formTopRow}>
+                <View style={styles.formTopCopy}>
+                  <Text style={styles.formEyebrow}>Customer Access</Text>
+                  <Text style={styles.formTitle}>Welcome back</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.backHomeButton}
+                  onPress={() => router.replace("/")}
+                  testID="login-back-home"
+                >
+                  <Feather name="arrow-left" size={16} color={colors.primaryDeepest} />
+                  <Text style={styles.backHomeButtonText}>Home</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.roleSwitchRow}>
+                <View style={[styles.roleChip, styles.roleChipActive]}>
+                  <Feather name="user" size={14} color={colors.white} />
+                  <Text style={[styles.roleChipText, styles.roleChipTextActive]}>Customer Login</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.roleChip}
+                  onPress={() => router.push("/agent-login")}
+                  testID="login-top-agent-link"
+                >
+                  <Feather name="briefcase" size={14} color={colors.primaryDeepest} />
+                  <Text style={styles.roleChipText}>Agent Login</Text>
+                </TouchableOpacity>
+              </View>
+
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
                 {AUTH_TABS.map((tab) => (
                   <TouchableOpacity
@@ -610,7 +659,7 @@ export default function LoginScreen() {
                     title="Continue With Google"
                     onPress={handleGoogleLogin}
                     loading={googleLoading}
-                    disabled={!googleRequest || isExpoGo || (Platform.OS === "web" && isLocalhostWeb)}
+                    disabled={googleLoginDisabled}
                     testID="login-google-button"
                     style={{ marginTop: spacing.sm }}
                     icon={<Feather name="chrome" size={16} color={colors.white} />}
@@ -624,7 +673,7 @@ export default function LoginScreen() {
                   Use the separate agent workspace to manage assigned assets, sub-agents, and customer closures.
                 </Text>
                 <Button
-                  title="Open Agent Dashboard Login"
+                  title="Open Agent Login"
                   variant="secondary"
                   onPress={() => router.push("/agent-login")}
                   testID="login-agent-link"
@@ -773,13 +822,47 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  formCardWide: { flex: 1, maxWidth: 520 },
+  formCardWide: { flex: 1, maxWidth: 460 },
   logoWrap: { alignItems: "flex-start", gap: spacing.sm },
   logo: { width: 220, height: 110 },
   tagline: { ...typography.small, color: "#D7F6DE", fontStyle: "italic", fontWeight: "500" },
   brandCopy: { gap: spacing.sm },
   title: { ...typography.h1, color: colors.white, fontWeight: "700" },
   subtitle: { ...typography.body, color: "rgba(255,255,255,0.84)", lineHeight: 22 },
+  formTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  formTopCopy: { gap: 2, flex: 1 },
+  formEyebrow: { ...typography.label, color: colors.accentDark },
+  formTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
+  roleSwitchRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  roleChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
+  roleChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleChipText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  roleChipTextActive: { color: colors.white },
+  backHomeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
+  backHomeButtonText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
   securityCard: {
     flexDirection: "row",
     alignItems: "flex-start",

@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 
 import { Button } from "@/src/components/Button";
 import { useAuth } from "@/src/auth-context";
@@ -25,6 +26,7 @@ import {
   getFirebaseAuth,
   getFirebasePhoneAuthHelpers,
   hasFirebaseConfig,
+  signInWithFirebaseGooglePopup,
 } from "@/src/firebase";
 import { colors, radii, spacing, typography } from "@/src/theme";
 
@@ -57,8 +59,9 @@ export default function CustomerAuthModal({
   onSuccess,
 }: Props) {
   const { signIn } = useAuth();
+  const router = useRouter();
   const { width } = useWindowDimensions();
-  const isWide = width >= 980;
+  const isWide = width >= 1080;
   const [activeTab, setActiveTab] = useState<AuthTab>(initialTab);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -114,6 +117,11 @@ export default function CustomerAuthModal({
     scopes: ["openid", "profile", "email"],
     selectAccount: true,
   });
+
+  const googleLoginDisabled =
+    Platform.OS === "web"
+      ? isLocalhostWeb || !googleWebClientId
+      : !googleRequest || isExpoGo;
 
   useEffect(() => {
     if (!visible) return;
@@ -332,6 +340,15 @@ export default function CustomerAuthModal({
 
     setGoogleLoading(true);
     try {
+      if (Platform.OS === "web") {
+        const idToken = await signInWithFirebaseGooglePopup();
+        const session = await api.googleAuth(idToken);
+        await signIn(session.access_token, session.user);
+        handleSuccess();
+        setGoogleLoading(false);
+        return;
+      }
+
       const result = await promptGoogleAsync();
       if (result.type !== "success" && result.type !== "dismiss") {
         setErrorMessage("Google sign-in was cancelled or could not be completed.");
@@ -368,11 +385,10 @@ export default function CustomerAuthModal({
             <View style={[styles.brandPanel, isWide && styles.brandPanelWide]}>
               <Text style={styles.brandEyebrow}>Rivan Customer Access</Text>
               <Text style={styles.brandTitle}>
-                {mode === "signup" ? "Create your account without leaving the app." : "Login without leaving the property experience."}
+                {mode === "signup" ? "Create your account in a quick step." : "Sign in and get back to browsing fast."}
               </Text>
               <Text style={styles.brandText}>
-                The homepage stays visible in the background while you sign in to save, book, view availability,
-                and continue your property journey smoothly.
+                Save properties, raise enquiries, and continue exactly where you left off.
               </Text>
               <View style={styles.brandPoints}>
                 <View style={styles.brandPoint}>
@@ -399,13 +415,44 @@ export default function CustomerAuthModal({
               <View style={styles.cardTop}>
                 <View style={styles.headings}>
                   <Text style={styles.eyebrow}>{mode === "signup" ? "Create account" : "Customer login"}</Text>
-                  <Text style={styles.title}>{mode === "signup" ? "Sign up to continue" : "Login to continue"}</Text>
+                  <Text style={styles.title}>{mode === "signup" ? "Create account" : "Welcome back"}</Text>
                   <Text style={styles.subtitle}>
-                    Continue browsing in the background while you sign in to save, book, and view availability details.
+                    Quick sign-in with OTP or Google.
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.closeButton} onPress={onClose} testID="auth-modal-close">
-                  <Feather name="x" size={18} color={colors.stone700} />
+                <View style={styles.topActions}>
+                  <TouchableOpacity
+                    style={styles.homeButton}
+                    onPress={() => {
+                      onClose();
+                      router.replace("/");
+                    }}
+                    testID="auth-modal-home"
+                  >
+                    <Feather name="arrow-left" size={16} color={colors.primaryDeepest} />
+                    <Text style={styles.homeButtonText}>Home</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.closeButton} onPress={onClose} testID="auth-modal-close">
+                    <Feather name="x" size={18} color={colors.stone700} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.roleSwitchRow}>
+                <View style={[styles.roleChip, styles.roleChipActive]}>
+                  <Feather name="user" size={14} color={colors.white} />
+                  <Text style={[styles.roleChipText, styles.roleChipTextActive]}>Customer Login</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.roleChip}
+                  onPress={() => {
+                    onClose();
+                    router.push("/agent-login");
+                  }}
+                  testID="auth-modal-agent-link"
+                >
+                  <Feather name="briefcase" size={14} color={colors.primaryDeepest} />
+                  <Text style={styles.roleChipText}>Agent Login</Text>
                 </TouchableOpacity>
               </View>
 
@@ -506,7 +553,7 @@ export default function CustomerAuthModal({
                     title={mode === "signup" ? "Sign up with Google" : "Continue with Google"}
                     onPress={handleGoogleLogin}
                     loading={googleLoading}
-                    disabled={!googleRequest || isExpoGo || (Platform.OS === "web" && isLocalhostWeb)}
+                    disabled={googleLoginDisabled}
                     icon={<Feather name="chrome" size={16} color={colors.white} />}
                   />
                 </View>
@@ -594,18 +641,18 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "100%",
-    maxWidth: 720,
-    minHeight: 640,
+    maxWidth: 520,
+    minHeight: 0,
     backgroundColor: "rgba(255,255,255,0.96)",
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.7)",
     overflow: "hidden",
     flexDirection: "column",
   },
   cardWide: {
-    maxWidth: 1140,
-    minHeight: 720,
+    maxWidth: 920,
+    minHeight: 0,
     flexDirection: "row",
   },
   brandPanel: {
@@ -613,11 +660,11 @@ const styles = StyleSheet.create({
   },
   brandPanelWide: {
     display: "flex",
-    width: 420,
+    width: 300,
     backgroundColor: colors.primaryDeepest,
-    padding: spacing.xl,
+    padding: spacing.lg,
     justifyContent: "center",
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   brandEyebrow: { ...typography.label, color: colors.accentLight },
   brandTitle: { ...typography.h1, color: colors.white, fontWeight: "800" },
@@ -629,8 +676,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardContent: {
-    padding: spacing.xl,
-    gap: spacing.md,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   cardTop: {
     flexDirection: "row",
@@ -642,6 +689,37 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.label, color: colors.accentDark },
   title: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "800" },
   subtitle: { ...typography.body, color: colors.stone600, lineHeight: 21 },
+  roleSwitchRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  roleChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
+  roleChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleChipText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
+  roleChipTextActive: { color: colors.white },
+  topActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  homeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: colors.offWhite,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
+  homeButtonText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
   closeButton: {
     width: 40,
     height: 40,
@@ -650,7 +728,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tabRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  tabRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap", marginTop: spacing.xs },
   tabPill: {
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
@@ -662,7 +740,7 @@ const styles = StyleSheet.create({
   tabPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
   tabTextActive: { color: colors.white },
-  section: { gap: spacing.md },
+  section: { gap: spacing.sm },
   inputBlock: { gap: 6 },
   label: { ...typography.small, color: colors.stone600, fontWeight: "600" },
   inputShell: {
@@ -675,7 +753,7 @@ const styles = StyleSheet.create({
   },
   inputShellWithAdornment: { paddingLeft: spacing.md },
   inputAdornment: { marginRight: spacing.sm },
-  input: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: 14, fontSize: 16, color: colors.stone900 },
+  input: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 16, color: colors.stone900 },
   inputWithAdornment: { paddingLeft: 0 },
   phonePrefix: { ...typography.body, color: colors.stone900, fontWeight: "700" },
   infoCard: {

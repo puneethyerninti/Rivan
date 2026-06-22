@@ -17,10 +17,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import CustomerAuthModal from "@/src/components/CustomerAuthModal";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
+import { api } from "@/src/api";
 import { mockFeaturedProperties, mockProperties } from "@/src/mock-data";
 import { colors, radii, spacing, typography, shadow, formatINR } from "@/src/theme";
 
@@ -39,7 +39,7 @@ const CATEGORIES = [
 
 export function HomeScreen() {
   const router = useRouter();
-  const { user, isAuthed } = useAuth();
+  const { user, isAuthed, isSessionRefreshing } = useAuth();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
   const isTablet = width >= 680;
@@ -83,13 +83,6 @@ export function HomeScreen() {
     [router]
   );
 
-  const openAvailability = useCallback(
-    (propertyId: string) => {
-      router.push(`/property/${propertyId}`);
-    },
-    [router]
-  );
-
   const handleAuthSuccess = useCallback(() => {
     const nextRoute = pendingRoute;
     setPendingRoute(null);
@@ -101,35 +94,53 @@ export function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [, , notifs, crmRelationship] = await Promise.all([
-        api.listProperties({ category: category === "all" ? undefined : category, search }).catch(() => []),
-        api.featured().catch(() => []),
-        isAuthed ? api.notifications().catch(() => []) : Promise.resolve([]),
-        isAuthed ? api.customerRelationship().catch(() => null) : Promise.resolve(null),
+      const canFetchProtectedData = isAuthed && !isSessionRefreshing;
+      const [notifs, crmRelationship] = await Promise.all([
+        canFetchProtectedData ? api.notifications().catch(() => []) : Promise.resolve([]),
+        canFetchProtectedData ? api.customerRelationship().catch(() => null) : Promise.resolve(null),
       ]);
-      const normalizedCategory = category === "all" ? "" : category.toLowerCase();
+
+      const normalizedCategory = category.toLowerCase();
       const normalizedSearch = search.trim().toLowerCase();
-      const filtered = mockProperties.filter((property) => {
-        const categoryMatch = !normalizedCategory || property.category.toLowerCase() === normalizedCategory;
-        const searchMatch =
+      const filteredProperties = mockProperties.filter((property) => {
+        const matchesCategory =
+          normalizedCategory === "all" || property.category.toLowerCase() === normalizedCategory;
+        const matchesSearch =
           !normalizedSearch ||
           property.name.toLowerCase().includes(normalizedSearch) ||
           property.location.toLowerCase().includes(normalizedSearch) ||
-          property.category.toLowerCase().includes(normalizedSearch);
-        return categoryMatch && searchMatch;
+          String(property.highlights || "").toLowerCase().includes(normalizedSearch);
+
+        return matchesCategory && matchesSearch;
       });
 
-      setProperties(filtered);
+      setProperties(filteredProperties);
       setFeatured(mockFeaturedProperties);
       setUnreadCount((notifs as any[]).filter((n) => !n.read).length);
       setRelationship(crmRelationship);
     } catch (e: any) {
       console.warn("home fetch", e?.message);
+      const normalizedCategory = category.toLowerCase();
+      const normalizedSearch = search.trim().toLowerCase();
+      setProperties(
+        mockProperties.filter((property) => {
+          const matchesCategory =
+            normalizedCategory === "all" || property.category.toLowerCase() === normalizedCategory;
+          const matchesSearch =
+            !normalizedSearch ||
+            property.name.toLowerCase().includes(normalizedSearch) ||
+            property.location.toLowerCase().includes(normalizedSearch) ||
+            String(property.highlights || "").toLowerCase().includes(normalizedSearch);
+
+          return matchesCategory && matchesSearch;
+        })
+      );
+      setFeatured(mockFeaturedProperties);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [category, search, isAuthed]);
+  }, [category, search, isAuthed, isSessionRefreshing]);
 
   useEffect(() => {
     fetchData();
@@ -155,7 +166,7 @@ export function HomeScreen() {
               <Feather name={locationOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.stone600} />
             </TouchableOpacity>
             <Text style={styles.greeting}>Hi, {user?.name?.split(" ")[0] || "Guest"}</Text>
-            <Text style={styles.headerSubtitle}>Find inventory, availability, and the next best property in one pass.</Text>
+            <Text style={styles.headerSubtitle}>Find the next best property, inspect the project layout, and raise your enquiry quickly.</Text>
           </View>
           <View style={styles.headerRight}>
             {isAuthed ? (
@@ -183,18 +194,18 @@ export function HomeScreen() {
             ) : (
               <View style={styles.authActions}>
                 <TouchableOpacity
-                  testID="home-header-login"
+                  testID="home-header-customer-login"
                   style={styles.authGhostBtn}
                   onPress={() => openAuthModal("login")}
                 >
-                  <Text style={styles.authGhostText}>Login</Text>
+                  <Text style={styles.authGhostText}>Customer Login</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  testID="home-header-signup"
+                  testID="home-header-agent-login"
                   style={styles.authPrimaryBtn}
-                  onPress={() => openAuthModal("signup")}
+                  onPress={() => router.push("/agent-login")}
                 >
-                  <Text style={styles.authPrimaryText}>Sign Up</Text>
+                  <Text style={styles.authPrimaryText}>Agent Login</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -419,7 +430,7 @@ export function HomeScreen() {
         }
         renderItem={({ item }) => (
           <View style={[styles.propertyCell, propertyColumns > 1 && styles.propertyCellDesktop]}>
-            <PropertyCard property={item} onPress={() => openPropertyDetails(item.id)} onAvailability={() => openAvailability(item.id)} compact={useCompactPropertyCard} />
+            <PropertyCard property={item} onPress={() => openPropertyDetails(item.id)} compact={useCompactPropertyCard} />
           </View>
         )}
         ListEmptyComponent={
@@ -461,7 +472,7 @@ function formatRelationshipStatus(type?: string, status?: string) {
   return `${prettyType} - ${prettyStatus}`;
 }
 
-function PropertyCard({ property, onPress, onAvailability, compact }: { property: any; onPress: () => void; onAvailability: () => void; compact?: boolean }) {
+function PropertyCard({ property, onPress, compact }: { property: any; onPress: () => void; compact?: boolean }) {
   const priceText = property.starting_price > 0 ? formatINR(property.starting_price) : "Price on request";
 
   return (
@@ -473,10 +484,6 @@ function PropertyCard({ property, onPress, onAvailability, compact }: { property
     >
       <PropertyMedia image={property.image} videoUrl={property.videoUrl} style={[styles.propertyImage, compact && styles.propertyImageCompact]} />
       <View style={styles.propertyImageOverlay}>
-        <View style={styles.availabilityBadge}>
-          <View style={styles.availabilityDot} />
-          <Text style={styles.availabilityText}>{property.availability || "Available"}</Text>
-        </View>
         <View style={styles.categoryPillSmall}>
           <Text style={styles.categoryPillTextSmall}>{property.category}</Text>
         </View>
@@ -510,30 +517,17 @@ function PropertyCard({ property, onPress, onAvailability, compact }: { property
             <Feather name="arrow-right" size={14} color={colors.white} />
           </TouchableOpacity>
         </View>
-        <View style={styles.availabilitySection}>
-          <View style={styles.availabilityHeader}>
-            <Text style={styles.availabilitySectionTitle}>Availability</Text>
-          </View>
-          <View style={styles.availabilityPanel}>
-            <View style={styles.availabilityPanelIcon}>
+        <View style={styles.layoutSection}>
+          <View style={styles.layoutPanel}>
+            <View style={styles.layoutPanelIcon}>
               <Feather name="map" size={18} color={colors.primary} />
             </View>
-            <View style={styles.availabilityPanelBody}>
-              <Text style={styles.availabilityPanelTitle}>Plans and availability</Text>
-              <Text style={styles.availabilityPanelText} numberOfLines={2}>
-                Open the property to review facade images, east and west floor plans, and the attached project map.
+            <View style={styles.layoutPanelBody}>
+              <Text style={styles.layoutPanelTitle}>Interactive site layout</Text>
+              <Text style={styles.layoutPanelText} numberOfLines={2}>
+                Open the property to inspect the plotted layout, east and west facing boxes, and enquire on any plot.
               </Text>
             </View>
-            <TouchableOpacity
-              testID={`home-availability-${property.id}`}
-              style={styles.availabilityActionBtn}
-              onPress={onAvailability}
-              accessibilityRole="button"
-              accessibilityLabel={`Open availability map for ${property.name}`}
-            >
-              <Text style={styles.availabilityActionText}>Availability</Text>
-              <Feather name="arrow-up-right" size={15} color={colors.white} />
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -694,9 +688,6 @@ const styles = StyleSheet.create({
   propertyImage: { width: "100%", height: 200, backgroundColor: colors.stone100 },
   propertyImageCompact: { width: 220, height: "100%" },
   propertyImageOverlay: { position: "absolute", top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: "row", justifyContent: "space-between" },
-  availabilityBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(16,185,129,0.95)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.sm },
-  availabilityDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.white },
-  availabilityText: { ...typography.label, color: colors.white, fontSize: 9 },
   propertyBody: { padding: spacing.md, gap: 4 },
   propertyName: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700" },
   propertyMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -707,24 +698,14 @@ const styles = StyleSheet.create({
   price: { ...typography.h4, color: colors.primary, fontWeight: "700" },
   viewBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radii.md },
   viewBtnText: { ...typography.body, color: colors.white, fontWeight: "700" },
-  availabilitySection: {
+  layoutSection: {
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.stone100,
     gap: spacing.sm,
   },
-  availabilityHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  availabilitySectionTitle: {
-    ...typography.body,
-    color: colors.primaryDeepest,
-    fontWeight: "700",
-  },
-  availabilityPanel: {
+  layoutPanel: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
@@ -735,7 +716,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.stone100,
   },
-  availabilityPanelIcon: {
+  layoutPanelIcon: {
     width: 42,
     height: 42,
     borderRadius: 21,
@@ -743,30 +724,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  availabilityPanelBody: {
+  layoutPanelBody: {
     flex: 1,
     minWidth: 180,
     gap: 3,
   },
-  availabilityPanelTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  availabilityPanelText: {
+  layoutPanelTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
+  layoutPanelText: {
     ...typography.small,
     color: colors.stone600,
-  },
-  availabilityActionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-    marginLeft: "auto",
-  },
-  availabilityActionText: {
-    ...typography.body,
-    color: colors.white,
-    fontWeight: "700",
   },
   empty: { padding: spacing.xl, alignItems: "center", gap: spacing.sm },
   emptyText: { ...typography.body, color: colors.stone500 },
