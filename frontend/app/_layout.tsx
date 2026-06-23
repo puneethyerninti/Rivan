@@ -24,6 +24,7 @@ function RootLayoutInner() {
   useEffect(() => {
     if (isLoading) return;
     const rootSegment = segments[0];
+    const isRootIndex = !rootSegment;
     const isAgent = user?.role === "agent" || user?.role === "sub_agent";
     const guestAllowedSegments = new Set(["", "login", "admin-login", "agent-login", "agent-apply", "property", "layout", "centre"]);
     const isPublicEntry = !rootSegment || guestAllowedSegments.has(rootSegment);
@@ -37,8 +38,8 @@ function RootLayoutInner() {
       router.replace("/admin-login");
     } else if (!isAuthed && !isPublicEntry && !allowPublicAgentPreview) {
       router.replace("/");
-    } else if (isAuthed && isPublicEntry) {
-      router.replace(user?.is_admin ? "/admin" : isAgent ? "/agent" : "/");
+    } else if (isAuthed && isPublicEntry && !isRootIndex) {
+      router.replace(user?.is_admin ? "/admin" : isAgent ? "/agent" : "/(tabs)");
     } else if (isAuthed && isAgent && !inAgentArea) {
       router.replace("/agent");
     } else if (isAuthed && user?.is_admin && rootSegment !== "admin") {
