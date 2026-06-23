@@ -1,4 +1,5 @@
 const { execFileSync, spawn } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
@@ -28,17 +29,18 @@ function commandForCmd(command) {
   return /\s/u.test(command) ? `"${command}"` : command;
 }
 
-function spawnProcess(label, command, args, cwd) {
+function spawnProcess(label, command, args, cwd, envOverrides = {}) {
+  const childEnv = { ...process.env, ...envOverrides };
   const child = isWindows && command.toLowerCase().endsWith(".cmd")
     ? spawn("cmd.exe", ["/d", "/s", "/c", `${commandForCmd(command)} ${args.map(quoteForCmd).join(" ")}`], {
         cwd,
-        env: process.env,
+        env: childEnv,
         stdio: "inherit",
         windowsHide: true,
       })
     : spawn(command, args, {
         cwd,
-        env: process.env,
+        env: childEnv,
         stdio: "inherit",
         windowsHide: true,
       });
@@ -85,11 +87,45 @@ function shutdown() {
   }
 }
 
+function ensureBackendEnvDefaults() {
+  const envPath = path.join(backendDir, ".env");
+  const lines = fs.existsSync(envPath)
+    ? fs.readFileSync(envPath, "utf8").split(/\r?\n/u)
+    : [];
+
+  const hasKey = (key) =>
+    lines.some((line) => line.trim().startsWith(`${key}=`));
+
+  let changed = false;
+
+  if (!hasKey("MONGO_URL")) {
+    lines.push('MONGO_URL="mongodb://localhost:27017"');
+    changed = true;
+  }
+
+  if (!hasKey("DB_NAME")) {
+    lines.push('DB_NAME="rivaan"');
+    changed = true;
+  }
+
+  if (!hasKey("JWT_SECRET")) {
+    lines.push(`JWT_SECRET="${crypto.randomBytes(24).toString("hex")}"`);
+    changed = true;
+    console.log("[backend] Added missing JWT_SECRET to backend/.env for local development.");
+  }
+
+  if (changed) {
+    fs.writeFileSync(envPath, `${lines.filter(Boolean).join("\n")}\n`, "utf8");
+  }
+}
+
 async function main() {
   if (!fs.existsSync(pythonExe)) {
     console.error(`Backend Python executable not found at ${pythonExe}`);
     process.exit(1);
   }
+
+  ensureBackendEnvDefaults();
 
   const backendPort = 8000;
   if (isWindows) {
@@ -127,7 +163,8 @@ async function main() {
     "frontend",
     npmCmd,
     ["run", "start", "--", "--lan", "-c", "--port", String(frontendPort)],
-    frontendDir
+    frontendDir,
+    { EXPO_NO_DOCTOR: "1" }
   );
 }
 

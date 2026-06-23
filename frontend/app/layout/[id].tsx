@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  Linking,
   Alert,
   useWindowDimensions,
 } from "react-native";
@@ -75,14 +74,6 @@ export default function LayoutScreen() {
 
   const unitType = units[0]?.unit_type || "plot";
   const openCount = units.filter((unit) => unit.status === "available").length;
-
-  function openWhatsApp(unit: any) {
-    const label = unit?.plot_number || "this unit";
-    const text = `Hi, I'm interested in ${label} at ${property?.name}.`;
-    Linking.openURL(`https://wa.me/919876543210?text=${encodeURIComponent(text)}`).catch(() =>
-      Alert.alert("Unable to open WhatsApp")
-    );
-  }
 
   function handleVisit(unit: any) {
     if (isAgent) {
@@ -210,7 +201,6 @@ export default function LayoutScreen() {
         selected={selected}
         property={property}
         onClose={() => setSelected(null)}
-        onWhatsApp={openWhatsApp}
         onBook={handleBook}
         onVisit={handleVisit}
       />
@@ -539,14 +529,12 @@ function UnitDetailModal({
   selected,
   property,
   onClose,
-  onWhatsApp,
   onBook,
   onVisit,
 }: {
   selected: any;
   property: any;
   onClose: () => void;
-  onWhatsApp: (unit: any) => void;
   onBook: (unit: any) => void;
   onVisit: (unit: any) => void;
 }) {
@@ -589,9 +577,6 @@ function UnitDetailModal({
           </View>
 
           <View style={styles.modalActions}>
-            <TouchableOpacity testID="plot-modal-whatsapp" style={styles.modalIconBtn} onPress={() => onWhatsApp(selected)}>
-              <Feather name="message-circle" size={20} color="#25D366" />
-            </TouchableOpacity>
             <TouchableOpacity testID="plot-modal-visit" style={[styles.modalIconBtn, styles.modalIconBtnAccent]} onPress={() => onVisit(selected)}>
               <Feather name="calendar" size={20} color={colors.accent} />
             </TouchableOpacity>

@@ -356,6 +356,14 @@ export default function AgentDashboardScreen() {
   }, [load]);
 
   useEffect(() => {
+    if (previewMode) return;
+    const interval = setInterval(() => {
+      void load();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [load, previewMode]);
+
+  useEffect(() => {
     if (!actionPulse) return;
     const timeout = setTimeout(() => setActionPulse(null), 2200);
     return () => clearTimeout(timeout);
@@ -2781,12 +2789,6 @@ async function openDialer(phone?: string) {
   const target = sanitizePhone(phone);
   if (!target) return;
   await Linking.openURL(`tel:${target}`);
-}
-
-async function openWhatsApp(phone?: string) {
-  const digits = sanitizePhone(phone).replace(/[^\d]/g, "");
-  if (!digits) return;
-  await Linking.openURL(`https://wa.me/${digits}`);
 }
 
 async function openEmail(email?: string) {

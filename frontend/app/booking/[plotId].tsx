@@ -18,7 +18,6 @@ export default function BookingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [mobile, setMobile] = useState(user?.phone || "");
-  const [whatsapp, setWhatsapp] = useState(user?.phone || "");
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
 
@@ -46,7 +45,6 @@ export default function BookingScreen() {
         plot_id: plotId,
         name,
         mobile,
-        whatsapp: whatsapp || mobile,
         message,
       });
       setSuccess(true);
@@ -142,20 +140,6 @@ export default function BookingScreen() {
                 value={mobile}
                 onChangeText={(t) => setMobile(t.replace(/\D/g, "").slice(0, 10))}
                 placeholder="10-digit number"
-                placeholderTextColor={colors.stone400}
-                keyboardType="phone-pad"
-                maxLength={10}
-              />
-            </View>
-
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>WhatsApp Number</Text>
-              <TextInput
-                testID="booking-whatsapp-input"
-                style={styles.input}
-                value={whatsapp}
-                onChangeText={(t) => setWhatsapp(t.replace(/\D/g, "").slice(0, 10))}
-                placeholder="Same as mobile (if empty)"
                 placeholderTextColor={colors.stone400}
                 keyboardType="phone-pad"
                 maxLength={10}

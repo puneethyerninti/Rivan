@@ -35,10 +35,6 @@ export default function VisitsScreen() {
   function callNumber(num: string) {
     Linking.openURL(`tel:${num}`).catch(() => Alert.alert("Cannot make call"));
   }
-  function openWhatsApp(num: string) {
-    const clean = num.replace(/\D/g, "");
-    Linking.openURL(`https://wa.me/${clean}?text=Hello%20Rivan%20Reality`).catch(() => Alert.alert("Cannot open WhatsApp"));
-  }
   function openDirections(url: string) {
     Linking.openURL(url).catch(() => Alert.alert("Cannot open maps"));
   }
@@ -89,10 +85,6 @@ export default function VisitsScreen() {
                     <TouchableOpacity testID={`visits-call-${c.id}`} style={styles.miniBtn} onPress={() => callNumber(c.phone)}>
                       <Feather name="phone" size={14} color={colors.primary} />
                       <Text style={styles.miniBtnText}>Call</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity testID={`visits-whatsapp-${c.id}`} style={styles.miniBtn} onPress={() => openWhatsApp(c.whatsapp)}>
-                      <Feather name="message-circle" size={14} color="#25D366" />
-                      <Text style={styles.miniBtnText}>WhatsApp</Text>
                     </TouchableOpacity>
                     <TouchableOpacity testID={`visits-directions-${c.id}`} style={styles.miniBtn} onPress={() => openDirections(c.directions_url)}>
                       <Feather name="navigation" size={14} color={colors.accent} />

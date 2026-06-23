@@ -49,22 +49,17 @@ export async function getFirebaseAuth() {
     throw new Error(firebaseConfigError || "Firebase configuration is unavailable.");
   }
 
-  const { browserLocalPersistence, getAuth, getReactNativePersistence, initializeAuth } =
+  const { browserLocalPersistence, getAuth, getReactNativePersistence, initializeAuth, setPersistence } =
     await loadFirebaseAuthModule();
 
   if (Platform.OS === "web") {
     try {
-      firebaseAuthInstance = initializeAuth(firebaseApp, {
-        persistence: browserLocalPersistence,
-      });
+      firebaseAuthInstance = getAuth(firebaseApp);
+      await setPersistence(firebaseAuthInstance, browserLocalPersistence);
       return firebaseAuthInstance;
     } catch (error: any) {
       const message = String(error?.message || "");
-      if (
-        message.includes("already exists") ||
-        message.includes("has already been initialized") ||
-        message.includes("already-initialized")
-      ) {
+      if (message.includes("already exists") || message.includes("has already been initialized") || message.includes("already-initialized")) {
         firebaseAuthInstance = getAuth(firebaseApp);
         return firebaseAuthInstance;
       }
@@ -98,6 +93,26 @@ export async function getFirebasePhoneAuthHelpers() {
     signInWithPhoneNumber: authModule.signInWithPhoneNumber,
     getIdToken: authModule.getIdToken,
   };
+}
+
+export async function signInWithFirebaseGooglePopup() {
+  if (Platform.OS !== "web") {
+    throw new Error("Firebase Google popup sign-in is only available on web.");
+  }
+
+  const auth = await getFirebaseAuth();
+  const authModule = await loadFirebaseAuthModule();
+  const provider = new authModule.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  const result = await authModule.signInWithPopup(auth, provider);
+  const idToken = await result.user.getIdToken(true);
+
+  if (!idToken) {
+    throw new Error("Firebase did not return a valid session token after Google sign-in.");
+  }
+
+  return idToken;
 }
 
 export { firebaseConfig };
