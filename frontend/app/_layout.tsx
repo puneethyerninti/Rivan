@@ -24,28 +24,31 @@ function RootLayoutInner() {
   useEffect(() => {
     if (isLoading) return;
     const rootSegment = segments[0];
-    const isRootIndex = !rootSegment;
     const isAgent = user?.role === "agent" || user?.role === "sub_agent";
-    const guestAllowedSegments = new Set(["", "login", "admin-login", "agent-login", "agent-apply", "property", "layout", "centre"]);
-    const isPublicEntry = !rootSegment || guestAllowedSegments.has(rootSegment);
-    const allowPublicAgentPreview = Platform.OS === "web" && !isAuthed && rootSegment === "agent";
-    const agentAllowedSegments = new Set(["agent", "layout", "booking", "property", "notifications"]);
-    const customerRestrictedSegments = new Set(["agent", "agent-login", "admin"]);
-    const inAgentArea = agentAllowedSegments.has(rootSegment || "");
-    const inCustomerRestrictedArea = customerRestrictedSegments.has(rootSegment || "");
+    const isAuthScreen = ["login", "admin-login", "agent-login", "agent-apply"].includes(rootSegment || "");
 
     if (!isAuthed && rootSegment === "admin") {
       router.replace("/admin-login");
-    } else if (!isAuthed && !isPublicEntry && !allowPublicAgentPreview) {
-      router.replace("/");
-    } else if (isAuthed && isPublicEntry && !isRootIndex) {
-      router.replace(user?.is_admin ? "/admin" : isAgent ? "/agent" : "/(tabs)");
-    } else if (isAuthed && isAgent && !inAgentArea) {
-      router.replace("/agent");
-    } else if (isAuthed && user?.is_admin && rootSegment !== "admin") {
+      return;
+    }
+
+    if (!isAuthed && rootSegment === "agent" && Platform.OS !== "web") {
+      router.replace("/agent-login");
+      return;
+    }
+
+    if (isAuthed && user?.is_admin && rootSegment !== "admin" && isAuthScreen) {
       router.replace("/admin");
-    } else if (isAuthed && !isAgent && inCustomerRestrictedArea) {
-      router.replace("/");
+      return;
+    }
+
+    if (isAuthed && isAgent && rootSegment !== "agent" && isAuthScreen) {
+      router.replace("/agent");
+      return;
+    }
+
+    if (isAuthed && !user?.is_admin && !isAgent && isAuthScreen) {
+      router.replace("/(tabs)");
     }
   }, [isAuthed, isLoading, router, segments, user]);
 

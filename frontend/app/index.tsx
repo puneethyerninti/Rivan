@@ -11,13 +11,13 @@ export default function IndexScreen() {
 
   const isAgent = user?.role === "agent" || user?.role === "sub_agent";
 
-  if (!isAuthed) {
-    return <HomeScreen />;
-  }
-
-  if (isAgent) {
+  if (isAuthed && isAgent) {
     return <Redirect href="/agent" />;
   }
 
-  return <Redirect href="/(tabs)" />;
+  if (isAuthed && user?.is_admin) {
+    return <Redirect href="/admin" />;
+  }
+
+  return <HomeScreen />;
 }
