@@ -3792,6 +3792,10 @@ async def admin_update_agent_status(
         agent = local_find_user(user_id=agent_id)
         if not agent or not is_agent_role(agent.get("role")):
             raise HTTPException(status_code=404, detail="Agent not found")
+        if approval_status == "approved":
+            updates["phone_verified"] = True
+            updates["email_verified"] = bool(agent.get("email"))
+            updates["auth_methods"] = auth_methods_union(agent.get("auth_methods"), "phone")
         agent.update(updates)
         local_save_user(agent)
         return {"success": True, "agent": clean_user(agent)}
@@ -3799,6 +3803,10 @@ async def admin_update_agent_status(
     agent = await db.users.find_one({"id": agent_id}, {"_id": 0})
     if not agent or not is_agent_role(agent.get("role")):
         raise HTTPException(status_code=404, detail="Agent not found")
+    if approval_status == "approved":
+        updates["phone_verified"] = True
+        updates["email_verified"] = bool(agent.get("email"))
+        updates["auth_methods"] = auth_methods_union(agent.get("auth_methods"), "phone")
     await db.users.update_one({"id": agent_id}, {"$set": updates})
     updated = await db.users.find_one({"id": agent_id}, {"_id": 0})
     return {"success": True, "agent": clean_user(updated)}

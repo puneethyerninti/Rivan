@@ -13,7 +13,7 @@ type Tab = "stats" | "bookings" | "services" | "users" | "agents" | "leads" | "p
 export default function AdminScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("stats");
+  const [tab, setTab] = useState<Tab>("agents");
   const [stats, setStats] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -89,7 +89,7 @@ export default function AdminScreen() {
   async function approveAgent(id: string) {
     try {
       await api.adminApproveAgent(id);
-      Alert.alert("Approved", "Agent access has been activated.");
+      Alert.alert("Approved", "Agent access has been activated. The agent can log in immediately now.");
       await load();
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -140,6 +140,26 @@ export default function AdminScreen() {
         <View style={styles.adminBadge}>
           <Feather name="shield" size={12} color={colors.accent} />
           <Text style={styles.adminBadgeText}>ADMIN</Text>
+        </View>
+      </View>
+
+      <View style={styles.heroPanel}>
+        <View style={styles.heroPanelCopy}>
+          <Text style={styles.heroPanelEyebrow}>LIVE CONTROL DESK</Text>
+          <Text style={styles.heroPanelTitle}>Approve agents, unlock access, and keep operations moving.</Text>
+          <Text style={styles.heroPanelText}>
+            This page is the operational entry point for approvals, bookings, customers, and CRM activity. When you approve an agent here, login access becomes active immediately.
+          </Text>
+        </View>
+        <View style={styles.heroPanelMetrics}>
+          <View style={styles.heroMetricCard}>
+            <Text style={styles.heroMetricValue}>{pendingAgents.length}</Text>
+            <Text style={styles.heroMetricLabel}>Waiting Approval</Text>
+          </View>
+          <View style={styles.heroMetricCard}>
+            <Text style={styles.heroMetricValue}>{approvedAgents.length}</Text>
+            <Text style={styles.heroMetricLabel}>Active Agents</Text>
+          </View>
         </View>
       </View>
 
@@ -272,6 +292,16 @@ export default function AdminScreen() {
 
         {tab === "agents" ? (
           <View style={{ gap: spacing.sm }}>
+            <View style={styles.queueCallout}>
+              <View style={styles.queueCalloutIcon}>
+                <Feather name="user-check" size={18} color={colors.white} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.queueCalloutTitle}>Approval queue is live</Text>
+                <Text style={styles.queueCalloutText}>Approve an agent here and they can sign in immediately with the approved login flow.</Text>
+              </View>
+            </View>
+
             <View style={styles.agentQueueHeader}>
               <View style={styles.agentQueueMetric}>
                 <Text style={styles.agentQueueValue}>{pendingAgents.length}</Text>
@@ -318,7 +348,7 @@ export default function AdminScreen() {
                     <View style={styles.statusBtns}>
                       <TouchableOpacity testID={`admin-approve-agent-${agent.id}`} style={styles.confirmBtn} onPress={() => approveAgent(agent.id)}>
                         <Feather name="check-circle" size={14} color={colors.white} />
-                        <Text style={styles.confirmBtnText}>Approve</Text>
+                        <Text style={styles.confirmBtnText}>Approve & Activate Login</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.smallBtn, styles.rejectBtn]} onPress={() => updateAgentStatus(agent.id, "rejected", "Rejected", "The agent application has been rejected.")}>
                         <Text style={[styles.smallBtnText, { color: colors.danger }]}>Reject</Text>
@@ -522,6 +552,23 @@ const styles = StyleSheet.create({
   headerSub: { ...typography.small, color: colors.stone500 },
   adminBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accentSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm },
   adminBadgeText: { color: colors.accentDark, fontSize: 9, fontWeight: "800", letterSpacing: 1 },
+  heroPanel: {
+    margin: spacing.lg,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.primaryDeepest,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadow.md,
+  },
+  heroPanelCopy: { gap: 6 },
+  heroPanelEyebrow: { ...typography.label, color: "#D8E7DE", fontSize: 10, letterSpacing: 1.2 },
+  heroPanelTitle: { ...typography.h2, color: colors.white, fontWeight: "800" },
+  heroPanelText: { ...typography.body, color: "#D8E7DE", lineHeight: 21 },
+  heroPanelMetrics: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  heroMetricCard: { flex: 1, minWidth: 120, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: radii.md, padding: spacing.md, gap: 4 },
+  heroMetricValue: { ...typography.h2, color: colors.white, fontWeight: "800" },
+  heroMetricLabel: { ...typography.small, color: "#D8E7DE", fontWeight: "700" },
   tabBar: { backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.stone100, maxHeight: 50 },
   tabBarInner: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   tab: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radii.full, backgroundColor: colors.offWhite },
@@ -562,6 +609,26 @@ const styles = StyleSheet.create({
   userAvatarText: { color: colors.white, fontWeight: "700", fontSize: 16 },
   adminPill: { backgroundColor: colors.accent, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.sm },
   adminPillText: { color: colors.white, fontSize: 8, fontWeight: "800", letterSpacing: 1 },
+  queueCallout: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "#E8F6EE",
+    borderRadius: radii.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: "#CBE9D7",
+  },
+  queueCalloutIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queueCalloutTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "800" },
+  queueCalloutText: { ...typography.small, color: colors.stone600, marginTop: 2, lineHeight: 18 },
   agentQueueHeader: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   agentQueueMetric: { flex: 1, minWidth: 110, backgroundColor: colors.white, padding: spacing.md, borderRadius: radii.md, ...shadow.sm },
   agentQueueValue: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "800" },

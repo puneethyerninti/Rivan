@@ -219,6 +219,49 @@ export function HomeScreen() {
           </View>
         </View>
 
+        {!isAuthed ? (
+          <View style={styles.portalSection}>
+            <View style={styles.portalSectionHeader}>
+              <Text style={styles.portalSectionEyebrow}>ENTRY POINT</Text>
+              <Text style={styles.sectionTitle}>Choose how you want to enter Rivan</Text>
+              <Text style={styles.portalSectionText}>
+                Keep this page as the single public starting point. Customers can browse and sign in here, agents can open their workspace, and admins can jump straight into approvals and operations.
+              </Text>
+            </View>
+
+            <View style={styles.portalGrid}>
+              <TouchableOpacity style={styles.portalCard} onPress={() => openAuthModal("login")} activeOpacity={0.9}>
+                <View style={[styles.portalIcon, { backgroundColor: "#EAF4FF" }]}>
+                  <Feather name="user" size={18} color={colors.info} />
+                </View>
+                <Text style={styles.portalTitle}>Customer Login</Text>
+                <Text style={styles.portalText}>Browse properties, manage documents, wishlist, visits, and post-purchase services.</Text>
+                <Text style={styles.portalAction}>Open customer sign in</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.portalCard} onPress={() => router.push("/agent-login")} activeOpacity={0.9}>
+                <View style={[styles.portalIcon, { backgroundColor: "#E8F6EE" }]}>
+                  <Feather name="briefcase" size={18} color={colors.primary} />
+                </View>
+                <Text style={styles.portalTitle}>Agent Login</Text>
+                <Text style={styles.portalText}>Approved agents can access bookings, site visits, CRM tasks, and customer follow-up.</Text>
+                <Text style={styles.portalHint}>Demo fallback: agent@rivaan.com / Agent@123</Text>
+                <Text style={styles.portalAction}>Open agent workspace</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.portalCard} onPress={() => router.push("/admin-login")} activeOpacity={0.9}>
+                <View style={[styles.portalIcon, { backgroundColor: "#FFF4E5" }]}>
+                  <Feather name="shield" size={18} color={colors.accent} />
+                </View>
+                <Text style={styles.portalTitle}>Admin Login</Text>
+                <Text style={styles.portalText}>Approve agents, confirm bookings, and manage the operational side of the platform.</Text>
+                <Text style={styles.portalHint}>Demo fallback: 9000000000 / Admin@123</Text>
+                <Text style={styles.portalAction}>Open admin console</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
         {locationOpen ? (
           <View style={[styles.locationDropdown, isDesktop && styles.locationDropdownDesktop]} testID="home-location-dropdown">
             {LOCATIONS.map((l) => (
@@ -562,6 +605,42 @@ const styles = StyleSheet.create({
   headerDesktop: { borderRadius: 0 },
   headerLeft: { flex: 1, gap: 6 },
   headerRight: { flexDirection: "row", gap: 8 },
+  portalSection: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  portalSectionHeader: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: 6,
+    ...shadow.sm,
+  },
+  portalSectionEyebrow: { ...typography.label, color: colors.accentDark, fontSize: 10, letterSpacing: 1.1 },
+  portalSectionText: { ...typography.body, color: colors.stone600, lineHeight: 21 },
+  portalGrid: { gap: spacing.sm },
+  portalCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.stone100,
+    ...shadow.sm,
+  },
+  portalIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portalTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
+  portalText: { ...typography.body, color: colors.stone600, lineHeight: 21 },
+  portalHint: { ...typography.small, color: colors.stone500, fontWeight: "700" },
+  portalAction: { ...typography.small, color: colors.primary, fontWeight: "800", marginTop: 2 },
   authActions: { flexDirection: "row", gap: 10, alignItems: "center" },
   authGhostBtn: {
     minHeight: 40,
