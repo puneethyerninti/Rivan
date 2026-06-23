@@ -1,1197 +1,1237 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  Image,
+  LayoutChangeEvent,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Image,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
+  View,
   useWindowDimensions,
-  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
 import { useAuth } from "@/src/auth-context";
 import CustomerAuthModal from "@/src/components/CustomerAuthModal";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
-import { api } from "@/src/api";
-import { mockFeaturedProperties, mockProperties } from "@/src/mock-data";
-import { colors, radii, spacing, typography, shadow, formatINR } from "@/src/theme";
+import { mockProperties } from "@/src/mock-data";
+import { colors } from "@/src/theme";
 
-const LOCATIONS = ["Hyderabad", "Shadnagar", "Gachibowli", "Kompally", "Madhapur"];
+const LOGO = require("../../assets/images/rivan-logo.png");
+
+const NAV_ITEMS = [
+  { key: "home", label: "Home" },
+  { key: "properties", label: "Properties" },
+  { key: "categories", label: "Categories" },
+  { key: "about", label: "About" },
+  { key: "contact", label: "Contact" },
+] as const;
 
 const CATEGORIES = [
-  { key: "all", label: "All", icon: "grid" as const },
-  { key: "Apartments", label: "Apartments", icon: "home" as const },
-  { key: "Flats", label: "Flats", icon: "layers" as const },
-  { key: "Villas", label: "Villas", icon: "home" as const },
-  { key: "Independent House", label: "Independent", icon: "home" as const },
-  { key: "Open Plots", label: "Open Plots", icon: "square" as const },
-  { key: "Layouts", label: "Layouts", icon: "map" as const },
-  { key: "Commercial Properties", label: "Commercial", icon: "briefcase" as const },
-  { key: "Farm Lands", label: "Farm Lands", icon: "sun" as const },
-];
+  { label: "Independent Homes", icon: "home", accent: "#E8F6EC" },
+  { label: "Apartments", icon: "grid", accent: "#F5F1E8" },
+  { label: "Plots & Land", icon: "map", accent: "#EAF6EE" },
+  { label: "Commercial", icon: "briefcase", accent: "#FCEDEA" },
+  { label: "Farm Estates", icon: "sun", accent: "#EEF8EA" },
+  { label: "New Launches", icon: "star", accent: "#F7F5E8" },
+] as const;
+
+const HERO_SLIDES = [
+  {
+    eyebrow: "Curated Discovery",
+    title: "Property search that feels calm, clear, and premium.",
+    body: "Explore featured homes, trending layouts, and trusted inventory without signing in first.",
+  },
+  {
+    eyebrow: "Guest First",
+    title: "Browse before login and convert only when you're ready.",
+    body: "Save friction for later. Discovery, pricing cues, and property context stay open to guests from the first screen.",
+  },
+  {
+    eyebrow: "Unified Access",
+    title: "Customer, agent, and admin entry points live in one clean navigation system.",
+    body: "Every role can find the right next step without crowding the main browsing experience.",
+  },
+] as const;
+
+const TRUST_POINTS = [
+  "Property-focused home experience",
+  "Guest browsing without forced sign-in",
+  "Clear agent and admin entry points",
+  "Minimal UI with stronger conversion cues",
+] as const;
+
+const FEATURE_STRIPS = [
+  { title: "Featured", value: "Premium picks updated weekly" },
+  { title: "Trending", value: "High-intent inventory with better visibility" },
+  { title: "Categories", value: "Homes, plots, commercial, and more" },
+] as const;
+
+type SectionKey = (typeof NAV_ITEMS)[number]["key"];
 
 export function HomeScreen() {
   const router = useRouter();
-  const { user, isAuthed, isSessionRefreshing, signOut } = useAuth();
+  const scrollRef = useRef<ScrollView | null>(null);
+  const { user, isAuthed, signOut } = useAuth();
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 900;
-  const isTablet = width >= 680;
-  const useCompactPropertyCard = isTablet && !isDesktop;
-  const propertyColumns = isDesktop ? 2 : 1;
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
-  const [location, setLocation] = useState("Hyderabad");
-  const [locationOpen, setLocationOpen] = useState(false);
-  const [properties, setProperties] = useState<any[]>(mockProperties);
-  const [featured, setFeatured] = useState<any[]>(mockFeaturedProperties);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [relationship, setRelationship] = useState<any>(null);
-  const [authModalVisible, setAuthModalVisible] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
-  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
-  const sripuramProperty = mockProperties[0] || null;
+  const isDesktop = width >= 1100;
+  const isTablet = width >= 760;
+  const carouselCardWidth = isDesktop ? 360 : Math.max(280, width - 48);
+  const carouselSnapInterval = carouselCardWidth + 12;
 
-  const openAuthModal = useCallback((mode: "login" | "signup" = "login", nextRoute?: string) => {
-    setAuthModalMode(mode);
-    setPendingRoute(nextRoute || null);
-    setAuthModalVisible(true);
-  }, [router]);
+  const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [authVisible, setAuthVisible] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [sectionOffsets, setSectionOffsets] = useState<Record<string, number>>({});
 
-  const openProtectedRoute = useCallback(
-    (href: Parameters<typeof router.push>[0]) => {
-      if (!isAuthed) {
-        openAuthModal("login", String(href));
-        return;
-      }
-      router.push(href);
-    },
-    [isAuthed, openAuthModal, router]
-  );
+  const property = mockProperties[0];
 
-  const openPropertyDetails = useCallback(
-    (propertyId: string) => {
-      router.push(`/property/${propertyId}`);
-    },
-    [router]
-  );
+  const curatedProperties = useMemo(() => {
+    if (!property) return [];
+    return [
+      {
+        id: `${property.id}-featured`,
+        title: property.name,
+        location: property.location,
+        price: "From Rs 16 Lakhs",
+        tag: "Featured",
+        image: property.image,
+        summary: "Independent house experience with ready enquiry flow and layout visibility.",
+        cta: "View Details",
+      },
+      {
+        id: `${property.id}-trending`,
+        title: "Sripuram East-Facing Collection",
+        location: "Achutapuram, Visakhapatnam",
+        price: "Most searched this week",
+        tag: "Trending",
+        image: property.images?.[1] || property.image,
+        summary: "Popular among families comparing frontage, access, and layout efficiency.",
+        cta: "Explore Trending",
+      },
+      {
+        id: `${property.id}-layout`,
+        title: "Layout & Plot Discovery",
+        location: property.location,
+        price: "454 plots in focus",
+        tag: "Layout",
+        image: property.availabilityImage || property.image,
+        summary: "Map-led browsing built for faster shortlisting and more confident follow-ups.",
+        cta: "Open Layout",
+      },
+    ];
+  }, [property]);
 
-  const handleAuthSuccess = useCallback(() => {
-    const nextRoute = pendingRoute;
-    setPendingRoute(null);
-    setAuthModalVisible(false);
-    if (nextRoute) {
-      router.push(nextRoute as any);
-    }
-  }, [pendingRoute, router]);
-
-  const fetchData = useCallback(async () => {
-    try {
-      const canFetchProtectedData = isAuthed && !isSessionRefreshing;
-      const [notifs, crmRelationship] = await Promise.all([
-        canFetchProtectedData ? api.notifications().catch(() => []) : Promise.resolve([]),
-        canFetchProtectedData ? api.customerRelationship().catch(() => null) : Promise.resolve(null),
-      ]);
-
-      const normalizedCategory = category.toLowerCase();
-      const normalizedSearch = search.trim().toLowerCase();
-      const filteredProperties = mockProperties.filter((property) => {
-        const matchesCategory =
-          normalizedCategory === "all" || property.category.toLowerCase() === normalizedCategory;
-        const matchesSearch =
-          !normalizedSearch ||
-          property.name.toLowerCase().includes(normalizedSearch) ||
-          property.location.toLowerCase().includes(normalizedSearch) ||
-          String(property.highlights || "").toLowerCase().includes(normalizedSearch);
-
-        return matchesCategory && matchesSearch;
-      });
-
-      setProperties(filteredProperties);
-      setFeatured(mockFeaturedProperties);
-      setUnreadCount((notifs as any[]).filter((n) => !n.read).length);
-      setRelationship(crmRelationship);
-    } catch (e: any) {
-      console.warn("home fetch", e?.message);
-      const normalizedCategory = category.toLowerCase();
-      const normalizedSearch = search.trim().toLowerCase();
-      setProperties(
-        mockProperties.filter((property) => {
-          const matchesCategory =
-            normalizedCategory === "all" || property.category.toLowerCase() === normalizedCategory;
-          const matchesSearch =
-            !normalizedSearch ||
-            property.name.toLowerCase().includes(normalizedSearch) ||
-            property.location.toLowerCase().includes(normalizedSearch) ||
-            String(property.highlights || "").toLowerCase().includes(normalizedSearch);
-
-          return matchesCategory && matchesSearch;
-        })
-      );
-      setFeatured(mockFeaturedProperties);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [category, search, isAuthed, isSessionRefreshing]);
+  const filteredProperties = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return curatedProperties.filter((item) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        item.title.toLowerCase().includes(normalizedQuery) ||
+        item.location.toLowerCase().includes(normalizedQuery) ||
+        item.summary.toLowerCase().includes(normalizedQuery);
+      const matchesCategory =
+        selectedCategory === "All" ||
+        item.title.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        item.summary.toLowerCase().includes(selectedCategory.toLowerCase());
+      return matchesQuery && matchesCategory;
+    });
+  }, [curatedProperties, query, selectedCategory]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const html = document.documentElement;
+    const previousScrollBehavior = html.style.scrollBehavior;
+    html.style.scrollBehavior = "smooth";
+    return () => {
+      html.style.scrollBehavior = previousScrollBehavior;
+    };
+  }, []);
 
-  function onRefresh() {
-    setRefreshing(true);
-    fetchData();
-  }
+  const openAuth = useCallback((mode: "login" | "signup") => {
+    setAuthMode(mode);
+    setAuthVisible(true);
+    setMenuOpen(false);
+  }, []);
 
-  async function handleHeaderSignOut() {
-    await signOut();
-    router.replace("/");
-  }
+  const handleSectionLayout = useCallback((key: string, event: LayoutChangeEvent) => {
+    setSectionOffsets((current) => ({ ...current, [key]: event.nativeEvent.layout.y }));
+  }, []);
+
+  const scrollToSection = useCallback(
+    (key: SectionKey) => {
+      const y = sectionOffsets[key] ?? 0;
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 84), animated: true });
+      setMenuOpen(false);
+    },
+    [sectionOffsets]
+  );
+
+  const handlePropertyOpen = useCallback(() => {
+    if (!property) return;
+    router.push(`/property/${property.id}`);
+  }, [property, router]);
+
+  const onCarouselScroll = useCallback(
+    (event: any) => {
+      if (carouselSnapInterval <= 0) return;
+      const index = Math.round(event.nativeEvent.contentOffset.x / carouselSnapInterval);
+      setCarouselIndex(index);
+    },
+    [carouselSnapInterval]
+  );
+
+  const navButtons = (
+    <>
+      {NAV_ITEMS.map((item) => (
+        <TouchableOpacity key={item.key} onPress={() => scrollToSection(item.key)} style={styles.navLinkButton}>
+          <Text style={styles.navLinkText}>{item.label}</Text>
+        </TouchableOpacity>
+      ))}
+      <TouchableOpacity onPress={() => router.push("/agent-login")} style={styles.navSecondaryButton}>
+        <Text style={styles.navSecondaryText}>Agent Login</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push("/admin-login")} style={styles.navSecondaryButton}>
+        <Text style={styles.navSecondaryText}>Admin Login</Text>
+      </TouchableOpacity>
+      {isAuthed ? (
+        <TouchableOpacity
+          onPress={async () => {
+            await signOut();
+            setMenuOpen(false);
+          }}
+          style={styles.navPrimaryButton}
+        >
+          <Text style={styles.navPrimaryText}>Sign Out</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={() => openAuth("login")} style={styles.navPrimaryButton}>
+          <Text style={styles.navPrimaryText}>User Login / Signup</Text>
+        </TouchableOpacity>
+      )}
+    </>
+  );
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]} testID="home-screen">
-      <View style={[styles.shell, isDesktop && styles.shellDesktop]}>
-        <View style={[styles.header, isDesktop && styles.headerDesktop]}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              testID="home-location-button"
-              style={styles.locationBtn}
-              onPress={() => setLocationOpen(!locationOpen)}
-            >
-              <Feather name="map-pin" size={14} color={colors.accent} />
-              <Text style={styles.locationText}>{location}</Text>
-              <Feather name={locationOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.stone600} />
-            </TouchableOpacity>
-            <Text style={styles.greeting}>Hi, {user?.name?.split(" ")[0] || "Guest"}</Text>
-            <Text style={styles.headerSubtitle}>Find the next best property, inspect the project layout, and raise your enquiry quickly.</Text>
-          </View>
-          <View style={styles.headerRight}>
-            {isAuthed ? (
-              <>
-                <View style={styles.accountPanel}>
-                  <TouchableOpacity
-                    testID="home-profile-button"
-                    style={styles.accountIdentity}
-                    onPress={() => openProtectedRoute("/profile")}
-                  >
-                    <Text style={styles.accountName}>{user?.name || "Customer"}</Text>
-                    <Text style={styles.accountMeta}>
-                      {user?.is_admin ? "Admin access" : user?.role === "agent" || user?.role === "sub_agent" ? "Agent access" : "Customer access"}
-                    </Text>
-                  </TouchableOpacity>
-                  <View style={styles.accountActionRow}>
-                    {(user?.role === "agent" || user?.role === "sub_agent") ? (
-                      <TouchableOpacity
-                        testID="home-agent-dashboard-button"
-                        style={styles.headerMiniLink}
-                        onPress={() => router.push("/agent")}
-                      >
-                        <Text style={styles.headerMiniLinkText}>Agent</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    {user?.is_admin ? (
-                      <TouchableOpacity
-                        testID="home-admin-dashboard-button"
-                        style={styles.headerMiniLink}
-                        onPress={() => router.push("/admin")}
-                      >
-                        <Text style={styles.headerMiniLinkText}>Admin</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    <TouchableOpacity
-                      testID="home-signout-button"
-                      style={styles.headerSignoutLink}
-                      onPress={handleHeaderSignOut}
-                    >
-                      <Text style={styles.headerSignoutLinkText}>Sign Out</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  testID="home-wishlist-button"
-                  style={styles.iconBtn}
-                  onPress={() => openProtectedRoute("/wishlist")}
-                >
-                  <Feather name="heart" size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="home-notifications-button"
-                  style={styles.iconBtn}
-                  onPress={() => openProtectedRoute("/notifications")}
-                >
-                  <Feather name="bell" size={20} color={colors.primary} />
-                  {unreadCount > 0 ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{unreadCount}</Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              </>
-            ) : (
-              <View style={styles.authActions}>
-                <TouchableOpacity
-                  testID="home-header-customer-login"
-                  style={styles.authGhostBtn}
-                  onPress={() => openAuthModal("login")}
-                >
-                  <Text style={styles.authGhostText}>Customer Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="home-header-agent-login"
-                  style={styles.authPrimaryBtn}
-                  onPress={() => router.push("/agent-login")}
-                >
-                  <Text style={styles.authPrimaryText}>Agent Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="home-header-admin-login"
-                  style={styles.authGhostBtn}
-                  onPress={() => router.push("/admin-login")}
-                >
-                  <Text style={styles.authGhostText}>Admin Login</Text>
-                </TouchableOpacity>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F4F3EC" />
+
+      <CustomerAuthModal
+        visible={authVisible}
+        mode={authMode}
+        onClose={() => setAuthVisible(false)}
+        onSuccess={() => setAuthVisible(false)}
+      />
+
+      <Modal animationType="fade" transparent visible={menuOpen && !isDesktop} onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.mobileMenuBackdrop} onPress={() => setMenuOpen(false)}>
+          <Pressable style={styles.mobileMenuSheet}>
+            <Text style={styles.mobileMenuTitle}>Navigate Rivan</Text>
+            <Text style={styles.mobileMenuBody}>Move through discovery, categories, and role-based access from one place.</Text>
+            <View style={styles.mobileMenuLinks}>{navButtons}</View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}
+        showsVerticalScrollIndicator={false}
+      >
+        <LinearGradient colors={["#F5F4EC", "#ECF6EE", "#FFFFFF"]} style={styles.heroSurface}>
+          <View style={[styles.navbar, isDesktop && styles.navbarDesktop]}>
+            <View style={styles.brandCluster}>
+              <View style={styles.brandBadge}>
+                <Image source={LOGO} style={styles.brandImage} resizeMode="contain" />
               </View>
+              <View>
+                <Text style={styles.brandWordmark}>RIVAN</Text>
+                <Text style={styles.brandCaption}>Premium real estate discovery</Text>
+              </View>
+            </View>
+
+            {isDesktop ? (
+              <View style={styles.navDesktopLinks}>{navButtons}</View>
+            ) : (
+              <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)}>
+                <Feather name="menu" size={20} color="#0F4A22" />
+              </TouchableOpacity>
             )}
           </View>
-        </View>
 
-        {sripuramProperty ? (
-          <View style={styles.section}>
-            <View style={[styles.spotlightCard, isDesktop && styles.spotlightCardDesktop]}>
-              <View style={styles.spotlightMediaWrap}>
-                <PropertyMedia image={sripuramProperty.image} style={styles.spotlightMedia} />
-                <View style={styles.spotlightOverlay} />
-                <View style={styles.spotlightMediaContent}>
-                  <Text style={styles.spotlightEyebrow}>SRIPURAM GARDENS</Text>
-                  <Text style={styles.spotlightTitle}>{sripuramProperty.name}</Text>
-                  <Text style={styles.spotlightMeta}>
-                    {sripuramProperty.location} - {sripuramProperty.survey_number}
+          <View onLayout={(event) => handleSectionLayout("home", event)} style={[styles.heroSection, isDesktop && styles.heroSectionDesktop]}>
+            <View style={[styles.heroContent, isDesktop && styles.heroContentDesktop]}>
+              <View style={styles.heroTextBlock}>
+                <Text style={styles.eyebrow}>Guest-first property platform</Text>
+                <Text style={styles.heroTitle}>Discover homes, plots, and trusted property opportunities without friction.</Text>
+                <Text style={styles.heroBody}>
+                  Rivan now opens with a cleaner, calmer experience built for browsing first. Featured inventory, categories, and role-based access stay visible, but never compete with the core property journey.
+                </Text>
+
+                <View style={styles.heroActions}>
+                  <TouchableOpacity style={styles.primaryAction} onPress={() => scrollToSection("properties")}>
+                    <Text style={styles.primaryActionText}>Explore Properties</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.secondaryAction} onPress={() => openAuth("signup")}>
+                    <Text style={styles.secondaryActionText}>User Signup</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.heroMetrics}>
+                  {FEATURE_STRIPS.map((item) => (
+                    <View key={item.title} style={styles.metricCard}>
+                      <Text style={styles.metricTitle}>{item.title}</Text>
+                      <Text style={styles.metricValue}>{item.value}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.heroVisualBlock}>
+                <View style={styles.carouselShell}>
+                  <View style={styles.carouselHeader}>
+                    <Text style={styles.carouselEyebrow}>Featured flow</Text>
+                    <Text style={styles.carouselTitle}>Modern entry experience</Text>
+                  </View>
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    decelerationRate="fast"
+                    snapToInterval={carouselSnapInterval}
+                    snapToAlignment="start"
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={onCarouselScroll}
+                    scrollEventThrottle={16}
+                    contentContainerStyle={styles.carouselTrack}
+                  >
+                    {HERO_SLIDES.map((slide, index) => (
+                      <View
+                        key={slide.title}
+                        style={[
+                          styles.carouselCard,
+                          { width: carouselCardWidth },
+                          index === HERO_SLIDES.length - 1 && styles.carouselCardLast,
+                        ]}
+                      >
+                        <Text style={styles.carouselCardEyebrow}>{slide.eyebrow}</Text>
+                        <Text style={styles.carouselCardTitle}>{slide.title}</Text>
+                        <Text style={styles.carouselCardBody}>{slide.body}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                  <View style={styles.carouselDots}>
+                    {HERO_SLIDES.map((slide, index) => (
+                      <View
+                        key={slide.title}
+                        style={[styles.carouselDot, index === carouselIndex && styles.carouselDotActive]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.authPanel}>
+                  <Text style={styles.authPanelTitle}>Access when you need it</Text>
+                  <Text style={styles.authPanelBody}>
+                    Browse as a guest, or jump directly into your role-specific workspace from a cleaner menu system.
                   </Text>
-                </View>
-              </View>
-
-              <View style={styles.spotlightBody}>
-                <View style={styles.inlineHeroMediaCard}>
-                  <Image source={{ uri: sripuramProperty.images?.[0] || sripuramProperty.image }} style={styles.inlineHeroMediaImage} resizeMode="cover" />
-                  <View style={styles.inlineHeroMediaOverlay} />
-                  <View style={styles.inlineHeroMediaTextWrap}>
-                    <Text style={styles.inlineHeroMediaLabel}>Independent House</Text>
-                    <Text style={styles.inlineHeroMediaTitle}>Sripuram Home Experience</Text>
-                    <Text style={styles.inlineHeroMediaSub}>Visual-first layout, east/west plans, and instant enquiry flow</Text>
+                  <View style={styles.authPanelActions}>
+                    <TouchableOpacity style={styles.authPillPrimary} onPress={() => openAuth("login")}>
+                      <Text style={styles.authPillPrimaryText}>User Login</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.authPillGhost} onPress={() => router.push("/agent-login")}>
+                      <Text style={styles.authPillGhostText}>Agent</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.authPillGhost} onPress={() => router.push("/admin-login")}>
+                      <Text style={styles.authPillGhostText}>Admin</Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
-
-                <Text style={styles.spotlightSectionTitle}>Property overview</Text>
-                <Text style={styles.spotlightDescription}>{sripuramProperty.description}</Text>
-
-                <View style={styles.spotlightStats}>
-                  <View style={styles.spotlightStatCard}>
-                    <Text style={styles.spotlightStatValue}>454</Text>
-                    <Text style={styles.spotlightStatLabel}>Plots ready for enquiry</Text>
-                  </View>
-                  <View style={styles.spotlightStatCard}>
-                    <Text style={styles.spotlightStatValue}>E / W</Text>
-                    <Text style={styles.spotlightStatLabel}>Facing directions</Text>
-                  </View>
-                  <View style={styles.spotlightStatCard}>
-                    <Text style={styles.spotlightStatValue}>40-60 ft</Text>
-                    <Text style={styles.spotlightStatLabel}>Road network</Text>
-                  </View>
-                </View>
-
-                <View style={styles.spotlightPills}>
-                  <View style={styles.spotlightPill}>
-                    <Feather name="maximize-2" size={14} color={colors.primary} />
-                    <Text style={styles.spotlightPillText}>{sripuramProperty.size}</Text>
-                  </View>
-                  <View style={styles.spotlightPill}>
-                    <Feather name="compass" size={14} color={colors.primary} />
-                    <Text style={styles.spotlightPillText}>{sripuramProperty.facing}</Text>
-                  </View>
-                  <View style={styles.spotlightPill}>
-                    <Feather name="check-circle" size={14} color={colors.primary} />
-                    <Text style={styles.spotlightPillText}>
-                      {sripuramProperty.approvals?.[0] || "Approved layout"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.spotlightActions}>
-                  <TouchableOpacity
-                    testID="home-spotlight-view-property"
-                    style={styles.spotlightPrimaryAction}
-                    onPress={() => openPropertyDetails(sripuramProperty.id)}
-                  >
-                    <Text style={styles.spotlightPrimaryActionText}>Explore Sripuram</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    testID="home-spotlight-enquire"
-                    style={styles.spotlightSecondaryAction}
-                    onPress={() => openPropertyDetails(sripuramProperty.id)}
-                  >
-                    <Text style={styles.spotlightSecondaryActionText}>Open layout and enquire</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             </View>
 
-            <View style={styles.storyboardGrid}>
-              <View style={styles.storyboardCard}>
-                <View style={styles.storyboardIcon}>
-                  <Feather name="map" size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.storyboardTitle}>Interactive plotted layout</Text>
-                <Text style={styles.storyboardText}>
-                  The plotted box experience is back at the center of the journey with clickable east and west facing options.
-                </Text>
-              </View>
-              <View style={styles.storyboardCard}>
-                <View style={styles.storyboardIcon}>
-                  <Feather name="home" size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.storyboardTitle}>Independent house story</Text>
-                <Text style={styles.storyboardText}>
-                  Sripuram house-plan context, plot details, and enquiry-first browsing stay visible from the Home page again.
-                </Text>
-              </View>
-              <View style={styles.storyboardCard}>
-                <View style={styles.storyboardIcon}>
-                  <Feather name="navigation" size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.storyboardTitle}>Quick buyer journey</Text>
-                <Text style={styles.storyboardText}>
-                  Customers can browse first, then log in only when they need wishlist, visits, or follow-up actions.
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        {!isAuthed ? (
-          <View style={styles.portalSection}>
-            <View style={styles.portalSectionHeader}>
-              <Text style={styles.portalSectionEyebrow}>ENTRY POINT</Text>
-              <Text style={styles.sectionTitle}>Choose how you want to enter Rivan</Text>
-              <Text style={styles.portalSectionText}>
-                Keep this page as the single public starting point. Customers can browse and sign in here, agents can open their workspace, and admins can jump straight into approvals and operations.
-              </Text>
-            </View>
-
-            <View style={styles.portalGrid}>
-              <TouchableOpacity style={styles.portalCard} onPress={() => openAuthModal("login")} activeOpacity={0.9}>
-                <View style={[styles.portalIcon, { backgroundColor: "#EAF4FF" }]}>
-                  <Feather name="user" size={18} color={colors.info} />
-                </View>
-                <Text style={styles.portalTitle}>Customer Login</Text>
-                <Text style={styles.portalText}>Browse properties, manage documents, wishlist, visits, and post-purchase services.</Text>
-                <Text style={styles.portalAction}>Open customer sign in</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.portalCard} onPress={() => router.push("/agent-login")} activeOpacity={0.9}>
-                <View style={[styles.portalIcon, { backgroundColor: "#E8F6EE" }]}>
-                  <Feather name="briefcase" size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.portalTitle}>Agent Login</Text>
-                <Text style={styles.portalText}>Approved agents can access bookings, site visits, CRM tasks, and customer follow-up.</Text>
-                <Text style={styles.portalHint}>Demo fallback: agent@rivaan.com / Agent@123</Text>
-                <Text style={styles.portalAction}>Open agent workspace</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.portalCard} onPress={() => router.push("/admin-login")} activeOpacity={0.9}>
-                <View style={[styles.portalIcon, { backgroundColor: "#FFF4E5" }]}>
-                  <Feather name="shield" size={18} color={colors.accent} />
-                </View>
-                <Text style={styles.portalTitle}>Admin Login</Text>
-                <Text style={styles.portalText}>Approve agents, confirm bookings, and manage the operational side of the platform.</Text>
-                <Text style={styles.portalHint}>Demo fallback: 9000000000 / Admin@123</Text>
-                <Text style={styles.portalAction}>Open admin console</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : null}
-
-        {locationOpen ? (
-          <View style={[styles.locationDropdown, isDesktop && styles.locationDropdownDesktop]} testID="home-location-dropdown">
-            {LOCATIONS.map((l) => (
-              <TouchableOpacity
-                key={l}
-                testID={`home-location-${l}`}
-                style={styles.locationItem}
-                onPress={() => {
-                  setLocation(l);
-                  setLocationOpen(false);
-                }}
-              >
-                <Feather
-                  name={l === location ? "check" : "map-pin"}
-                  size={14}
-                  color={l === location ? colors.primary : colors.stone400}
+            <View style={styles.searchPanel}>
+              <View style={styles.searchRow}>
+                <Feather name="search" size={18} color="#607089" />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search by property, area, or interest"
+                  placeholderTextColor="#8A94A6"
+                  style={styles.searchInput}
                 />
-                <Text style={[styles.locationItemText, l === location && styles.locationItemActive]}>{l}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
-
-      <FlatList
-        key={`properties-${propertyColumns}`}
-        data={properties}
-        numColumns={propertyColumns}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, isDesktop && styles.listContentDesktop]}
-        columnWrapperStyle={propertyColumns > 1 ? styles.propertyRow : undefined}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        ListHeaderComponent={
-          <View>
-            <View style={[styles.heroBand, isDesktop && styles.heroBandDesktop]}>
-              <View style={[styles.heroSearchCard, styles.heroSearchCardExpanded]}>
-                <View style={styles.searchBox}>
-                  <Feather name="search" size={18} color={colors.stone400} />
-                  <TextInput
-                    testID="home-search-input"
-                    style={styles.searchInput}
-                    placeholder="Search properties, locations..."
-                    placeholderTextColor={colors.stone400}
-                    value={search}
-                    onChangeText={setSearch}
-                    returnKeyType="search"
-                  />
-                  {search ? (
-                    <TouchableOpacity onPress={() => setSearch("")}>
-                      <Feather name="x" size={16} color={colors.stone400} />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                <View style={styles.quickActions}>
-                  <TouchableOpacity
-                    testID="home-quick-services"
-                    style={styles.quickAction}
-                    onPress={() => openProtectedRoute("/services")}
-                  >
-                    <View style={[styles.quickIcon, { backgroundColor: colors.accentSoft }]}>
-                      <Feather name="tool" size={18} color={colors.accent} />
-                    </View>
-                    <Text style={styles.quickLabel}>Services</Text>
+                {query ? (
+                  <TouchableOpacity onPress={() => setQuery("")}>
+                    <Feather name="x" size={18} color="#607089" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    testID="home-quick-documents"
-                    style={styles.quickAction}
-                    onPress={() => openProtectedRoute("/documents")}
-                  >
-                    <View style={[styles.quickIcon, { backgroundColor: "#E6F4EA" }]}>
-                      <Feather name="folder" size={18} color={colors.primary} />
-                    </View>
-                    <Text style={styles.quickLabel}>Documents</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                      testID="home-quick-wishlist"
-                      style={styles.quickAction}
-                      onPress={() => openProtectedRoute("/wishlist")}
-                  >
-                    <View style={[styles.quickIcon, { backgroundColor: "#FEE2E2" }]}>
-                      <Feather name="heart" size={18} color={colors.danger} />
-                    </View>
-                    <Text style={styles.quickLabel}>Wishlist</Text>
-                  </TouchableOpacity>
-                  {user?.is_admin ? (
-                    <TouchableOpacity
-                      testID="home-quick-admin"
-                      style={styles.quickAction}
-                      onPress={() => router.push("/admin")}
-                    >
-                      <View style={[styles.quickIcon, { backgroundColor: "#FEF3C7" }]}>
-                        <Feather name="settings" size={18} color="#D97706" />
-                      </View>
-                      <Text style={styles.quickLabel}>Admin</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
+                ) : null}
               </View>
-            </View>
 
-            {relationship?.assigned_agent || relationship?.assigned_sub_agent || relationship?.primary_link ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Your Relationship Team</Text>
-                <View style={styles.relationshipCard}>
-                  <View style={styles.relationshipAvatar}>
-                    <Feather name="user-check" size={18} color={colors.white} />
-                  </View>
-                  <View style={styles.relationshipBody}>
-                    <Text style={styles.relationshipName}>
-                      {relationship?.assigned_sub_agent?.name || relationship?.assigned_agent?.name || "Rivan Advisor"}
-                    </Text>
-                    <Text style={styles.relationshipMeta}>
-                      {relationship?.assigned_sub_agent ? "Sub-agent" : "Relationship owner"}
-                      {relationship?.assigned_agent?.agent_brand_name ? ` - ${relationship.assigned_agent.agent_brand_name}` : ""}
-                    </Text>
-                    <Text style={styles.relationshipStatus}>
-                      {formatRelationshipStatus(relationship?.primary_link?.relationship_type, relationship?.primary_link?.status)}
-                    </Text>
-                    {relationship?.open_tasks?.[0]?.title ? (
-                      <Text style={styles.relationshipHint}>
-                        Next step: {relationship.open_tasks[0].title}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity
-                    testID="home-relationship-profile"
-                    style={styles.relationshipAction}
-                    onPress={() => openProtectedRoute("/profile")}
-                  >
-                    <Feather name="arrow-right" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : null}
-
-            {featured.length > 0 ? (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Featured Projects</Text>
-                  <View style={styles.featuredTag}>
-                    <Feather name="star" size={11} color={colors.accent} />
-                    <Text style={styles.featuredTagText}>Premium</Text>
-                  </View>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.featuredScroll}
-                  decelerationRate="fast"
-                  snapToInterval={isDesktop ? 376 : 296}
-                >
-                  {featured.map((p) => (
-                    <TouchableOpacity
-                      key={p.id}
-                      testID={`home-featured-${p.id}`}
-                      style={[styles.featuredCard, isDesktop && styles.featuredCardDesktop]}
-                      onPress={() => openPropertyDetails(p.id)}
-                      activeOpacity={0.9}
-                    >
-                      <PropertyMedia image={p.image} videoUrl={p.videoUrl} style={styles.featuredImage} />
-                      <View style={styles.featuredOverlay} />
-                      <View style={styles.featuredContent}>
-                        <View style={styles.categoryPillSmall}>
-                          <Text style={styles.categoryPillTextSmall}>{p.category}</Text>
-                        </View>
-                        <Text style={styles.featuredName} numberOfLines={1}>
-                          {p.name}
-                        </Text>
-                        <View style={styles.featuredMeta}>
-                          <Feather name="map-pin" size={11} color={colors.white} />
-                          <Text style={styles.featuredMetaText} numberOfLines={1}>
-                            {p.location}
-                          </Text>
-                        </View>
-                      <Text style={styles.featuredPrice}>{p.starting_price > 0 ? `From ${formatINR(p.starting_price)}` : "Price on request"}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            {sripuramProperty?.images?.length ? (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Sripuram Visual Preview</Text>
-                  <TouchableOpacity onPress={() => openPropertyDetails(sripuramProperty.id)}>
-                    <Text style={styles.inlineSectionLink}>Open full property</Text>
-                  </TouchableOpacity>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.galleryScroll}
-                >
-                  {sripuramProperty.images.map((image: string, index: number) => (
-                    <TouchableOpacity
-                      key={`${sripuramProperty.id}-gallery-${index}`}
-                      style={styles.galleryCard}
-                      onPress={() => openPropertyDetails(sripuramProperty.id)}
-                      activeOpacity={0.92}
-                    >
-                      <Image source={{ uri: image }} style={styles.galleryImage} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Browse Categories</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
+                contentContainerStyle={styles.categoryChipRow}
               >
-                {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  style={[styles.categoryChip, selectedCategory === "All" && styles.categoryChipActive]}
+                  onPress={() => setSelectedCategory("All")}
+                >
+                  <Text style={[styles.categoryChipText, selectedCategory === "All" && styles.categoryChipTextActive]}>
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {CATEGORIES.map((item) => (
                   <TouchableOpacity
-                    key={cat.key}
-                    testID={`home-category-${cat.key}`}
-                    style={[styles.categoryPill, category === cat.key && styles.categoryPillActive]}
-                    onPress={() => setCategory(cat.key)}
+                    key={item.label}
+                    style={[styles.categoryChip, selectedCategory === item.label && styles.categoryChipActive]}
+                    onPress={() => setSelectedCategory(item.label)}
                   >
-                    <Feather
-                      name={cat.icon}
-                      size={14}
-                      color={category === cat.key ? colors.white : colors.primary}
-                    />
-                    <Text style={[styles.categoryText, category === cat.key && styles.categoryTextActive]}>
-                      {cat.label}
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        selectedCategory === item.label && styles.categoryChipTextActive,
+                      ]}
+                    >
+                      {item.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
+          </View>
+        </LinearGradient>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-            {category === "all" ? "All Properties" : category} ({properties.length})
+        <View onLayout={(event) => handleSectionLayout("properties", event)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionEyebrow}>Properties</Text>
+            <Text style={styles.sectionTitle}>Featured and trending inventory comes first.</Text>
+            <Text style={styles.sectionBody}>
+              Guests land directly on discovery. The experience leads with property cards, map-led layout context, and clean calls to action instead of forcing authentication too early.
+            </Text>
+          </View>
+
+          <View style={[styles.propertyGrid, isDesktop && styles.propertyGridDesktop]}>
+            {filteredProperties.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.propertyCard,
+                  isTablet && styles.propertyCardWide,
+                  isDesktop && styles.propertyCardDesktop,
+                ]}
+                activeOpacity={0.92}
+                onPress={handlePropertyOpen}
+              >
+                <PropertyMedia image={item.image} style={styles.propertyImage} />
+                <View style={styles.propertyCardBody}>
+                  <View style={styles.propertyBadgeRow}>
+                    <Text style={styles.propertyTag}>{item.tag}</Text>
+                    <Text style={styles.propertyPrice}>{item.price}</Text>
+                  </View>
+                  <Text style={styles.propertyTitle}>{item.title}</Text>
+                  <Text style={styles.propertyLocation}>{item.location}</Text>
+                  <Text style={styles.propertySummary}>{item.summary}</Text>
+                  <View style={styles.propertyFooter}>
+                    <Text style={styles.propertyLink}>{item.cta}</Text>
+                    <Feather name="arrow-up-right" size={16} color="#0F4A22" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View onLayout={(event) => handleSectionLayout("categories", event)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionEyebrow}>Categories</Text>
+            <Text style={styles.sectionTitle}>A simpler category system keeps browsing intuitive.</Text>
+            <Text style={styles.sectionBody}>
+              The category view is redesigned as quick, visual entry points instead of a cluttered menu wall. Each category helps users understand where to go next without overload.
+            </Text>
+          </View>
+
+          <View style={[styles.categoryGrid, isDesktop && styles.categoryGridDesktop]}>
+            {CATEGORIES.map((item) => (
+              <View key={item.label} style={[styles.categoryCard, isDesktop && styles.categoryCardDesktop]}>
+                <View style={[styles.categoryIconWrap, { backgroundColor: item.accent }]}>
+                  <Feather name={item.icon as any} size={20} color="#0F4A22" />
+                </View>
+                <Text style={styles.categoryTitle}>{item.label}</Text>
+                <Text style={styles.categoryBodyText}>Designed for faster discovery with cleaner paths into browsing and enquiry.</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View onLayout={(event) => handleSectionLayout("about", event)} style={styles.section}>
+          <LinearGradient colors={["#0B3B1B", "#14532D"]} style={styles.storyPanel}>
+            <View style={styles.storyTextBlock}>
+              <Text style={styles.storyEyebrow}>About Rivan</Text>
+              <Text style={styles.storyTitle}>A more trustworthy real-estate experience starts with clarity.</Text>
+              <Text style={styles.storyBody}>
+                This redesign removes visual noise, sharpens the property hierarchy, and brings the right role-based actions into a single responsive system. The result is a cleaner first impression and a better conversion path.
               </Text>
             </View>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={[styles.propertyCell, propertyColumns > 1 && styles.propertyCellDesktop]}>
-            <PropertyCard property={item} onPress={() => openPropertyDetails(item.id)} compact={useCompactPropertyCard} />
-          </View>
-        )}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.empty}>
-              <ActivityIndicator color={colors.primary} />
+
+            <View style={styles.storyChecklist}>
+              {TRUST_POINTS.map((point) => (
+                <View key={point} style={styles.storyChecklistItem}>
+                  <View style={styles.storyCheckIcon}>
+                    <Feather name="check" size={14} color="#0B3B1B" />
+                  </View>
+                  <Text style={styles.storyChecklistText}>{point}</Text>
+                </View>
+              ))}
             </View>
-          ) : (
-            <View style={styles.empty}>
-              <Feather name="inbox" size={48} color={colors.stone300} />
-              <Text style={styles.emptyText}>No properties match your filters</Text>
+          </LinearGradient>
+        </View>
+
+        <View onLayout={(event) => handleSectionLayout("contact", event)} style={styles.section}>
+          <View style={[styles.contactGrid, isDesktop && styles.contactGridDesktop]}>
+            <View style={styles.contactCard}>
+              <Text style={styles.sectionEyebrow}>Contact</Text>
+              <Text style={styles.contactTitle}>Need help choosing the right entry point?</Text>
+              <Text style={styles.contactBody}>
+                Customers can browse and sign in later. Agents can go straight to their workspace. Admins can open operations directly without confusing the guest journey.
+              </Text>
+              <View style={styles.contactActions}>
+                <TouchableOpacity style={styles.primaryAction} onPress={() => openAuth("login")}>
+                  <Text style={styles.primaryActionText}>User Login</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push("/agent-login")}>
+                  <Text style={styles.secondaryActionText}>Agent Login</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          )
-        }
-      />
-      <CustomerAuthModal
-        visible={authModalVisible}
-        mode={authModalMode}
-        onClose={() => {
-          setAuthModalVisible(false);
-          setPendingRoute(null);
-        }}
-        onSuccess={handleAuthSuccess}
-      />
-      </View>
+
+            <View style={styles.roleStack}>
+              <TouchableOpacity style={styles.roleCard} onPress={() => openAuth("signup")}>
+                <Text style={styles.roleLabel}>User Login / Signup</Text>
+                <Text style={styles.roleBody}>Start with discovery, shortlist properties, and continue to wishlist, documents, and visits only when needed.</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.roleCard} onPress={() => router.push("/agent-login")}>
+                <Text style={styles.roleLabel}>Agent Login</Text>
+                <Text style={styles.roleBody}>Access CRM, site visits, follow-ups, and booking progress from a cleaner agent entry point.</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.roleCard} onPress={() => router.push("/admin-login")}>
+                <Text style={styles.roleLabel}>Admin Login</Text>
+                <Text style={styles.roleBody}>Jump into approvals and platform operations without crowding the core browsing experience.</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerBrand}>RIVAN</Text>
+          <Text style={styles.footerText}>Modern real estate discovery with cleaner navigation, stronger hierarchy, and lower friction.</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 export default HomeScreen;
 
-function formatRelationshipStatus(type?: string, status?: string) {
-  const prettyType = String(type || "relationship")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-  const prettyStatus = String(status || "active")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-  return `${prettyType} - ${prettyStatus}`;
-}
-
-function PropertyCard({ property, onPress, compact }: { property: any; onPress: () => void; compact?: boolean }) {
-  const priceText = property.starting_price > 0 ? formatINR(property.starting_price) : "Price on request";
-
-  return (
-    <TouchableOpacity
-      testID={`home-property-${property.id}`}
-      style={[styles.propertyCard, compact && styles.propertyCardCompact]}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <PropertyMedia image={property.image} videoUrl={property.videoUrl} style={[styles.propertyImage, compact && styles.propertyImageCompact]} />
-      <View style={styles.propertyImageOverlay}>
-        <View style={styles.categoryPillSmall}>
-          <Text style={styles.categoryPillTextSmall}>{property.category}</Text>
-        </View>
-      </View>
-      <View style={styles.propertyBody}>
-        <Text style={styles.propertyName} numberOfLines={1}>
-          {property.name}
-        </Text>
-        <View style={styles.propertyMeta}>
-          <Feather name="map-pin" size={12} color={colors.stone500} />
-          <Text style={styles.propertyMetaText} numberOfLines={1}>
-            {property.location}
-          </Text>
-        </View>
-        <View style={styles.propertyMeta}>
-          <Feather name="maximize-2" size={12} color={colors.stone500} />
-          <Text style={styles.propertyMetaText}>{property.size}</Text>
-        </View>
-        {property.highlights ? (
-          <Text style={styles.highlights} numberOfLines={1}>
-            Featured: {property.highlights}
-          </Text>
-        ) : null}
-        <View style={styles.propertyFooter}>
-          <View>
-            <Text style={styles.priceLabel}>Starting at</Text>
-            <Text style={styles.price}>{priceText}</Text>
-          </View>
-          <TouchableOpacity testID={`home-view-${property.id}`} style={styles.viewBtn} onPress={onPress}>
-            <Text style={styles.viewBtnText}>View Property</Text>
-            <Feather name="arrow-right" size={14} color={colors.white} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.layoutSection}>
-          <View style={styles.layoutPanel}>
-            <View style={styles.layoutPanelIcon}>
-              <Feather name="map" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.layoutPanelBody}>
-              <Text style={styles.layoutPanelTitle}>Interactive site layout</Text>
-              <Text style={styles.layoutPanelText} numberOfLines={2}>
-                Open the property to inspect the plotted layout, east and west facing boxes, and enquire on any plot.
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.offWhite },
-  shell: { flex: 1, width: "100%", alignSelf: "center" },
-  shellDesktop: { maxWidth: 1440, width: "100%", alignSelf: "center" },
-  listContent: { paddingBottom: 80 },
-  listContentDesktop: { paddingBottom: 120, paddingHorizontal: spacing.lg },
-  header: {
+  safe: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 48,
+  },
+  contentDesktop: {
+    paddingBottom: 72,
+  },
+  heroSurface: {
+    paddingBottom: 28,
+  },
+  navbar: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.stone100,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
-  headerDesktop: { borderRadius: 0 },
-  headerLeft: { flex: 1, gap: 6 },
-  headerRight: { flexDirection: "row", gap: 8 },
-  portalSection: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    gap: spacing.md,
+  navbarDesktop: {
+    paddingHorizontal: 40,
+    paddingTop: 28,
   },
-  portalSectionHeader: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: 6,
-    ...shadow.sm,
-  },
-  portalSectionEyebrow: { ...typography.label, color: colors.accentDark, fontSize: 10, letterSpacing: 1.1 },
-  portalSectionText: { ...typography.body, color: colors.stone600, lineHeight: 21 },
-  portalGrid: { gap: spacing.sm },
-  portalCard: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.stone100,
-    ...shadow.sm,
-  },
-  portalIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  portalTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
-  portalText: { ...typography.body, color: colors.stone600, lineHeight: 21 },
-  portalHint: { ...typography.small, color: colors.stone500, fontWeight: "700" },
-  portalAction: { ...typography.small, color: colors.primary, fontWeight: "800", marginTop: 2 },
-  authActions: { flexDirection: "row", gap: 10, alignItems: "center" },
-  authGhostBtn: {
-    minHeight: 40,
-    paddingHorizontal: 16,
-    borderRadius: radii.full,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.stone200,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  authGhostText: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  authPrimaryBtn: {
-    minHeight: 40,
-    paddingHorizontal: 16,
-    borderRadius: radii.full,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  authPrimaryText: { ...typography.body, color: colors.white, fontWeight: "700" },
-  accountPanel: {
-    alignItems: "flex-end",
-    gap: 4,
-    marginRight: spacing.xs,
-  },
-  accountIdentity: {
-    alignItems: "flex-end",
-  },
-  accountName: { ...typography.body, color: colors.primaryDeepest, fontWeight: "800" },
-  accountMeta: { ...typography.small, color: colors.stone500 },
-  accountActionRow: {
+  brandCluster: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 12,
+  },
+  brandBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F4A22",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  brandImage: {
+    width: 28,
+    height: 28,
+  },
+  brandWordmark: {
+    fontSize: 14,
+    letterSpacing: 5,
+    fontWeight: "800",
+    color: "#14361D",
+  },
+  brandCaption: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#607089",
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+  },
+  navDesktopLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     flexWrap: "wrap",
     justifyContent: "flex-end",
-  },
-  headerMiniLink: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.stone200,
-  },
-  headerMiniLinkText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
-  headerSignoutLink: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    backgroundColor: "#FEECEC",
-    borderWidth: 1,
-    borderColor: "#F6C7C7",
-  },
-  headerSignoutLinkText: { ...typography.small, color: colors.danger, fontWeight: "800" },
-  spotlightCard: {
-    backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.stone100,
-    ...shadow.md,
-  },
-  spotlightCardDesktop: { flexDirection: "row" },
-  spotlightMediaWrap: {
-    minHeight: 260,
-    backgroundColor: colors.stone100,
-  },
-  spotlightMedia: {
-    width: "100%",
-    height: "100%",
-    minHeight: 260,
-  },
-  spotlightOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(11, 40, 26, 0.42)",
-  },
-  spotlightMediaContent: {
-    position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
-    gap: 6,
-  },
-  spotlightEyebrow: { ...typography.label, color: "#F7D39A", fontSize: 10, letterSpacing: 1.1 },
-  spotlightTitle: { ...typography.h2, color: colors.white, fontWeight: "800" },
-  spotlightMeta: { ...typography.body, color: "rgba(255,255,255,0.88)" },
-  spotlightBody: {
     flex: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
+    marginLeft: 20,
   },
-  inlineHeroMediaCard: {
+  navLinkButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  navLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#35543A",
+  },
+  navSecondaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+  },
+  navSecondaryText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F4A22",
+  },
+  navPrimaryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "#0B5D1E",
+  },
+  navPrimaryText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  mobileMenuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(11,49,22,0.18)",
+    justifyContent: "flex-start",
+  },
+  mobileMenuSheet: {
+    marginTop: 88,
+    marginHorizontal: 16,
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+  },
+  mobileMenuTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#14361D",
+  },
+  mobileMenuBody: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#607089",
+  },
+  mobileMenuLinks: {
+    marginTop: 18,
+    gap: 10,
+  },
+  heroSection: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+  },
+  heroSectionDesktop: {
+    paddingHorizontal: 40,
+    paddingTop: 36,
+  },
+  heroContent: {
+    gap: 22,
+  },
+  heroContentDesktop: {
+    flexDirection: "row",
+    gap: 28,
+    alignItems: "stretch",
+  },
+  heroTextBlock: {
+    gap: 18,
+    flex: 1.1,
+  },
+  eyebrow: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(11,93,30,0.08)",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F4A22",
+  },
+  heroTitle: {
+    fontSize: 34,
+    lineHeight: 42,
+    fontWeight: "900",
+    color: "#14361D",
+  },
+  heroBody: {
+    fontSize: 15,
+    lineHeight: 25,
+    color: "#5A6D88",
+    maxWidth: 720,
+  },
+  heroActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  primaryAction: {
+    minHeight: 52,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    backgroundColor: "#0B5D1E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryActionText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  secondaryAction: {
+    minHeight: 52,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryActionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F4A22",
+  },
+  heroMetrics: {
+    gap: 12,
+  },
+  metricCard: {
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+  },
+  metricTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#7B879C",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  metricValue: {
+    marginTop: 6,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#14361D",
+  },
+  heroVisualBlock: {
+    flex: 0.95,
+    gap: 16,
+  },
+  carouselShell: {
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+    overflow: "hidden",
+  },
+  carouselHeader: {
+    marginBottom: 16,
+  },
+  carouselEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#7B879C",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  carouselTitle: {
+    marginTop: 8,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: "800",
+    color: "#10233F",
+  },
+  carouselTrack: {
+    paddingRight: 8,
+  },
+  carouselCard: {
+    borderRadius: 24,
+    backgroundColor: "#F6F8F2",
+    padding: 20,
+    marginRight: 12,
+    minHeight: 208,
+    justifyContent: "space-between",
+  },
+  carouselCardLast: {
+    marginRight: 0,
+  },
+  carouselCardEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+  },
+  carouselCardTitle: {
+    marginTop: 14,
+    fontSize: 22,
+    lineHeight: 30,
+    fontWeight: "800",
+    color: "#14361D",
+  },
+  carouselCardBody: {
+    marginTop: 12,
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#607089",
+  },
+  carouselDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+  },
+  carouselDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#CAD6C8",
+  },
+  carouselDotActive: {
+    width: 24,
+    backgroundColor: "#0B5D1E",
+  },
+  authPanel: {
+    borderRadius: 24,
+    backgroundColor: "#0E3A1A",
+    padding: 20,
+  },
+  authPanelTitle: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  authPanelBody: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#D3DEEE",
+  },
+  authPanelActions: {
+    marginTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  authPillPrimary: {
+    minHeight: 46,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  authPillPrimaryText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#14361D",
+  },
+  authPillGhost: {
+    minHeight: 46,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  authPillGhostText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  searchPanel: {
+    marginTop: 22,
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+  },
+  searchRow: {
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: "#F6F8F2",
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#14361D",
+  },
+  categoryChipRow: {
+    gap: 10,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  categoryChip: {
+    minHeight: 42,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: "#F6F8F2",
+    borderWidth: 1,
+    borderColor: "#DCE8DD",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryChipActive: {
+    backgroundColor: "#0B5D1E",
+    borderColor: "#0B5D1E",
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5C6C84",
+  },
+  categoryChipTextActive: {
+    color: "#FFFFFF",
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingTop: 34,
+    gap: 18,
+  },
+  sectionHeader: {
+    gap: 8,
+    maxWidth: 760,
+  },
+  sectionEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+  },
+  sectionTitle: {
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: "900",
+    color: "#14361D",
+  },
+  sectionBody: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#607089",
+  },
+  propertyGrid: {
+    gap: 16,
+  },
+  propertyGridDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  propertyCard: {
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DFE7DD",
+    overflow: "hidden",
+  },
+  propertyCardWide: {
+    flex: 1,
+  },
+  propertyCardDesktop: {
+    width: "31.8%",
+  },
+  propertyImage: {
     width: "100%",
     height: 220,
-    borderRadius: radii.lg,
-    overflow: "hidden",
-    backgroundColor: colors.stone100,
-    ...shadow.sm,
+    backgroundColor: "#E0EBDD",
   },
-  inlineHeroMediaImage: { width: "100%", height: "100%" },
-  inlineHeroMediaOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(9, 31, 21, 0.30)",
+  propertyCardBody: {
+    padding: 18,
   },
-  inlineHeroMediaTextWrap: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    gap: 4,
+  propertyBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
   },
-  inlineHeroMediaLabel: { ...typography.label, color: "#D7F6DE", fontSize: 10, letterSpacing: 1 },
-  inlineHeroMediaTitle: { ...typography.h3, color: colors.white, fontWeight: "800" },
-  inlineHeroMediaSub: { ...typography.small, color: "rgba(255,255,255,0.88)", lineHeight: 18 },
-  spotlightSectionTitle: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "800" },
-  spotlightDescription: { ...typography.body, color: colors.stone600, lineHeight: 22 },
-  spotlightStats: {
+  propertyTag: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#E8F6EC",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F4A22",
+  },
+  propertyPrice: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5A6D88",
+  },
+  propertyTitle: {
+    marginTop: 12,
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "800",
+    color: "#10233F",
+  },
+  propertyLocation: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#607089",
+  },
+  propertySummary: {
+    marginTop: 10,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#687B95",
+  },
+  propertyFooter: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  propertyLink: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#183153",
+  },
+  categoryGrid: {
+    gap: 14,
+  },
+  categoryGridDesktop: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm,
+    justifyContent: "space-between",
   },
-  spotlightStatCard: {
-    flexGrow: 1,
-    minWidth: 110,
-    backgroundColor: "#F7FBF8",
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  categoryCard: {
+    borderRadius: 24,
+    backgroundColor: "#FAFBFD",
     borderWidth: 1,
-    borderColor: "#DCEADF",
-    gap: 2,
+    borderColor: "#E6EDF5",
+    padding: 18,
   },
-  spotlightStatValue: { ...typography.h4, color: colors.primary, fontWeight: "800" },
-  spotlightStatLabel: { ...typography.small, color: colors.stone600, fontWeight: "600" },
-  spotlightPills: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+  categoryCardDesktop: {
+    width: "31.8%",
   },
-  spotlightPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.offWhite,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-  },
-  spotlightPillText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "700" },
-  spotlightActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  spotlightPrimaryAction: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-  },
-  spotlightPrimaryActionText: { ...typography.body, color: colors.white, fontWeight: "800" },
-  spotlightSecondaryAction: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.stone200,
-  },
-  spotlightSecondaryActionText: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  storyboardGrid: { marginTop: spacing.md, gap: spacing.sm },
-  storyboardCard: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.stone100,
-    ...shadow.sm,
-    gap: spacing.xs,
-  },
-  storyboardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E6F4EA",
+  categoryIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  storyboardTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "800" },
-  storyboardText: { ...typography.small, color: colors.stone600, lineHeight: 19 },
-  locationBtn: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.offWhite, paddingHorizontal: 10, paddingVertical: 7, borderRadius: radii.full },
-  locationText: { ...typography.small, color: colors.stone900, fontWeight: "600" },
-  greeting: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "800" },
-  headerSubtitle: { ...typography.body, color: colors.stone600, maxWidth: 560 },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.offWhite,
+  categoryTitle: {
+    marginTop: 14,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "800",
+    color: "#10233F",
+  },
+  categoryBodyText: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#607089",
+  },
+  storyPanel: {
+    borderRadius: 32,
+    padding: 24,
+    gap: 20,
+  },
+  storyTextBlock: {
+    gap: 10,
+  },
+  storyEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#9BC0FF",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  storyTitle: {
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+  storyBody: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#D3DEEE",
+  },
+  storyChecklist: {
+    gap: 12,
+  },
+  storyChecklistItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  storyCheckIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
-  badge: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-  },
-  badgeText: { color: colors.white, fontSize: 9, fontWeight: "700" },
-  locationDropdown: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.lg,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    ...shadow.md,
-  },
-  locationDropdownDesktop: { maxWidth: 360 },
-  heroBand: { marginHorizontal: spacing.lg, marginTop: spacing.lg, gap: spacing.md },
-  heroBandDesktop: { flexDirection: "row", alignItems: "stretch" },
-  heroSearchCard: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.stone100,
-    padding: spacing.md,
-    gap: spacing.md,
-    ...shadow.sm,
-  },
-  heroSearchCardExpanded: { width: "100%" },
-  locationItem: { flexDirection: "row", alignItems: "center", gap: 8, padding: spacing.sm },
-  locationItemText: { ...typography.body, color: colors.stone700 },
-  locationItemActive: { color: colors.primary, fontWeight: "600" },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.white,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.stone100,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: colors.stone900 },
-  section: { marginTop: spacing.lg, paddingHorizontal: spacing.lg },
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
-  sectionTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
-  inlineSectionLink: { ...typography.small, color: colors.primary, fontWeight: "800" },
-  featuredTag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accentSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
-  featuredTagText: { ...typography.label, color: colors.accentDark, fontSize: 10 },
-  featuredScroll: { gap: spacing.md, paddingRight: spacing.lg },
-  featuredCard: { width: 280, height: 200, borderRadius: radii.lg, overflow: "hidden", ...shadow.md },
-  featuredCardDesktop: { width: 360, height: 230 },
-  featuredImage: { width: "100%", height: "100%", position: "absolute" },
-  featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(5,47,15,0.45)" },
-  featuredContent: { flex: 1, padding: spacing.md, justifyContent: "flex-end", gap: 4 },
-  featuredName: { ...typography.h3, color: colors.white, fontWeight: "700", marginTop: 4 },
-  featuredMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  featuredMetaText: { ...typography.small, color: colors.white },
-  featuredPrice: { ...typography.bodyLarge, color: colors.accentLight, fontWeight: "700", marginTop: 2 },
-  galleryScroll: { gap: spacing.md, paddingRight: spacing.lg },
-  galleryCard: {
-    width: 220,
-    height: 150,
-    borderRadius: radii.lg,
-    overflow: "hidden",
-    backgroundColor: colors.stone100,
-    ...shadow.sm,
-  },
-  galleryImage: { width: "100%", height: "100%" },
-  categoryScroll: { gap: spacing.sm, paddingRight: spacing.lg },
-  categoryPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: colors.stone200,
-  },
-  categoryPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryText: { ...typography.body, color: colors.primary, fontWeight: "600" },
-  categoryTextActive: { color: colors.white },
-  categoryPillSmall: { backgroundColor: "rgba(255,255,255,0.92)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.sm, alignSelf: "flex-start" },
-  categoryPillTextSmall: { ...typography.label, color: colors.primary, fontSize: 9 },
-  quickActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  quickAction: { minWidth: 88, flexGrow: 1, alignItems: "center", gap: 6, backgroundColor: colors.offWhite, borderRadius: radii.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm },
-  quickIcon: { width: 52, height: 52, borderRadius: radii.md, alignItems: "center", justifyContent: "center" },
-  quickLabel: { ...typography.small, color: colors.stone700, fontWeight: "600" },
-  relationshipCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.stone100, ...shadow.sm },
-  relationshipAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
-  relationshipBody: { flex: 1, gap: 2 },
-  relationshipName: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  relationshipMeta: { ...typography.small, color: colors.stone600 },
-  relationshipStatus: { ...typography.small, color: colors.accent, fontWeight: "700", marginTop: 2 },
-  relationshipHint: { ...typography.small, color: colors.stone500, marginTop: 2 },
-  relationshipAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
-  propertyRow: { gap: spacing.md, justifyContent: "space-between" },
-  propertyCell: { width: "100%", marginBottom: spacing.md },
-  propertyCellDesktop: { flex: 1 },
-  propertyCard: { backgroundColor: colors.white, borderRadius: radii.lg, overflow: "hidden", ...shadow.sm, width: "100%", alignSelf: "center", borderWidth: 1, borderColor: colors.stone100 },
-  propertyCardCompact: { minHeight: 100, flexDirection: "row" },
-  propertyImage: { width: "100%", height: 200, backgroundColor: colors.stone100 },
-  propertyImageCompact: { width: 220, height: "100%" },
-  propertyImageOverlay: { position: "absolute", top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: "row", justifyContent: "space-between" },
-  propertyBody: { padding: spacing.md, gap: 4 },
-  propertyName: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700" },
-  propertyMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  propertyMetaText: { ...typography.small, color: colors.stone600 },
-  highlights: { ...typography.small, color: colors.accent, fontWeight: "600", marginTop: 4 },
-  propertyFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.sm },
-  priceLabel: { ...typography.small, color: colors.stone500 },
-  price: { ...typography.h4, color: colors.primary, fontWeight: "700" },
-  viewBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radii.md },
-  viewBtnText: { ...typography.body, color: colors.white, fontWeight: "700" },
-  layoutSection: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.stone100,
-    gap: spacing.sm,
-  },
-  layoutPanel: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    backgroundColor: colors.offWhite,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.stone100,
-  },
-  layoutPanelIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#E6F4EA",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  layoutPanelBody: {
+  storyChecklistText: {
     flex: 1,
-    minWidth: 180,
-    gap: 3,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
-  layoutPanelTitle: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  layoutPanelText: {
-    ...typography.small,
-    color: colors.stone600,
+  contactGrid: {
+    gap: 16,
   },
-  empty: { padding: spacing.xl, alignItems: "center", gap: spacing.sm },
-  emptyText: { ...typography.body, color: colors.stone500 },
+  contactGridDesktop: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  contactCard: {
+    flex: 1,
+    borderRadius: 28,
+    backgroundColor: "#FFF9F1",
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#F0E1C9",
+  },
+  contactTitle: {
+    marginTop: 8,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "900",
+    color: "#10233F",
+  },
+  contactBody: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#607089",
+  },
+  contactActions: {
+    marginTop: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  roleStack: {
+    flex: 1,
+    gap: 12,
+  },
+  roleCard: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6EDF5",
+    padding: 18,
+  },
+  roleLabel: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#10233F",
+  },
+  roleBody: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#607089",
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    alignItems: "center",
+  },
+  footerBrand: {
+    fontSize: 13,
+    letterSpacing: 5,
+    fontWeight: "800",
+    color: "#10233F",
+  },
+  footerText: {
+    marginTop: 8,
+    maxWidth: 720,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#607089",
+  },
 });
-
