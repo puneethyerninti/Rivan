@@ -40,13 +40,19 @@ export default function AdminLoginScreen() {
         session = await api.adminLogin(`+91${phoneDigits}`, password);
       } catch (error: any) {
         const rawMessage = String(error?.message || "");
-        const shouldUseLegacyFallback = rawMessage === "Not Found" || rawMessage.includes("HTTP 404");
+        const normalizedMessage = rawMessage.toLowerCase();
+        const shouldUseLegacyFallback =
+          rawMessage === "Not Found" ||
+          rawMessage.includes("HTTP 404") ||
+          rawMessage.includes("HTTP 401") ||
+          normalizedMessage.includes("invalid admin phone or password");
         if (!shouldUseLegacyFallback) {
           throw error;
         }
 
-        // Older live backends may not expose /auth/admin/login yet.
-        // Fall back to the seeded admin email path so the admin page remains usable.
+        // Older live backends may not expose /auth/admin/login yet, and some
+        // live databases only have the legacy email-based admin seeded.
+        // Fall back so the admin page remains usable in both cases.
         session = await api.login("admin@rivanreality.com", password);
       }
 
