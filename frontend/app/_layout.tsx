@@ -24,8 +24,6 @@ function RootLayoutInner() {
   useEffect(() => {
     if (isLoading) return;
     const rootSegment = segments[0];
-    const isAgent = user?.role === "agent" || user?.role === "sub_agent";
-    const isAuthScreen = ["login", "admin-login", "agent-login", "agent-apply"].includes(rootSegment || "");
 
     if (!isAuthed && rootSegment === "admin") {
       router.replace("/admin-login");
@@ -34,21 +32,6 @@ function RootLayoutInner() {
 
     if (!isAuthed && rootSegment === "agent" && Platform.OS !== "web") {
       router.replace("/agent-login");
-      return;
-    }
-
-    if (isAuthed && user?.is_admin && rootSegment !== "admin" && isAuthScreen) {
-      router.replace("/admin");
-      return;
-    }
-
-    if (isAuthed && isAgent && rootSegment !== "agent" && isAuthScreen) {
-      router.replace("/agent");
-      return;
-    }
-
-    if (isAuthed && !user?.is_admin && !isAgent && isAuthScreen) {
-      router.replace("/(tabs)");
     }
   }, [isAuthed, isLoading, router, segments, user]);
 
