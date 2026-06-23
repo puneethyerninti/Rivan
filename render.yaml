@@ -25,10 +25,16 @@ services:
         value: "false"
       - key: ALLOW_LOCAL_AUTH_FALLBACK
         value: "true"
+      - key: MONGO_SERVER_SELECTION_TIMEOUT_MS
+        value: "15000"
+      - key: MONGO_CONNECT_TIMEOUT_MS
+        value: "15000"
+      - key: MONGO_SOCKET_TIMEOUT_MS
+        value: "20000"
       - key: GOOGLE_ALLOWED_CLIENT_IDS
         sync: false
       - key: DB_AVAILABILITY_TIMEOUT_SECONDS
-        value: "0.75"
+        value: "10"
       - key: DB_AVAILABILITY_TTL_SECONDS
         value: "10"
       - key: CORS_ORIGINS
