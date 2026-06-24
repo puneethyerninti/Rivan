@@ -81,6 +81,7 @@ export default function LayoutScreen() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1080;
+  const isPhone = width < 520;
 
   const isAgent = user?.role === "agent" || user?.role === "sub_agent";
   const [property, setProperty] = useState<NormalizedProperty | null>(null);
@@ -205,7 +206,7 @@ export default function LayoutScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, isPhone && styles.contentPhone]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
             <Feather name="arrow-left" size={18} color={colors.primaryDeepest} />
@@ -219,7 +220,7 @@ export default function LayoutScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.heroCard, isDesktop && styles.heroCardDesktop]}>
+        <View style={[styles.heroCard, isDesktop && styles.heroCardDesktop, isPhone && styles.heroCardPhone]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>Interactive availability</Text>
             <Text style={styles.heroTitle}>Siripuram Gardens plot map with accurate square-box layout blocks.</Text>
@@ -228,7 +229,7 @@ export default function LayoutScreen() {
             </Text>
           </View>
 
-          <View style={styles.heroStats}>
+          <View style={[styles.heroStats, isPhone && styles.heroStatsPhone]}>
             <View style={styles.heroStatCard}>
               <Text style={styles.heroStatValue}>{counts.all}</Text>
               <Text style={styles.heroStatLabel}>Total plots</Text>
@@ -257,10 +258,10 @@ export default function LayoutScreen() {
         </ScrollView>
 
         {mappedLayoutUnits.length ? (
-          <View style={styles.mapShell}>
+          <View style={[styles.mapShell, isPhone && styles.mapShellPhone]}>
             <Text style={styles.mapTitle}>Siripuram Gardens Plot Layout</Text>
             <Text style={styles.mapBody}>Select a plot block to view its facing, size, and next available customer or agent action.</Text>
-            <View style={styles.mapCanvas}>
+            <View style={[styles.mapCanvas, isPhone && styles.mapCanvasPhone]}>
               {filteredUnits.map((unit) => (
                 <TouchableOpacity
                   key={unit.id}
@@ -317,7 +318,7 @@ export default function LayoutScreen() {
 
       <Modal transparent visible={Boolean(selectedUnit)} animationType="fade" onRequestClose={() => setSelectedUnit(null)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isPhone && styles.modalCardPhone]}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderCopy}>
                 <Text style={styles.modalTitle}>{selectedUnit?.number || "Selected plot"}</Text>
@@ -328,14 +329,14 @@ export default function LayoutScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalGrid}>
+            <View style={[styles.modalGrid, isPhone && styles.modalGridPhone]}>
               <InfoTile label="Status" value={selectedUnit ? plotStatusLabel(selectedUnit.status) : "-"} />
               <InfoTile label="Size" value={selectedUnit?.size || "-"} />
               <InfoTile label="Facing" value={selectedUnit?.facing || "-"} />
               <InfoTile label="Price" value={selectedUnit?.price ? formatINR(selectedUnit.price) : "On request"} />
             </View>
 
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, isPhone && styles.modalActionsPhone]}>
               <TouchableOpacity style={styles.modalSecondary} onPress={() => selectedUnit && handleVisit(selectedUnit)}>
                 <Text style={styles.modalSecondaryText}>Schedule visit</Text>
               </TouchableOpacity>
@@ -382,6 +383,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  contentPhone: { padding: spacing.md, paddingBottom: spacing.xxl },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   headerButton: {
     width: 44,
@@ -405,12 +407,17 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     ...shadow.md,
   },
+  heroCardPhone: {
+    borderRadius: 22,
+    padding: spacing.lg,
+  },
   heroCardDesktop: { flexDirection: "row", alignItems: "stretch" },
   heroCopy: { flex: 1, gap: spacing.sm },
   heroEyebrow: { ...typography.label, color: colors.primary },
   heroTitle: { ...typography.h2, color: colors.primaryDeepest },
   heroBody: { ...typography.body, color: colors.stone500 },
   heroStats: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, flex: 0.92 },
+  heroStatsPhone: { gap: spacing.sm },
   heroStatCard: {
     flex: 1,
     minWidth: 120,
@@ -445,6 +452,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     ...shadow.sm,
   },
+  mapShellPhone: {
+    borderRadius: 22,
+    padding: spacing.lg,
+  },
   mapTitle: { ...typography.h4, color: colors.primaryDeepest },
   mapBody: { ...typography.body, color: colors.stone500, maxWidth: 760 },
   mapCanvas: {
@@ -456,6 +467,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
     overflow: "hidden",
+  },
+  mapCanvasPhone: {
+    minHeight: 520,
   },
   mapPlot: {
     position: "absolute",
@@ -505,6 +519,10 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     ...shadow.lg,
   },
+  modalCardPhone: {
+    borderRadius: 22,
+    padding: spacing.lg,
+  },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.md },
   modalHeaderCopy: { flex: 1 },
   modalTitle: { ...typography.h3, color: colors.primaryDeepest },
@@ -518,6 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  modalGridPhone: { gap: spacing.xs },
   infoTile: {
     width: "48%",
     borderRadius: radii.lg,
@@ -527,6 +546,7 @@ const styles = StyleSheet.create({
   infoLabel: { ...typography.label, color: colors.stone400 },
   infoValue: { marginTop: spacing.sm, ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
   modalActions: { flexDirection: "row", gap: spacing.sm },
+  modalActionsPhone: { flexDirection: "column" },
   modalSecondary: {
     flex: 1,
     minHeight: 50,

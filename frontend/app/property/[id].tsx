@@ -39,6 +39,7 @@ export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1100;
   const isTablet = width >= 760;
+  const isPhone = width < 520;
 
   const [property, setProperty] = useState<NormalizedProperty | null>(null);
   const [plotCount, setPlotCount] = useState<number | null>(null);
@@ -131,7 +132,7 @@ export default function PropertyDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, isPhone && styles.contentPhone]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
             <Feather name="arrow-left" size={18} color={colors.primaryDeepest} />
@@ -142,7 +143,7 @@ export default function PropertyDetailScreen() {
         </View>
 
         <View style={[styles.heroSection, isDesktop && styles.heroSectionDesktop]}>
-          <View style={styles.heroMediaWrap}>
+          <View style={[styles.heroMediaWrap, isPhone && styles.heroMediaWrapPhone]}>
             {property.image ? (
               <PropertyMedia image={property.image} videoUrl={property.videoUrl} style={styles.heroMedia} />
             ) : (
@@ -150,9 +151,9 @@ export default function PropertyDetailScreen() {
             )}
           </View>
 
-          <View style={styles.heroCopy}>
+          <View style={[styles.heroCopy, isPhone && styles.heroCopyPhone]}>
             <Text style={styles.kicker}>{property.category || "Property"}</Text>
-            <Text style={styles.title}>{property.name}</Text>
+            <Text style={[styles.title, isPhone && styles.titlePhone]}>{property.name}</Text>
             <Text style={styles.location}>{property.location || "Premium real estate location"}</Text>
             <Text style={styles.body}>
               {property.description ||
@@ -255,7 +256,7 @@ export default function PropertyDetailScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, isPhone && styles.actionBarPhone]}>
         <TouchableOpacity style={styles.actionIcon} onPress={callSales}>
           <Feather name="phone" size={18} color={colors.primaryDeepest} />
         </TouchableOpacity>
@@ -273,6 +274,7 @@ export default function PropertyDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
   content: { paddingHorizontal: spacing.xl, paddingBottom: 116, gap: spacing.xl },
+  contentPhone: { paddingHorizontal: spacing.md, paddingBottom: 148, gap: spacing.lg },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.sm },
   emptyTitle: { ...typography.h3, color: colors.primaryDeepest },
@@ -303,6 +305,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     ...shadow.lg,
   },
+  heroMediaWrapPhone: {
+    minHeight: 220,
+    borderRadius: 22,
+  },
   heroMedia: { width: "100%", height: "100%" },
   heroMediaFallback: { flex: 1, backgroundColor: colors.surfaceMuted },
   heroCopy: {
@@ -315,6 +321,11 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     ...shadow.sm,
   },
+  heroCopyPhone: {
+    borderRadius: 22,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
   kicker: {
     alignSelf: "flex-start",
     paddingHorizontal: spacing.md,
@@ -326,6 +337,7 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
   title: { ...typography.h1, color: colors.primaryDeepest, fontSize: 40, lineHeight: 46 },
+  titlePhone: { fontSize: 28, lineHeight: 34 },
   location: { ...typography.bodyLarge, color: colors.stone500 },
   body: { ...typography.body, color: colors.stone600 },
   actionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
@@ -406,6 +418,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
+  },
+  actionBarPhone: {
+    padding: spacing.sm,
+    alignItems: "stretch",
   },
   actionIcon: {
     width: 48,

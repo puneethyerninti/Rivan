@@ -100,14 +100,18 @@ export function HomeScreen() {
     []
   );
 
-  const heroProperty = properties[0] || null;
-  const mosaicProperties = properties.slice(0, 3);
+  const siripuramProperty = useMemo(
+    () => properties.find((property) => property.id === "prop-1" || /siripuram/i.test(`${property.name} ${property.location}`)) || null,
+    [properties]
+  );
+  const curatedProperties = useMemo(() => (siripuramProperty ? [siripuramProperty] : properties), [properties, siripuramProperty]);
+  const heroProperty = curatedProperties[0] || null;
 
   const filteredProperties = useMemo(() => {
     const normalizedLocation = selectedLocation.toLowerCase();
     const normalizedType = selectedPropertyType.toLowerCase();
 
-    return properties
+    return curatedProperties
       .filter((property) => {
         const matchesLocation =
           selectedLocation === "All locations" || String(property.location || "").toLowerCase().includes(normalizedLocation);
@@ -118,7 +122,7 @@ export function HomeScreen() {
         return matchesLocation && matchesType;
       })
       .slice(0, 3);
-  }, [properties, selectedLocation, selectedPropertyType]);
+  }, [curatedProperties, selectedLocation, selectedPropertyType]);
 
   const openAuth = useCallback((mode: "login" | "signup") => {
     blurActiveWebElement();
@@ -208,6 +212,52 @@ export function HomeScreen() {
     </>
   );
 
+  const mobileMenuContent = (
+    <View style={styles.mobileMenuStack}>
+      <TouchableOpacity style={styles.mobileMenuLink} onPress={() => scrollToSection("featured")}>
+        <Text style={styles.mobileMenuLinkText}>Properties</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.mobileMenuLink}
+        onPress={() => {
+          setMenuOpen(false);
+          router.push("/agent-login");
+        }}
+      >
+        <Text style={styles.mobileMenuLinkText}>Agent Login</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.mobileMenuLink}
+        onPress={() => {
+          setMenuOpen(false);
+          router.push("/admin-login");
+        }}
+      >
+        <Text style={styles.mobileMenuLinkText}>Admin</Text>
+      </TouchableOpacity>
+      {isAuthed ? (
+        <>
+          <TouchableOpacity style={styles.mobileMenuLink} onPress={() => { setMenuOpen(false); router.push("/profile"); }}>
+            <Text style={styles.mobileMenuLinkText}>Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.mobileMenuPrimary}
+            onPress={async () => {
+              await signOut();
+              setMenuOpen(false);
+            }}
+          >
+            <Text style={styles.mobileMenuPrimaryText}>Sign Out</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <TouchableOpacity style={styles.mobileMenuPrimary} onPress={() => openAuth("login")}>
+          <Text style={styles.mobileMenuPrimaryText}>Login / Signup</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDeepest} />
@@ -221,7 +271,7 @@ export function HomeScreen() {
 
       <Modal visible={menuOpen && !isDesktop} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuCard}>{navContent}</Pressable>
+          <Pressable style={styles.menuCard}>{mobileMenuContent}</Pressable>
         </Pressable>
       </Modal>
 
@@ -289,7 +339,7 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.hero, !isDesktop && styles.heroMobile, isPhone && styles.heroPhone]}>
-          <View style={[styles.heroLeft, isPhone && styles.heroLeftPhone]}>
+          <View style={[styles.heroLeft, styles.heroLeftFull, isPhone && styles.heroLeftPhone]}>
             <View style={styles.heroBadge}>
               <View style={styles.heroBadgeDot} />
               <Text style={styles.heroBadgeText}>Now active in customer discovery</Text>
@@ -305,7 +355,7 @@ export function HomeScreen() {
 
             <View style={[styles.heroStats, isPhone && styles.heroStatsPhone]}>
               <View>
-                <Text style={styles.hStatNum}>{properties.length || 0}</Text>
+                <Text style={styles.hStatNum}>{curatedProperties.length || 0}</Text>
                 <Text style={styles.hStatLabel}>Properties</Text>
               </View>
               <View>
@@ -319,37 +369,8 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={[styles.heroRight, isPhone && styles.heroRightPhone]}>
-            <View style={[styles.mosaic, !isDesktop && styles.mosaicMobile]}>
-              <View style={[styles.mosaicMain, !isDesktop && styles.mosaicMainMobile]}>
-                {mosaicProperties[0]?.image ? (
-                  <PropertyMedia image={mosaicProperties[0].image} style={styles.mosaicMedia} />
-                ) : (
-                  <View style={styles.mosaicFallback} />
-                )}
-              </View>
-              {isDesktop ? (
-                <>
-                  <View style={styles.mosaicSmall}>
-                    {mosaicProperties[1]?.image ? (
-                      <PropertyMedia image={mosaicProperties[1].image} style={styles.mosaicMedia} />
-                    ) : (
-                      <View style={styles.mosaicFallback} />
-                    )}
-                  </View>
-                  <View style={styles.mosaicSmall}>
-                    {mosaicProperties[2]?.image ? (
-                      <PropertyMedia image={mosaicProperties[2].image} style={styles.mosaicMedia} />
-                    ) : (
-                      <View style={styles.mosaicFallback} />
-                    )}
-                  </View>
-                </>
-              ) : null}
-            </View>
-            <View style={[styles.heroRightOverlay, !isDesktop && styles.heroRightOverlayMobile]} />
-
-            <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile, isPhone && styles.searchBarPhone]}>
+          <View style={[styles.heroSearchWrap, isPhone && styles.heroSearchWrapPhone]}>
+            <View style={[styles.searchBarInline, isPhone && styles.searchBarInlinePhone]}>
               <View style={styles.searchField}>
                 <Text style={styles.searchLabel}>Location</Text>
                 <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
@@ -364,8 +385,9 @@ export function HomeScreen() {
                   <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.btnSearch} onPress={() => scrollToSection("featured")}>
+              <TouchableOpacity style={styles.btnSearchWide} onPress={() => scrollToSection("featured")}>
                 <Feather name="search" size={18} color={colors.white} />
+                <Text style={styles.btnSearchWideText}>Show properties</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -670,10 +692,44 @@ const styles = StyleSheet.create({
   menuCard: {
     marginTop: 88,
     marginHorizontal: 20,
-    borderRadius: 24,
+    borderRadius: 20,
     backgroundColor: colors.surface,
-    padding: 20,
+    padding: 18,
     gap: 12,
+    width: "auto",
+    maxWidth: 360,
+    alignSelf: "flex-end",
+  },
+  mobileMenuStack: {
+    gap: 10,
+  },
+  mobileMenuLink: {
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileMenuLinkText: {
+    color: colors.primaryDeepest,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  mobileMenuPrimary: {
+    minHeight: 48,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  mobileMenuPrimaryText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "800",
   },
   dropdownBackdrop: {
     flex: 1,
@@ -724,9 +780,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   hero: {
-    minHeight: Platform.OS === "web" ? 760 : 620,
-    flexDirection: "row",
+    minHeight: Platform.OS === "web" ? 720 : 0,
     overflow: "hidden",
+    backgroundColor: colors.primaryDeepest,
   },
   heroMobile: { flexDirection: "column" },
   heroPhone: {
@@ -740,18 +796,13 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
     paddingTop: 130,
   },
+  heroLeftFull: {
+    width: "100%",
+  },
   heroLeftPhone: {
     paddingHorizontal: 18,
     paddingTop: 92,
-    paddingBottom: 28,
-  },
-  heroRight: {
-    flex: 1,
-    position: "relative",
-    minHeight: 380,
-  },
-  heroRightPhone: {
-    minHeight: 0,
+    paddingBottom: 22,
   },
   heroBadge: {
     flexDirection: "row",
@@ -829,76 +880,37 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: "uppercase",
   },
-  mosaic: {
-    position: "absolute",
-    inset: 0,
-    ...(Platform.OS === "web"
-      ? ({
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "1fr 1fr",
-          gap: 4,
-        } as any)
-      : {}),
+  heroSearchWrap: {
+    paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+    paddingBottom: 44,
+    marginTop: -12,
+    backgroundColor: colors.primaryDeepest,
   },
-  mosaicMobile: {
-    position: "relative",
-    inset: undefined,
-    height: 260,
-    overflow: "hidden",
+  heroSearchWrapPhone: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    marginTop: 0,
   },
-  mosaicMain: Platform.OS === "web" ? ({ gridRow: "1 / 3" } as any) : { flex: 1 },
-  mosaicMainMobile: {
-    flex: 1,
-  },
-  mosaicSmall: Platform.OS === "web" ? ({} as any) : { flex: 1 },
-  mosaicMedia: { width: "100%", height: "100%" },
-  mosaicFallback: { flex: 1, backgroundColor: "#31513E" },
-  heroRightOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(10,46,31,0.18)",
-  },
-  heroRightOverlayMobile: {
-    top: 0,
-    bottom: undefined,
-    height: 260,
-  },
-  searchBar: {
-    position: "absolute",
-    left: "50%",
-    bottom: 40,
-    transform: [{ translateX: -280 }],
-    width: 560,
-    maxWidth: "90%",
+  searchBarInline: {
+    width: "100%",
+    maxWidth: 1120,
+    alignSelf: "center",
     backgroundColor: "rgba(255,255,255,0.97)",
-    borderRadius: 16,
+    borderRadius: 18,
     paddingHorizontal: 24,
     paddingVertical: 20,
     ...(Platform.OS === "web"
       ? ({
           display: "grid",
           gridTemplateColumns: "1fr 1fr auto",
-          gap: 12,
+          gap: 14,
           alignItems: "end",
         } as any)
       : {}),
     ...shadow.lg,
   },
-  searchBarMobile: {
-    position: "relative",
-    left: undefined,
-    bottom: undefined,
-    transform: [],
-    width: "auto",
-    maxWidth: "100%",
-    marginHorizontal: 18,
-    marginTop: 14,
-    marginBottom: 18,
+  searchBarInlinePhone: {
     gap: 14,
-  },
-  searchBarPhone: {
-    marginHorizontal: 12,
-    marginTop: -8,
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderRadius: 14,
@@ -934,13 +946,20 @@ const styles = StyleSheet.create({
   searchSelectTextPhone: {
     fontSize: 12,
   },
-  btnSearch: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+  btnSearchWide: {
+    minHeight: 44,
+    borderRadius: 12,
     backgroundColor: colors.primaryDeepest,
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  btnSearchWideText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
   },
   sectionSoft: {
     backgroundColor: "#F6F8F5",
