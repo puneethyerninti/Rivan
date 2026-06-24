@@ -1,27 +1,74 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, TextInput, Modal, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
-import { colors, radii, spacing, typography, shadow } from "@/src/theme";
 import { Button } from "@/src/components/Button";
+import { colors, radii, shadow, spacing, typography } from "@/src/theme";
+
+function ActionRow({
+  icon,
+  label,
+  onPress,
+  accent,
+}: {
+  icon: any;
+  label: string;
+  onPress: () => void;
+  accent?: boolean;
+}) {
+  return (
+    <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.8}>
+      <View style={[styles.menuIcon, accent && styles.menuIconAccent]}>
+        <Feather name={icon} size={16} color={accent ? colors.accentDark : colors.primary} />
+      </View>
+      <Text style={styles.menuLabel}>{label}</Text>
+      <Feather name="chevron-right" size={16} color={colors.stone400} />
+    </TouchableOpacity>
+  );
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, refresh } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [relationship, setRelationship] = useState<any>(null);
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [address, setAddress] = useState(user?.address || "");
-  const [saving, setSaving] = useState(false);
-  const [relationship, setRelationship] = useState<any>(null);
 
   useEffect(() => {
     api.customerRelationship().then(setRelationship).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setName(user?.name || "");
+    setEmail(user?.email || "");
+    setAddress(user?.address || "");
+  }, [user]);
+
+  const initials = useMemo(() => {
+    return (user?.name || "User")
+      .split(" ")
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }, [user?.name]);
 
   async function handleSave() {
     setSaving(true);
@@ -29,155 +76,162 @@ export default function ProfileScreen() {
       await api.updateProfile({ name, email, address });
       await refresh();
       setEditing(false);
-      Alert.alert("Saved", "Profile updated successfully");
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Alert.alert("Profile updated", "Your details were saved successfully.");
+    } catch (error: any) {
+      Alert.alert("Update failed", error?.message || "Unable to save profile changes.");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleLogout() {
-    const performSignOut = async () => {
+    const confirmLogout = async () => {
       await signOut();
       router.replace("/");
     };
 
     if (Platform.OS === "web" && typeof window !== "undefined") {
       if (window.confirm("Sign out of your Rivan account?")) {
-        await performSignOut();
+        await confirmLogout();
       }
       return;
     }
 
-    Alert.alert("Sign out?", "You'll need to verify OTP to sign in again.", [
+    Alert.alert("Sign out", "You'll need OTP again to re-enter your account.", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: performSignOut,
-      },
+      { text: "Sign Out", style: "destructive", onPress: confirmLogout },
     ]);
   }
 
-  const initials = (user?.name || "U").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
-
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]} testID="profile-screen">
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.heading}>Profile</Text>
+          <Text style={styles.headerEyebrow}>Account</Text>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerBody}>A cleaner hub for account details, ownership relationships, and role-based shortcuts.</Text>
         </View>
 
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
+        <View style={styles.heroCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.name}</Text>
-            <Text style={styles.profilePhone}>+91 {user?.phone}</Text>
-            <View style={styles.kycBadge}>
-              <Feather
-                name={user?.kyc_status === "verified" ? "check-circle" : "alert-circle"}
-                size={11}
-                color={user?.kyc_status === "verified" ? colors.success : colors.warning}
-              />
-              <Text style={[styles.kycText, { color: user?.kyc_status === "verified" ? colors.success : colors.warning }]}>
-                KYC {user?.kyc_status === "verified" ? "Verified" : "Pending"}
-              </Text>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroName}>{user?.name || "Rivan user"}</Text>
+            <Text style={styles.heroMeta}>{user?.phone ? `+91 ${user.phone}` : "Phone not available"}</Text>
+            <Text style={styles.heroMeta}>{user?.email || "Email not added yet"}</Text>
+            <View style={styles.badgeRow}>
+              <View style={[styles.statusBadge, user?.kyc_status === "verified" ? styles.statusBadgeSuccess : styles.statusBadgePending]}>
+                <Text style={[styles.statusBadgeText, user?.kyc_status === "verified" ? styles.statusBadgeTextSuccess : styles.statusBadgeTextPending]}>
+                  KYC {user?.kyc_status === "verified" ? "Verified" : "Pending"}
+                </Text>
+              </View>
+              {user?.role ? (
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>{String(user.role).replace(/_/g, " ")}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
-          <TouchableOpacity testID="profile-edit-button" style={styles.editBtn} onPress={() => setEditing(true)}>
-            <Feather name="edit-2" size={16} color={colors.primary} />
+          <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)} testID="profile-edit-button">
+            <Feather name="edit-2" size={16} color={colors.primaryDeepest} />
           </TouchableOpacity>
         </View>
 
-        {/* Menu Sections */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Access</Text>
-          <View style={styles.menu}>
-            <MenuItem icon="heart" label="Saved Properties" testID="profile-wishlist" onPress={() => router.push("/wishlist")} />
-            <MenuItem icon="file-text" label="Document Locker" testID="profile-documents" onPress={() => router.push("/documents")} />
-            <MenuItem icon="tool" label="Property Services" testID="profile-services" onPress={() => router.push("/services")} />
-            <MenuItem icon="bell" label="Notifications" testID="profile-notifications" onPress={() => router.push("/notifications")} />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.menu}>
-            <MenuItem icon="user" label="Personal Information" testID="profile-info" onPress={() => setEditing(true)} />
-            <MenuItem icon="shield" label="KYC Verification" testID="profile-kyc" onPress={() => Alert.alert("KYC", "KYC documents can be uploaded via Document Locker")} />
-            <MenuItem icon="settings" label="Notification Settings" testID="profile-settings" onPress={() => Alert.alert("Settings", "All notifications enabled")} />
-            {user?.role === "agent" || user?.role === "sub_agent" ? (
-              <MenuItem icon="briefcase" label="Agent Dashboard" testID="profile-agent" onPress={() => router.push("/agent")} accent />
-            ) : null}
-            {user?.is_admin ? (
-              <MenuItem icon="grid" label="Admin Dashboard" testID="profile-admin" onPress={() => router.push("/admin")} accent />
+        {(relationship?.assigned_agent || relationship?.assigned_sub_agent || relationship?.primary_link) && (
+          <View style={styles.surfaceCard}>
+            <Text style={styles.sectionEyebrow}>Relationship owner</Text>
+            <Text style={styles.sectionTitle}>
+              {relationship?.assigned_sub_agent?.name || relationship?.assigned_agent?.name || "Rivan advisor"}
+            </Text>
+            <Text style={styles.sectionBody}>
+              {relationship?.assigned_sub_agent ? "Sub-agent support" : "Primary relationship support"}
+            </Text>
+            {relationship?.open_tasks?.[0]?.title ? (
+              <View style={styles.inlineNotice}>
+                <Feather name="clock" size={14} color={colors.primary} />
+                <Text style={styles.inlineNoticeText}>Next step: {relationship.open_tasks[0].title}</Text>
+              </View>
             ) : null}
           </View>
-        </View>
+        )}
 
-        {relationship?.assigned_agent || relationship?.assigned_sub_agent || relationship?.primary_link ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Relationship Owner</Text>
-            <View style={styles.relationshipCard}>
-              <View style={styles.relationshipIcon}>
-                <Feather name="users" size={16} color={colors.white} />
-              </View>
-              <View style={styles.relationshipBody}>
-                <Text style={styles.relationshipName}>
-                  {relationship?.assigned_sub_agent?.name || relationship?.assigned_agent?.name || "Rivan Advisor"}
-                </Text>
-                <Text style={styles.relationshipMeta}>
-                  {relationship?.assigned_sub_agent ? "Sub-agent" : "Primary agent"}
-                </Text>
-                <Text style={styles.relationshipStatus}>
-                  {formatRelationshipStatus(relationship?.primary_link?.relationship_type, relationship?.primary_link?.status)}
-                </Text>
-                {relationship?.open_tasks?.[0]?.title ? (
-                  <Text style={styles.relationshipHint}>Next step: {relationship.open_tasks[0].title}</Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About Rivan</Text>
-          <View style={styles.menu}>
-            <MenuItem icon="info" label="About Rivan Reality" testID="profile-about" onPress={() => Alert.alert("Rivan Reality LLP", "Legacy of trust, legacy of wealth.\n\nRivan Reality LLP is a premium real estate company committed to building landmark projects and delivering long-term value to our customers.")} />
-            <MenuItem icon="message-square" label="Customer Support" testID="profile-support" onPress={() => Alert.alert("Support", "Call: +91 9876543210\nEmail: support@rivanreality.com")} />
-            <MenuItem icon="award" label="Testimonials" testID="profile-testimonials" onPress={() => Alert.alert("Customer Love", "Rated 4.8/5 by 1200+ happy customers across Hyderabad.")} />
+        <View style={styles.surfaceCard}>
+          <Text style={styles.sectionEyebrow}>Shortcuts</Text>
+          <Text style={styles.sectionTitle}>Everything important, grouped clearly</Text>
+          <View style={styles.menuGroup}>
+            <ActionRow icon="heart" label="Saved Properties" onPress={() => router.push("/wishlist")} />
+            <ActionRow icon="file-text" label="Document Locker" onPress={() => router.push("/documents")} />
+            <ActionRow icon="tool" label="Property Services" onPress={() => router.push("/services")} />
+            <ActionRow icon="bell" label="Notifications" onPress={() => router.push("/notifications")} />
           </View>
         </View>
 
-        <TouchableOpacity testID="profile-logout-button" style={styles.logoutBtn} onPress={handleLogout}>
+        <View style={styles.surfaceCard}>
+          <Text style={styles.sectionEyebrow}>Account actions</Text>
+          <Text style={styles.sectionTitle}>Manage your identity and role access</Text>
+          <View style={styles.menuGroup}>
+            <ActionRow icon="user" label="Personal Information" onPress={() => setEditing(true)} />
+            <ActionRow icon="shield" label="KYC Verification" onPress={() => Alert.alert("KYC", "KYC documents can be managed from the Document Locker.")} />
+            <ActionRow icon="settings" label="Notification Settings" onPress={() => Alert.alert("Settings", "Notification preferences are currently enabled by default.")} />
+            {(user?.role === "agent" || user?.role === "sub_agent") && (
+              <ActionRow icon="briefcase" label="Agent Dashboard" onPress={() => router.push("/agent" as never)} accent />
+            )}
+            {user?.is_admin && <ActionRow icon="grid" label="Admin Dashboard" onPress={() => router.push("/admin")} accent />}
+          </View>
+        </View>
+
+        <View style={styles.surfaceCard}>
+          <Text style={styles.sectionEyebrow}>Support</Text>
+          <Text style={styles.sectionTitle}>Rivan account help</Text>
+          <View style={styles.menuGroup}>
+            <ActionRow icon="info" label="About Rivan Reality" onPress={() => Alert.alert("Rivan Reality LLP", "Legacy of trust, legacy of wealth.")} />
+            <ActionRow icon="message-square" label="Customer Support" onPress={() => Alert.alert("Support", "Call: +91 9876543210\nEmail: support@rivanreality.com")} />
+            <ActionRow icon="award" label="Testimonials" onPress={() => Alert.alert("Customer Love", "Rated highly by property buyers across premium Rivan projects.")} />
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} testID="profile-logout-button">
           <Feather name="log-out" size={16} color={colors.danger} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
-
-        <Text style={styles.footer}>Rivan Reality LLP · Legacy of trust, legacy of wealth</Text>
       </ScrollView>
 
-      {/* Edit Profile Modal */}
-      <Modal visible={editing} animationType="slide" transparent>
-        <View style={styles.modalBg}>
+      <Modal visible={editing} animationType="slide" transparent onRequestClose={() => setEditing(false)}>
+        <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput testID="profile-edit-name" style={styles.input} value={name} onChangeText={setName} placeholder="Your name" />
-            </View>
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput testID="profile-edit-email" style={styles.input} value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
-            </View>
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Address</Text>
-              <TextInput testID="profile-edit-address" style={[styles.input, { height: 80 }]} value={address} onChangeText={setAddress} placeholder="Your address" multiline />
-            </View>
+            <Text style={styles.modalTitle}>Edit profile</Text>
+
+            <Field label="Full name">
+              <TextInput testID="profile-edit-name" style={styles.input} value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.stone400} />
+            </Field>
+
+            <Field label="Email">
+              <TextInput
+                testID="profile-edit-email"
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.stone400}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </Field>
+
+            <Field label="Address">
+              <TextInput
+                testID="profile-edit-address"
+                style={[styles.input, styles.textarea]}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Your address"
+                placeholderTextColor={colors.stone400}
+                multiline
+                textAlignVertical="top"
+              />
+            </Field>
+
             <View style={styles.modalActions}>
               <Button title="Cancel" variant="ghost" onPress={() => setEditing(false)} fullWidth={false} style={{ flex: 1 }} testID="profile-edit-cancel" />
               <Button title="Save" onPress={handleSave} loading={saving} fullWidth={false} style={{ flex: 1 }} testID="profile-edit-save" />
@@ -189,62 +243,137 @@ export default function ProfileScreen() {
   );
 }
 
-function formatRelationshipStatus(type?: string, status?: string) {
-  const prettyType = String(type || "relationship")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-  const prettyStatus = String(status || "active")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-  return `${prettyType} · ${prettyStatus}`;
-}
-
-function MenuItem({ icon, label, testID, onPress, accent }: { icon: any; label: string; testID: string; onPress: () => void; accent?: boolean }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <TouchableOpacity testID={testID} style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.menuIcon, accent && { backgroundColor: colors.accentSoft }]}>
-        <Feather name={icon} size={16} color={accent ? colors.accent : colors.primary} />
-      </View>
-      <Text style={styles.menuLabel}>{label}</Text>
-      <Feather name="chevron-right" size={16} color={colors.stone400} />
-    </TouchableOpacity>
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
-  header: { padding: spacing.lg, paddingBottom: 0 },
-  heading: { ...typography.h1, color: colors.primaryDeepest, fontWeight: "700" },
-  profileCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, margin: spacing.lg, backgroundColor: colors.white, borderRadius: radii.lg, padding: spacing.md, ...shadow.sm },
-  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.white, fontSize: 22, fontWeight: "700" },
-  profileInfo: { flex: 1 },
-  profileName: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
-  profilePhone: { ...typography.body, color: colors.stone600, marginTop: 2 },
-  kycBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, alignSelf: "flex-start", backgroundColor: colors.offWhite, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.sm },
-  kycText: { ...typography.label, fontSize: 9 },
-  editBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
-  section: { paddingHorizontal: spacing.lg, marginTop: spacing.md },
-  sectionTitle: { ...typography.label, color: colors.stone500, marginBottom: spacing.sm },
-  relationshipCard: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radii.md, padding: spacing.md, ...shadow.sm },
-  relationshipIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
-  relationshipBody: { flex: 1, gap: 2 },
-  relationshipName: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  relationshipMeta: { ...typography.small, color: colors.stone600 },
-  relationshipStatus: { ...typography.small, color: colors.accent, fontWeight: "700" },
-  relationshipHint: { ...typography.small, color: colors.stone500 },
-  menu: { backgroundColor: colors.white, borderRadius: radii.md, overflow: "hidden", ...shadow.sm },
-  menuItem: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.stone100 },
-  menuIcon: { width: 32, height: 32, borderRadius: radii.sm, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
-  menuLabel: { flex: 1, ...typography.body, color: colors.primaryDeepest, fontWeight: "500" },
-  logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, margin: spacing.lg, padding: spacing.md, backgroundColor: colors.white, borderRadius: radii.md, borderWidth: 1, borderColor: "#FEE2E2" },
+  content: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  header: { gap: spacing.sm },
+  headerEyebrow: { ...typography.label, color: colors.primary },
+  headerTitle: { ...typography.h1, color: colors.primaryDeepest },
+  headerBody: { ...typography.body, color: colors.stone500, maxWidth: 620 },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    borderRadius: 30,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xxl,
+    ...shadow.sm,
+  },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: colors.white, fontSize: 24, fontWeight: "800" },
+  heroCopy: { flex: 1, gap: 4 },
+  heroName: { ...typography.h3, color: colors.primaryDeepest },
+  heroMeta: { ...typography.body, color: colors.stone500 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+  statusBadge: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill },
+  statusBadgeSuccess: { backgroundColor: colors.approvedBg },
+  statusBadgePending: { backgroundColor: colors.pendingBg },
+  statusBadgeText: { ...typography.small, fontWeight: "800" },
+  statusBadgeTextSuccess: { color: colors.approvedText },
+  statusBadgeTextPending: { color: colors.pendingText },
+  roleBadge: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted },
+  roleBadgeText: { ...typography.small, fontWeight: "700", color: colors.primaryDeepest, textTransform: "capitalize" },
+  editButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  surfaceCard: {
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xxl,
+    ...shadow.sm,
+  },
+  sectionEyebrow: { ...typography.label, color: colors.primary },
+  sectionTitle: { marginTop: spacing.sm, ...typography.h4, color: colors.primaryDeepest },
+  sectionBody: { marginTop: spacing.sm, ...typography.body, color: colors.stone500 },
+  menuGroup: { marginTop: spacing.lg, overflow: "hidden", borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuIconAccent: { backgroundColor: colors.accentSoft },
+  menuLabel: { flex: 1, ...typography.body, color: colors.primaryDeepest, fontWeight: "600" },
+  inlineNotice: {
+    marginTop: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+    padding: spacing.lg,
+  },
+  inlineNoticeText: { flex: 1, ...typography.small, color: colors.primaryDeepest },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    minHeight: 56,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "#F2C4C4",
+  },
   logoutText: { ...typography.body, color: colors.danger, fontWeight: "700" },
-  footer: { ...typography.small, color: colors.stone400, textAlign: "center", marginBottom: spacing.lg, fontStyle: "italic" },
-  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalCard: { backgroundColor: colors.white, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, padding: spacing.lg, gap: spacing.md },
-  modalTitle: { ...typography.h2, color: colors.primaryDeepest, fontWeight: "700" },
-  inputBlock: { gap: 6 },
-  label: { ...typography.small, color: colors.stone600, fontWeight: "600" },
-  input: { backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.stone200, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 15, color: colors.stone900 },
-  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.38)", justifyContent: "flex-end" },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  modalTitle: { ...typography.h3, color: colors.primaryDeepest },
+  field: { gap: spacing.sm },
+  fieldLabel: { ...typography.small, color: colors.stone500, fontWeight: "700" },
+  input: {
+    minHeight: 54,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    color: colors.primaryDeepest,
+    fontSize: 15,
+  },
+  textarea: { minHeight: 96, paddingTop: spacing.lg },
+  modalActions: { flexDirection: "row", gap: spacing.sm },
 });

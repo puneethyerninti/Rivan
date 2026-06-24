@@ -1,127 +1,183 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
-import { colors, radii, spacing, typography, shadow, formatINR, plotStatusColor, plotStatusLabel } from "@/src/theme";
 import { Button } from "@/src/components/Button";
+import { colors, formatINR, plotStatusColor, plotStatusLabel, radii, shadow, spacing, typography } from "@/src/theme";
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function firstNumber(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const normalized = Number(value.replace(/[^\d.]/g, ""));
+      if (Number.isFinite(normalized) && normalized > 0) return normalized;
+    }
+  }
+  return undefined;
+}
 
 export default function BookingScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+
   const [plot, setPlot] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [mobile, setMobile] = useState(user?.phone || "");
   const [message, setMessage] = useState("");
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    let active = true;
+
+    async function load() {
       try {
-        const p = await api.getPlot(plotId as string);
-        setPlot(p);
-      } catch (e: any) {
-        Alert.alert("Error", e.message);
+        const payload = await api.getPlot(plotId as string);
+        if (!active) return;
+        setPlot({
+          id: firstString(payload?.id, payload?._id),
+          number: firstString(payload?.plot_number, payload?.plot_no, payload?.unit_number),
+          size: firstString(payload?.size, payload?.area),
+          facing: firstString(payload?.facing, payload?.orientation),
+          price: firstNumber(payload?.price, payload?.base_price),
+          status: firstString(payload?.status, "available").toLowerCase(),
+        });
+      } catch (error: any) {
+        if (active) Alert.alert("Booking", error?.message || "Unable to load this unit.");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
-    })();
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
   }, [plotId]);
 
   async function handleSubmit() {
-    if (!name || mobile.length < 10) {
-      Alert.alert("Required", "Please enter your name and a valid mobile number");
+    if (!name.trim() || mobile.replace(/\D/g, "").length < 10) {
+      Alert.alert("Required", "Please enter your full name and a valid mobile number.");
       return;
     }
+
     setSubmitting(true);
     try {
       await api.createBooking({
         plot_id: plotId,
-        name,
-        mobile,
-        message,
+        name: name.trim(),
+        mobile: mobile.replace(/\D/g, "").slice(0, 10),
+        message: message.trim(),
       });
       setSuccess(true);
-    } catch (e: any) {
-      Alert.alert("Booking failed", e.message);
+    } catch (error: any) {
+      Alert.alert("Booking failed", error?.message || "Unable to submit the booking request.");
     } finally {
       setSubmitting(false);
     }
   }
 
   if (loading) {
-    return <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View>;
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (success) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.successWrap} testID="booking-success">
+        <View style={styles.successWrap}>
           <View style={styles.successIcon}>
-            <Feather name="check" size={48} color={colors.white} />
+            <Feather name="check" size={34} color={colors.white} />
           </View>
-          <Text style={styles.successTitle}>Booking Request Received!</Text>
-          <Text style={styles.successText}>
-            Thank you, {name}. Our Rivan team will contact you shortly to confirm your booking for plot {plot?.plot_number}.
+          <Text style={styles.successTitle}>Booking request received</Text>
+          <Text style={styles.successBody}>
+            Your enquiry for {plot?.number || "this unit"} has been submitted. The Rivan team will contact you shortly to continue the process.
           </Text>
-          <View style={styles.successDetails}>
-            <Text style={styles.successDetailLabel}>Plot Number</Text>
-            <Text style={styles.successDetailValue}>{plot?.plot_number}</Text>
-            <Text style={styles.successDetailLabel}>Total Price</Text>
-            <Text style={styles.successDetailValue}>{formatINR(plot?.price)}</Text>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Unit</Text>
+            <Text style={styles.summaryValue}>{plot?.number || "-"}</Text>
+            <Text style={styles.summaryLabel}>Price</Text>
+            <Text style={styles.summaryValue}>{plot?.price ? formatINR(plot.price) : "On request"}</Text>
           </View>
-          <Button title="View My Bookings" onPress={() => router.replace("/(tabs)/myland")} testID="booking-view-mybookings" />
-          <Button title="Back to Home" variant="ghost" onPress={() => router.replace("/")} testID="booking-back-home" />
+          <View style={styles.successActions}>
+            <Button title="View My Bookings" onPress={() => router.replace("/(tabs)/myland")} fullWidth={false} style={{ flex: 1 }} />
+            <Button title="Back Home" variant="secondary" onPress={() => router.replace("/")} fullWidth={false} style={{ flex: 1 }} />
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} testID="booking-screen">
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={styles.header}>
-          <TouchableOpacity testID="booking-back-button" style={styles.headerBtn} onPress={() => router.back()}>
-            <Feather name="x" size={22} color={colors.primaryDeepest} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Book Plot</Text>
-          <View style={{ width: 40 }} />
-        </View>
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+              <Feather name="arrow-left" size={18} color={colors.primaryDeepest} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Reserve your unit</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Plot summary */}
-          <View style={styles.plotCard}>
-            <View style={styles.plotCardHeader}>
+          <View style={styles.heroCard}>
+            <Text style={styles.heroEyebrow}>Booking request</Text>
+            <Text style={styles.heroTitle}>A simpler booking step with clearer context.</Text>
+            <Text style={styles.heroBody}>
+              This form keeps the next step focused: confirm the unit, share your contact details, and let the team take it forward.
+            </Text>
+          </View>
+
+          <View style={styles.unitCard}>
+            <View style={styles.unitTopRow}>
               <View>
-                <Text style={styles.plotNumber}>Plot {plot?.plot_number}</Text>
-                <Text style={styles.plotMeta}>{plot?.size} · {plot?.facing}</Text>
+                <Text style={styles.unitNumber}>{plot?.number || "Selected unit"}</Text>
+                <Text style={styles.unitMeta}>{[plot?.size, plot?.facing].filter(Boolean).join(" • ") || "Size and facing on request"}</Text>
               </View>
-              <View style={[styles.statusPill, { backgroundColor: plotStatusColor(plot?.status) }]}>
-                <Text style={styles.statusText}>{plotStatusLabel(plot?.status)}</Text>
+              <View style={[styles.statusPill, { backgroundColor: plotStatusColor(plot?.status || "available") }]}>
+                <Text style={styles.statusText}>{plotStatusLabel(plot?.status || "available")}</Text>
               </View>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.priceLabel}>Total Price</Text>
-              <Text style={styles.price}>{formatINR(plot?.price)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.priceLabel}>Token Amount</Text>
-              <Text style={styles.tokenPrice}>₹50,000</Text>
+
+            <View style={styles.unitPriceRow}>
+              <Text style={styles.unitPriceLabel}>Indicative price</Text>
+              <Text style={styles.unitPriceValue}>{plot?.price ? formatINR(plot.price) : "On request"}</Text>
             </View>
           </View>
 
-          <View style={styles.form}>
-            <Text style={styles.formTitle}>Your Details</Text>
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>Your details</Text>
 
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Full Name *</Text>
+            <Field label="Full name">
               <TextInput
                 testID="booking-name-input"
                 style={styles.input}
@@ -130,43 +186,42 @@ export default function BookingScreen() {
                 placeholder="Enter your full name"
                 placeholderTextColor={colors.stone400}
               />
-            </View>
+            </Field>
 
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Mobile Number *</Text>
+            <Field label="Mobile number">
               <TextInput
                 testID="booking-mobile-input"
                 style={styles.input}
                 value={mobile}
-                onChangeText={(t) => setMobile(t.replace(/\D/g, "").slice(0, 10))}
-                placeholder="10-digit number"
+                onChangeText={(text) => setMobile(text.replace(/\D/g, "").slice(0, 10))}
+                placeholder="10-digit mobile number"
                 placeholderTextColor={colors.stone400}
                 keyboardType="phone-pad"
                 maxLength={10}
               />
-            </View>
+            </Field>
 
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Message (optional)</Text>
+            <Field label="Message (optional)">
               <TextInput
                 testID="booking-message-input"
-                style={[styles.input, { height: 100, textAlignVertical: "top" }]}
+                style={[styles.input, styles.textarea]}
                 value={message}
                 onChangeText={setMessage}
-                placeholder="Any specific requirements or questions"
+                placeholder="Share any pricing, visit, or documentation request"
                 placeholderTextColor={colors.stone400}
                 multiline
+                textAlignVertical="top"
               />
-            </View>
+            </Field>
 
-            <View style={styles.consentBox}>
+            <View style={styles.notice}>
               <Feather name="info" size={14} color={colors.primary} />
-              <Text style={styles.consentText}>
-                By submitting, you consent to be contacted by Rivan Reality about this property.
+              <Text style={styles.noticeText}>
+                By continuing, you agree to be contacted by the Rivan team for booking confirmation and next steps.
               </Text>
             </View>
 
-            <Button title="Confirm Booking Request" onPress={handleSubmit} loading={submitting} testID="booking-submit-button" />
+            <Button title="Submit Booking Request" onPress={handleSubmit} loading={submitting} testID="booking-submit-button" />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -174,36 +229,117 @@ export default function BookingScreen() {
   );
 }
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.stone100 },
-  headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
-  headerTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
-  plotCard: { backgroundColor: colors.offWhite, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.stone100 },
-  plotCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  plotNumber: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
-  plotMeta: { ...typography.small, color: colors.stone600, marginTop: 2 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.sm },
-  statusText: { color: colors.white, fontSize: 10, fontWeight: "700", letterSpacing: 1 },
-  divider: { height: 1, backgroundColor: colors.stone200, marginVertical: spacing.sm },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
-  priceLabel: { ...typography.body, color: colors.stone600 },
-  price: { ...typography.h3, color: colors.primary, fontWeight: "700" },
-  tokenPrice: { ...typography.body, color: colors.accent, fontWeight: "700" },
-  form: { gap: spacing.md, marginTop: spacing.md },
-  formTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
-  inputBlock: { gap: 6 },
-  label: { ...typography.small, color: colors.stone600, fontWeight: "600" },
-  input: { backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.stone200, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 15, color: colors.stone900 },
-  consentBox: { flexDirection: "row", gap: 8, padding: spacing.sm, backgroundColor: "#E6F4EA", borderRadius: radii.md, alignItems: "flex-start" },
-  consentText: { flex: 1, ...typography.small, color: colors.primaryDeepest, lineHeight: 18 },
-  successWrap: { flex: 1, padding: spacing.lg, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  successIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.success, alignItems: "center", justifyContent: "center" },
-  successTitle: { ...typography.h1, color: colors.primaryDeepest, fontWeight: "700", textAlign: "center", marginTop: spacing.md },
-  successText: { ...typography.body, color: colors.stone600, textAlign: "center", lineHeight: 22, maxWidth: 320 },
-  successDetails: { backgroundColor: colors.offWhite, padding: spacing.md, borderRadius: radii.md, alignSelf: "stretch", marginVertical: spacing.md },
-  successDetailLabel: { ...typography.small, color: colors.stone500, marginTop: 6 },
-  successDetailValue: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700" },
+  safe: { flex: 1, backgroundColor: colors.offWhite },
+  flex: { flex: 1 },
+  loader: { flex: 1, alignItems: "center", justifyContent: "center" },
+  content: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  headerTitle: { ...typography.h4, color: colors.primaryDeepest },
+  headerSpacer: { width: 44 },
+  heroCard: {
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xxl,
+    gap: spacing.sm,
+    ...shadow.sm,
+  },
+  heroEyebrow: { ...typography.label, color: colors.primary },
+  heroTitle: { ...typography.h3, color: colors.primaryDeepest },
+  heroBody: { ...typography.body, color: colors.stone500 },
+  unitCard: {
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xl,
+    gap: spacing.lg,
+    ...shadow.sm,
+  },
+  unitTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  unitNumber: { ...typography.h4, color: colors.primaryDeepest },
+  unitMeta: { marginTop: spacing.sm, ...typography.body, color: colors.stone500 },
+  statusPill: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill },
+  statusText: { ...typography.small, color: colors.white, fontWeight: "800" },
+  unitPriceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  unitPriceLabel: { ...typography.body, color: colors.stone500 },
+  unitPriceValue: { ...typography.h4, color: colors.primary },
+  formCard: {
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xxl,
+    gap: spacing.lg,
+    ...shadow.sm,
+  },
+  formTitle: { ...typography.h3, color: colors.primaryDeepest },
+  field: { gap: spacing.sm },
+  fieldLabel: { ...typography.small, color: colors.stone500, fontWeight: "700" },
+  input: {
+    minHeight: 54,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    color: colors.primaryDeepest,
+    fontSize: 15,
+  },
+  textarea: { minHeight: 112, paddingTop: spacing.lg },
+  notice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+  },
+  noticeText: { flex: 1, ...typography.small, color: colors.primaryDeepest, lineHeight: 20 },
+  successWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.lg },
+  successIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successTitle: { ...typography.h2, color: colors.primaryDeepest, textAlign: "center" },
+  successBody: { ...typography.body, color: colors.stone500, textAlign: "center", maxWidth: 360 },
+  summaryCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  summaryLabel: { ...typography.label, color: colors.stone400 },
+  summaryValue: { ...typography.h4, color: colors.primaryDeepest },
+  successActions: { width: "100%", maxWidth: 420, flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
 });

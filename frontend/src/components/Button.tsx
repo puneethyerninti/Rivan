@@ -1,6 +1,16 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle, TextStyle, GestureResponderEvent } from "react-native";
-import { colors, radii, spacing, typography } from "@/src/theme";
+import {
+  ActivityIndicator,
+  GestureResponderEvent,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
+
+import { colors, radii, shadow, spacing, typography } from "@/src/theme";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "accent";
 
@@ -38,15 +48,16 @@ export function Button({
   return (
     <TouchableOpacity
       testID={testID}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
       onPress={onPress}
       disabled={isDisabled}
       style={[
         styles.base,
+        shadow.sm,
         sizeStyles.container,
         variantStyles.container,
-        isDisabled && styles.disabled,
         fullWidth && styles.fullWidth,
+        isDisabled && styles.disabled,
         style,
       ]}
     >
@@ -66,28 +77,28 @@ function getVariantStyles(variant: Variant): { container: ViewStyle; text: TextS
   switch (variant) {
     case "primary":
       return {
-        container: { backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primaryLight },
+        container: { backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primaryDark },
         text: { color: colors.white, fontWeight: "800" },
       };
     case "secondary":
       return {
-        container: { backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: colors.stone300 },
-        text: { color: colors.white, fontWeight: "700" },
+        container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+        text: { color: colors.primaryDeepest, fontWeight: "700" },
       };
     case "accent":
       return {
-        container: { backgroundColor: colors.accent, borderWidth: 1, borderColor: colors.accentLight },
+        container: { backgroundColor: colors.accent, borderWidth: 1, borderColor: colors.accentDark },
         text: { color: colors.white, fontWeight: "800" },
       };
     case "ghost":
       return {
-        container: { backgroundColor: "transparent", borderWidth: 0 },
-        text: { color: colors.white, fontWeight: "700" },
+        container: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.borderSoft },
+        text: { color: colors.primaryDeepest, fontWeight: "700" },
       };
     case "danger":
       return {
-        container: { backgroundColor: colors.danger, borderWidth: 1, borderColor: "#F07A74" },
-        text: { color: colors.white, fontWeight: "800" },
+        container: { backgroundColor: colors.rejectedBg, borderWidth: 1, borderColor: "#EDC1B8" },
+        text: { color: colors.rejectedText, fontWeight: "800" },
       };
   }
 }
@@ -95,23 +106,42 @@ function getVariantStyles(variant: Variant): { container: ViewStyle; text: TextS
 function getSizeStyles(size: "sm" | "md" | "lg"): { container: ViewStyle; text: TextStyle } {
   switch (size) {
     case "sm":
-      return { container: { minHeight: 38, paddingHorizontal: spacing.md }, text: { ...typography.body, fontSize: 13 } };
+      return {
+        container: { minHeight: 42, paddingHorizontal: spacing.xl },
+        text: { ...typography.small, fontWeight: "700" },
+      };
     case "lg":
-      return { container: { minHeight: 56, paddingHorizontal: spacing.lg }, text: { ...typography.bodyLarge, fontSize: 16 } };
+      return {
+        container: { minHeight: 58, paddingHorizontal: spacing.xxl },
+        text: { ...typography.bodyLarge, fontWeight: "700" },
+      };
     case "md":
     default:
-      return { container: { minHeight: 50, paddingHorizontal: spacing.md }, text: { ...typography.body, fontSize: 15 } };
+      return {
+        container: { minHeight: 52, paddingHorizontal: spacing.xl },
+        text: { ...typography.body, fontWeight: "700" },
+      };
   }
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 14,
+    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
   },
-  fullWidth: { alignSelf: "stretch" },
-  disabled: { opacity: 0.5 },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  icon: { marginRight: 4 },
+  fullWidth: {
+    alignSelf: "stretch",
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  icon: {
+    marginRight: 2,
+  },
 });

@@ -23,7 +23,7 @@ function RootLayoutInner() {
 
   useEffect(() => {
     if (isLoading) return;
-    const rootSegment = segments[0];
+    const rootSegment = String(segments[0] || "");
 
     if (!isAuthed && rootSegment === "admin") {
       router.replace("/admin-login");

@@ -254,7 +254,7 @@ export default function AgentLoginScreen() {
         throw new Error("This phone number is not approved for the agent dashboard.");
       }
       await signIn(session.access_token, session.user);
-      router.replace("/agent");
+      router.replace("/agent" as never);
     } catch (error: any) {
       const message = String(error?.message || "");
       const normalized = message.toLowerCase();

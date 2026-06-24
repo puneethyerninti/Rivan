@@ -13,8 +13,13 @@ export default function NotFoundScreen() {
   useEffect(() => {
     if (isLoading) return;
     const isAgent = user?.role === "agent" || user?.role === "sub_agent";
-    const target = isAuthed ? (isAgent ? "/agent" : "/") : "/login";
-    const timer = setTimeout(() => router.replace(target), 150);
+    const timer = setTimeout(() => {
+      if (isAuthed && isAgent) {
+        router.replace("/agent" as never);
+        return;
+      }
+      router.replace(isAuthed ? "/" : "/login");
+    }, 150);
     return () => clearTimeout(timer);
   }, [isAuthed, isLoading, router, user]);
 

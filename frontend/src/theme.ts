@@ -1,117 +1,144 @@
 import { Platform } from "react-native";
 
 export const colors = {
-  primary: "#0B5D1E",
-  primaryDark: "#074116",
-  primaryDeepest: "#052F0F",
-  primaryLight: "#11802B",
-  primaryGlow: "#19A83A",
-  accent: "#F08A2E",
-  accentDark: "#C96D1E",
-  accentLight: "#F6B473",
-  accentSoft: "#FDE6D2",
+  primary: "#0F5A37",
+  primaryDark: "#0B452A",
+  primaryDeepest: "#0A2D1C",
+  primaryLight: "#2B7A55",
+  primaryGlow: "#72B08D",
+  primarySoft: "#E8F3EC",
+  accent: "#C98943",
+  accentDark: "#A66D32",
+  accentLight: "#E7BB88",
+  accentSoft: "#F8EBDC",
   white: "#FFFFFF",
-  offWhite: "#F9FAF9",
-  stone50: "#F4F5F4",
-  stone100: "#ECEEEC",
-  stone200: "#E5E7E5",
-  stone300: "#D1D5D1",
-  stone400: "#9CA3AF",
-  stone500: "#6B7280",
-  stone600: "#4B5563",
-  stone700: "#374151",
-  stone900: "#111827",
+  offWhite: "#FAF7F0",
+  surface: "#FFFDF8",
+  surfaceMuted: "#F4F0E6",
+  surfaceAlt: "#EFF4EE",
+  stone50: "#F7F4EE",
+  stone100: "#EEE8DD",
+  stone200: "#DDD4C5",
+  stone300: "#C4B8A4",
+  stone400: "#9B907E",
+  stone500: "#72685B",
+  stone600: "#5B5146",
+  stone700: "#3E3A35",
+  stone900: "#171512",
   black: "#000000",
-  available: "#10B981",
-  reserved: "#F59E0B",
-  booked: "#3B82F6",
-  sold: "#EF4444",
-  success: "#10B981",
-  warning: "#F59E0B",
-  danger: "#EF4444",
-  info: "#3B82F6",
+  available: "#2E8E5A",
+  reserved: "#D7A63F",
+  booked: "#3D6FA8",
+  sold: "#C95A45",
+  success: "#2E8E5A",
+  warning: "#C98943",
+  danger: "#C95A45",
+  info: "#3D6FA8",
+  pendingBg: "#F9F1E3",
+  pendingText: "#9A6A2E",
+  approvedBg: "#E7F4EC",
+  approvedText: "#1E6A41",
+  rejectedBg: "#FDEAEA",
+  rejectedText: "#A83F32",
+  border: "#DCD3C5",
+  borderSoft: "#E9E2D7",
 };
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
 };
 
 export const radii = {
-  sm: 4,
-  md: 8,
-  lg: 16,
-  xl: 24,
+  sm: 8,
+  md: 14,
+  lg: 20,
+  xl: 28,
+  pill: 9999,
   full: 9999,
 };
 
 export const fonts = {
-  heading: "serif" as const,
+  heading: "System" as const,
   body: "System" as const,
 };
 
 export const typography = {
-  h1: { fontSize: 32, lineHeight: 40, fontWeight: "700" as const, letterSpacing: -0.5 },
-  h2: { fontSize: 24, lineHeight: 32, fontWeight: "700" as const, letterSpacing: -0.3 },
-  h3: { fontSize: 20, lineHeight: 28, fontWeight: "600" as const },
-  h4: { fontSize: 18, lineHeight: 24, fontWeight: "600" as const },
-  bodyLarge: { fontSize: 16, lineHeight: 24, fontWeight: "400" as const },
-  body: { fontSize: 14, lineHeight: 20, fontWeight: "400" as const },
-  small: { fontSize: 12, lineHeight: 16, fontWeight: "400" as const },
-  label: { fontSize: 11, lineHeight: 14, fontWeight: "700" as const, letterSpacing: 1.2, textTransform: "uppercase" as const },
+  h1: { fontSize: 42, lineHeight: 50, fontWeight: "800" as const, letterSpacing: -1.1 },
+  h2: { fontSize: 32, lineHeight: 40, fontWeight: "800" as const, letterSpacing: -0.8 },
+  h3: { fontSize: 24, lineHeight: 32, fontWeight: "700" as const, letterSpacing: -0.4 },
+  h4: { fontSize: 18, lineHeight: 24, fontWeight: "700" as const },
+  bodyLarge: { fontSize: 17, lineHeight: 27, fontWeight: "400" as const },
+  body: { fontSize: 15, lineHeight: 24, fontWeight: "400" as const },
+  small: { fontSize: 13, lineHeight: 20, fontWeight: "400" as const },
+  label: { fontSize: 11, lineHeight: 14, fontWeight: "700" as const, letterSpacing: 1.5, textTransform: "uppercase" as const },
 };
 
 export const shadow = {
-  sm: Platform.OS === "web"
-    ? { boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }
-    : {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 2,
-        elevation: 1,
-      },
-  md: Platform.OS === "web"
-    ? { boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }
-    : {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 3,
-      },
-  lg: Platform.OS === "web"
-    ? { boxShadow: "0 6px 16px rgba(0,0,0,0.12)" }
-    : {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        elevation: 6,
-      },
+  sm:
+    Platform.OS === "web"
+      ? ({ boxShadow: "0 8px 18px rgba(34, 32, 27, 0.06)" } as const)
+      : {
+          shadowColor: "#1F1B16",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+          elevation: 2,
+        },
+  md:
+    Platform.OS === "web"
+      ? ({ boxShadow: "0 18px 38px rgba(34, 32, 27, 0.08)" } as const)
+      : {
+          shadowColor: "#1F1B16",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.08,
+          shadowRadius: 24,
+          elevation: 4,
+        },
+  lg:
+    Platform.OS === "web"
+      ? ({ boxShadow: "0 28px 60px rgba(34, 32, 27, 0.12)" } as const)
+      : {
+          shadowColor: "#1F1B16",
+          shadowOffset: { width: 0, height: 18 },
+          shadowOpacity: 0.12,
+          shadowRadius: 36,
+          elevation: 8,
+        },
 };
 
 export const plotStatusColor = (status: string): string => {
   switch (status) {
-    case "available": return colors.available;
-    case "reserved": return colors.reserved;
-    case "booked": return colors.booked;
-    case "sold": return colors.sold;
-    default: return colors.stone400;
+    case "available":
+      return colors.available;
+    case "reserved":
+      return colors.reserved;
+    case "booked":
+      return colors.booked;
+    case "sold":
+      return colors.sold;
+    default:
+      return colors.stone400;
   }
 };
 
 export const plotStatusLabel = (status: string): string => {
   switch (status) {
-    case "available": return "Available";
-    case "reserved": return "Reserved";
-    case "booked": return "Booked";
-    case "sold": return "Sold";
-    default: return status;
+    case "available":
+      return "Available";
+    case "reserved":
+      return "Reserved";
+    case "booked":
+      return "Booked";
+    case "sold":
+      return "Sold";
+    default:
+      return status;
   }
 };
 
