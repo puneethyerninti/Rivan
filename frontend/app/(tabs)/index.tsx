@@ -54,6 +54,7 @@ export function HomeScreen() {
   const { width } = useWindowDimensions();
 
   const isDesktop = width >= 980;
+  const isPhone = width < 520;
 
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -249,11 +250,11 @@ export function HomeScreen() {
         </Pressable>
       </Modal>
 
-      <View style={[styles.navbar, scrolled && styles.navbarScrolled]}>
+      <View style={[styles.navbar, isPhone && styles.navbarPhone, scrolled && styles.navbarScrolled]}>
         {isDesktop ? (
           <View style={styles.navDesktop}>{navContent}</View>
         ) : (
-          <View style={styles.navMobile}>
+          <View style={[styles.navMobile, isPhone && styles.navMobilePhone]}>
             <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
               <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
               <View>
@@ -274,23 +275,24 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={(event) => setScrolled(event.nativeEvent.contentOffset.y > 20)}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.hero, !isDesktop && styles.heroMobile]}>
-          <View style={styles.heroLeft}>
+        <View style={[styles.hero, !isDesktop && styles.heroMobile, isPhone && styles.heroPhone]}>
+          <View style={[styles.heroLeft, isPhone && styles.heroLeftPhone]}>
             <View style={styles.heroBadge}>
               <View style={styles.heroBadgeDot} />
               <Text style={styles.heroBadgeText}>Now active in customer discovery</Text>
             </View>
 
-            <Text style={styles.heroTitle}>
+            <Text style={[styles.heroTitle, isPhone && styles.heroTitlePhone]}>
               Live where you{"\n"}truly <Text style={styles.heroItalic}>belong.</Text>
             </Text>
-            <Text style={styles.heroSub}>
+            <Text style={[styles.heroSub, isPhone && styles.heroSubPhone]}>
               Rivan Realty pairs discerning buyers with real property inventory, layout clarity, and a cleaner journey
               from discovery to visit scheduling.
             </Text>
 
-            <View style={styles.heroStats}>
+            <View style={[styles.heroStats, isPhone && styles.heroStatsPhone]}>
               <View>
                 <Text style={styles.hStatNum}>{properties.length || 0}</Text>
                 <Text style={styles.hStatLabel}>Properties</Text>
@@ -306,7 +308,7 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.heroRight}>
+          <View style={[styles.heroRight, isPhone && styles.heroRightPhone]}>
             <View style={styles.mosaic}>
               <View style={styles.mosaicMain}>
                 {mosaicProperties[0]?.image ? (
@@ -336,18 +338,18 @@ export function HomeScreen() {
             </View>
             <View style={styles.heroRightOverlay} />
 
-              <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile]}>
+              <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile, isPhone && styles.searchBarPhone]}>
                 <View style={styles.searchField}>
                   <Text style={styles.searchLabel}>Location</Text>
                   <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
-                    <Text style={styles.searchSelectText}>{selectedLocation}</Text>
+                    <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedLocation}</Text>
                     <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.searchField}>
                   <Text style={styles.searchLabel}>Property type</Text>
                   <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("type")}>
-                    <Text style={styles.searchSelectText}>{selectedPropertyType}</Text>
+                    <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedPropertyType}</Text>
                     <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                   </TouchableOpacity>
                 </View>
@@ -358,7 +360,7 @@ export function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.sectionWhite} nativeID="featured">
+        <View style={[styles.sectionWhite, isPhone && styles.sectionPhone]} nativeID="featured">
           <View style={styles.featuredHeader}>
             <View>
               <Text style={styles.sectionEye}>Featured</Text>
@@ -422,7 +424,7 @@ export function HomeScreen() {
           )}
         </View>
 
-        <View style={[styles.loginSection, !isDesktop && styles.loginSectionMobile]}>
+        <View style={[styles.loginSection, !isDesktop && styles.loginSectionMobile, isPhone && styles.loginSectionPhone]}>
           <View style={styles.loginLeft}>
             <Text style={styles.sectionEyeGold}>Customer Access</Text>
             <Text style={styles.loginHeading}>The property journey stays public until you are ready to continue.</Text>
@@ -433,7 +435,7 @@ export function HomeScreen() {
 
             <View style={styles.portalCards}>
               <TouchableOpacity
-                style={styles.portalCard}
+                style={[styles.portalCard, isPhone && styles.portalCardPhone]}
                 onPress={() => router.push(heroProperty ? `/property/${heroProperty.id}` : "/property/prop-1")}
               >
                 <View style={[styles.portalIcon, styles.portalAgent]}>
@@ -447,7 +449,7 @@ export function HomeScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.portalCard}
+                style={[styles.portalCard, isPhone && styles.portalCardPhone]}
                 onPress={() => router.push(heroProperty ? `/centre/site-${heroProperty.id}` : "/centre/site-prop-1")}
               >
                 <View style={[styles.portalIcon, styles.portalAdmin]}>
@@ -462,7 +464,7 @@ export function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.loginFormWrap}>
+          <View style={[styles.loginFormWrap, isPhone && styles.loginFormWrapPhone]}>
             <Text style={styles.formLogo}>Rivan Realty</Text>
             <Text style={styles.formSub}>Sign in when you want to continue.</Text>
 
@@ -486,7 +488,7 @@ export function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, isPhone && styles.footerPhone]}>
           <View style={[styles.footerInner, !isDesktop && styles.footerInnerMobile]}>
             <TouchableOpacity style={styles.footerBrand} onPress={() => scrollToSection("top")}>
               <Image source={LOGO} style={styles.footerLogoImage} resizeMode="contain" />
@@ -526,6 +528,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 18,
   },
+  navbarPhone: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   navbarScrolled: {
     backgroundColor: "rgba(10,46,31,0.96)",
     ...(Platform.OS === "web" ? ({ backdropFilter: "blur(12px)" } as any) : null),
@@ -539,6 +546,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  navMobilePhone: {
+    gap: 8,
   },
   logoWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
   navLogoImage: { width: 38, height: 38, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)" },
@@ -669,6 +679,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroMobile: { flexDirection: "column" },
+  heroPhone: {
+    minHeight: 0,
+  },
   heroLeft: {
     flex: 1,
     backgroundColor: colors.primaryDeepest,
@@ -677,10 +690,18 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
     paddingTop: 130,
   },
+  heroLeftPhone: {
+    paddingHorizontal: 18,
+    paddingTop: 92,
+    paddingBottom: 28,
+  },
   heroRight: {
     flex: 1,
     position: "relative",
     minHeight: 380,
+  },
+  heroRightPhone: {
+    minHeight: 240,
   },
   heroBadge: {
     flexDirection: "row",
@@ -719,6 +740,16 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     marginBottom: 44,
   },
+  heroTitlePhone: {
+    fontSize: 30,
+    lineHeight: 37,
+    marginBottom: 16,
+  },
+  heroSubPhone: {
+    fontSize: 13,
+    lineHeight: 22,
+    marginBottom: 22,
+  },
   heroStats: {
     flexDirection: "row",
     gap: 40,
@@ -727,6 +758,11 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255,255,255,0.1)",
     marginTop: 44,
     flexWrap: "wrap",
+  },
+  heroStatsPhone: {
+    gap: 18,
+    paddingTop: 22,
+    marginTop: 22,
   },
   hStatNum: {
     color: colors.white,
@@ -795,6 +831,13 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     gap: 14,
   },
+  searchBarPhone: {
+    marginHorizontal: 12,
+    marginTop: -8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
   searchField: { flex: 1 },
   searchLabel: {
     color: "#6B7A6E",
@@ -820,6 +863,11 @@ const styles = StyleSheet.create({
     color: colors.primaryDeepest,
     fontSize: 13,
     fontWeight: "500",
+    flex: 1,
+    marginRight: 8,
+  },
+  searchSelectTextPhone: {
+    fontSize: 12,
   },
   btnSearch: {
     width: 44,
@@ -838,6 +886,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     paddingVertical: 110,
     paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+  },
+  sectionPhone: {
+    paddingVertical: 56,
+    paddingHorizontal: 16,
   },
   sectionEye: {
     color: colors.primary,
@@ -1003,6 +1055,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loginSectionMobile: { flexDirection: "column", gap: 44, alignItems: "stretch" },
+  loginSectionPhone: {
+    paddingVertical: 56,
+    paddingHorizontal: 16,
+    gap: 24,
+  },
   loginLeft: { flex: 1 },
   loginHeading: {
     color: colors.white,
@@ -1025,6 +1082,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
   },
+  portalCardPhone: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
   portalIcon: {
     width: 48,
     height: 48,
@@ -1044,6 +1106,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 32,
     paddingVertical: 32,
+  },
+  loginFormWrapPhone: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 18,
   },
   formLogo: {
     color: colors.primaryDeepest,
@@ -1101,6 +1168,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Platform.OS === "web" ? 60 : 28,
     paddingTop: 60,
     paddingBottom: 40,
+  },
+  footerPhone: {
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 28,
   },
   footerInner: {
     flexDirection: "row",

@@ -38,11 +38,12 @@ export function AuthSplitShell({
 }: Props) {
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
+  const isPhone = width < 520;
 
   const content = (
     <View style={[styles.card, isWide && styles.cardWide]}>
-      <View style={styles.formPanel}>
-        <View style={styles.formTop}>
+      <View style={[styles.formPanel, isPhone && styles.formPanelPhone]}>
+        <View style={[styles.formTop, isPhone && styles.formTopPhone]}>
           <View style={styles.formHeadings}>
             <View style={styles.brandTop}>
               <View style={styles.logoFrame}>
@@ -60,7 +61,7 @@ export function AuthSplitShell({
 
           <View style={styles.topActions}>
             {onHome ? (
-              <TouchableOpacity style={styles.homeButton} onPress={onHome}>
+              <TouchableOpacity style={[styles.homeButton, isPhone && styles.homeButtonPhone]} onPress={onHome}>
                 <Feather name="arrow-left" size={16} color={colors.primaryDeepest} />
                 <Text style={styles.homeButtonText}>{homeLabel}</Text>
               </TouchableOpacity>
@@ -138,12 +139,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 20,
   },
+  formPanelPhone: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
   formTop: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
     marginBottom: 14,
+  },
+  formTopPhone: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    marginBottom: 12,
   },
   formHeadings: { flex: 1 },
   formEyebrow: {
@@ -178,6 +188,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3EEDF",
     borderWidth: 1,
     borderColor: "rgba(200,169,110,0.25)",
+  },
+  homeButtonPhone: {
+    alignSelf: "flex-start",
   },
   homeButtonText: { color: colors.primaryDeepest, fontSize: 12, fontWeight: "800" },
   closeButton: {
