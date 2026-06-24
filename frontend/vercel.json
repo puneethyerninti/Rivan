@@ -2,5 +2,27 @@
   "framework": null,
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/property/:id",
+      "destination": "/property/[id]"
+    },
+    {
+      "source": "/layout/:id",
+      "destination": "/layout/[id]"
+    },
+    {
+      "source": "/centre/:id",
+      "destination": "/centre/[id]"
+    },
+    {
+      "source": "/booking/:plotId",
+      "destination": "/booking/[plotId]"
+    },
+    {
+      "source": "/services/:type",
+      "destination": "/services/[type]"
+    }
+  ]
 }
