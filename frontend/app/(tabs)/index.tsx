@@ -268,8 +268,8 @@ export function HomeScreen() {
                   <Text style={styles.mobileProfileChipText}>Profile</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={styles.mobileAuthButton} onPress={() => openAuth("login")}>
-                  <Text style={styles.mobileAuthButtonText}>Login / Signup</Text>
+                <TouchableOpacity style={[styles.mobileAuthButton, isPhone && styles.mobileAuthButtonPhone]} onPress={() => openAuth("login")}>
+                  <Text style={styles.mobileAuthButtonText}>{isPhone ? "Login" : "Login / Signup"}</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={styles.mobileMenuButton} onPress={() => setMenuOpen(true)}>
@@ -557,6 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    width: "100%",
   },
   navMobilePhone: {
     gap: 8,
@@ -575,6 +576,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  mobileAuthButtonPhone: {
+    paddingHorizontal: 10,
   },
   mobileAuthButtonText: {
     color: colors.white,
