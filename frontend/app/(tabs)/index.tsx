@@ -320,8 +320,8 @@ export function HomeScreen() {
           </View>
 
           <View style={[styles.heroRight, isPhone && styles.heroRightPhone]}>
-            <View style={styles.mosaic}>
-              <View style={styles.mosaicMain}>
+            <View style={[styles.mosaic, !isDesktop && styles.mosaicMobile]}>
+              <View style={[styles.mosaicMain, !isDesktop && styles.mosaicMainMobile]}>
                 {mosaicProperties[0]?.image ? (
                   <PropertyMedia image={mosaicProperties[0].image} style={styles.mosaicMedia} />
                 ) : (
@@ -347,27 +347,27 @@ export function HomeScreen() {
                 </>
               ) : null}
             </View>
-            <View style={styles.heroRightOverlay} />
+            <View style={[styles.heroRightOverlay, !isDesktop && styles.heroRightOverlayMobile]} />
 
-              <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile, isPhone && styles.searchBarPhone]}>
-                <View style={styles.searchField}>
-                  <Text style={styles.searchLabel}>Location</Text>
-                  <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
-                    <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedLocation}</Text>
-                    <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.searchField}>
-                  <Text style={styles.searchLabel}>Property type</Text>
-                  <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("type")}>
-                    <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedPropertyType}</Text>
-                    <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={styles.btnSearch} onPress={() => scrollToSection("featured")}>
-                  <Feather name="search" size={18} color={colors.white} />
+            <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile, isPhone && styles.searchBarPhone]}>
+              <View style={styles.searchField}>
+                <Text style={styles.searchLabel}>Location</Text>
+                <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
+                  <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedLocation}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
+              <View style={styles.searchField}>
+                <Text style={styles.searchLabel}>Property type</Text>
+                <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("type")}>
+                  <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedPropertyType}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.btnSearch} onPress={() => scrollToSection("featured")}>
+                <Feather name="search" size={18} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
     minHeight: 380,
   },
   heroRightPhone: {
-    minHeight: 240,
+    minHeight: 0,
   },
   heroBadge: {
     flexDirection: "row",
@@ -841,13 +841,27 @@ const styles = StyleSheet.create({
         } as any)
       : {}),
   },
+  mosaicMobile: {
+    position: "relative",
+    inset: undefined,
+    height: 260,
+    overflow: "hidden",
+  },
   mosaicMain: Platform.OS === "web" ? ({ gridRow: "1 / 3" } as any) : { flex: 1 },
+  mosaicMainMobile: {
+    flex: 1,
+  },
   mosaicSmall: Platform.OS === "web" ? ({} as any) : { flex: 1 },
   mosaicMedia: { width: "100%", height: "100%" },
   mosaicFallback: { flex: 1, backgroundColor: "#31513E" },
   heroRightOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(10,46,31,0.18)",
+  },
+  heroRightOverlayMobile: {
+    top: 0,
+    bottom: undefined,
+    height: 260,
   },
   searchBar: {
     position: "absolute",
@@ -878,6 +892,7 @@ const styles = StyleSheet.create({
     width: "auto",
     maxWidth: "100%",
     marginHorizontal: 18,
+    marginTop: 14,
     marginBottom: 18,
     gap: 14,
   },
