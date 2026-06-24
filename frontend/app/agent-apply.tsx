@@ -68,6 +68,30 @@ export default function AgentApplyScreen() {
       Alert.alert("Agent application", "Please enter a valid 10-digit mobile number.");
       return;
     }
+    if (!form.email.trim()) {
+      Alert.alert("Agent application", "Please enter your email address.");
+      return;
+    }
+    if (!form.occupation.trim()) {
+      Alert.alert("Agent application", "Please enter your occupation.");
+      return;
+    }
+    if (!form.address.trim()) {
+      Alert.alert("Agent application", "Please enter your address.");
+      return;
+    }
+    if (!form.aadhaar_number.trim()) {
+      Alert.alert("Agent application", "Please enter your Aadhaar number.");
+      return;
+    }
+    if (!form.bank_details.trim()) {
+      Alert.alert("Agent application", "Please enter your bank details.");
+      return;
+    }
+    if (!form.agent_brand_name.trim()) {
+      Alert.alert("Agent application", "Please enter your brand or team name.");
+      return;
+    }
 
     setLoading(true);
     try {

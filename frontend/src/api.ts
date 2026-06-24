@@ -385,6 +385,16 @@ export const api = {
       body,
       auth: false,
     }),
+  agentAccessStatus: (phone: string) =>
+    apiRequest<{
+      phone: string;
+      exists: boolean;
+      role: string | null;
+      approval_status: string | null;
+      can_login: boolean;
+      message: string;
+      agent?: any;
+    }>("/auth/agent/status", { method: "POST", body: { phone }, auth: false }),
   sendOtp: (phone: string) =>
     apiRequest<{ success: boolean; phone: string; message: string }>("/auth/send-otp", { method: "POST", body: { phone }, auth: false }),
   verifyOtp: (phone: string, otp: string, name?: string) =>

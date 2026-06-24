@@ -1,30 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from "react-native";
-import { SafeAreaView as SafeAreaProviderView } from "react-native-safe-area-context";
+import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { Button } from "@/src/components/Button";
-import { useAuth } from "@/src/auth-context";
 import { api, warmBackendReady } from "@/src/api";
+import { useAuth } from "@/src/auth-context";
+import { AuthSplitShell } from "@/src/components/AuthSplitShell";
 import {
   firebaseConfigError,
   getFirebaseAuth,
   getFirebasePhoneAuthHelpers,
   hasFirebaseConfig,
 } from "@/src/firebase";
-import { colors, radii, shadow, spacing, typography } from "@/src/theme";
+import { colors, shadow, spacing } from "@/src/theme";
+import { blurActiveWebElement } from "@/src/utils/web-focus";
 
 const WEB_RECAPTCHA_CONTAINER_ID_PREFIX = "agent-auth-recaptcha";
 
@@ -36,8 +26,6 @@ export default function AgentLoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ phone?: string }>();
   const { signIn } = useAuth();
-  const { width } = useWindowDimensions();
-  const isWide = width >= 940;
 
   const isLocalhostWeb =
     Platform.OS === "web" &&
@@ -107,7 +95,9 @@ export default function AgentLoginScreen() {
 
   function showFormError(message: string) {
     setErrorMessage(message);
-    Alert.alert("Agent login", message);
+    if (Platform.OS !== "web") {
+      Alert.alert("Agent login", message);
+    }
   }
 
   function cleanupWebRecaptchaArtifacts() {
@@ -123,17 +113,13 @@ export default function AgentLoginScreen() {
 
     if (typeof document !== "undefined" && recaptchaNodeIdRef.current) {
       const existingNode = document.getElementById(recaptchaNodeIdRef.current);
-      if (existingNode?.parentNode) {
-        existingNode.parentNode.removeChild(existingNode);
-      }
+      if (existingNode?.parentNode) existingNode.parentNode.removeChild(existingNode);
       recaptchaNodeIdRef.current = null;
     }
   }
 
   function ensureWebRecaptchaHost() {
-    if (typeof document === "undefined") {
-      throw new Error("Web verification is unavailable outside the browser.");
-    }
+    if (typeof document === "undefined") throw new Error("Web verification is unavailable outside the browser.");
 
     recaptchaNodeCounterRef.current += 1;
     const nodeId = `${WEB_RECAPTCHA_CONTAINER_ID_PREFIX}-${recaptchaNodeCounterRef.current}`;
@@ -197,32 +183,43 @@ export default function AgentLoginScreen() {
   async function handleSendOtp() {
     setErrorMessage("");
     setHelperMessage("");
-    if (!hasFirebaseConfig) {
-      return showFormError(firebaseConfigError || "Firebase web configuration is missing.");
-    }
+    if (!hasFirebaseConfig) return showFormError(firebaseConfigError || "Firebase web configuration is missing.");
     if (phoneDigits.length !== 10) return showFormError("Please enter a valid 10-digit agent mobile number.");
     if (otpCooldownSeconds > 0) return showFormError(`Please wait ${otpCooldownSeconds}s before requesting another OTP.`);
 
     setLoading(true);
     try {
-      if (Platform.OS !== "web") {
-        return showFormError("Agent phone OTP is currently supported on web in this build.");
+      const access = await api.agentAccessStatus(`+91${phoneDigits}`);
+      if (!access.can_login) {
+        const approvalState = String(access.approval_status || "").toLowerCase();
+        if (!access.exists || !access.role || !["agent", "sub_agent"].includes(String(access.role))) {
+          setHelperMessage("This number is not yet registered as an approved agent account. Complete the application to send it for admin approval.");
+          blurActiveWebElement();
+          router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+        } else if (approvalState === "pending") {
+          setHelperMessage("This phone number already has an agent application, but approval is still pending.");
+        } else if (approvalState === "rejected") {
+          setHelperMessage("This application was rejected. Update the details and submit a fresh request for review.");
+          blurActiveWebElement();
+          router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+        } else if (approvalState === "suspended") {
+          setHelperMessage("This account is suspended. Please contact the admin.");
+        } else {
+          setHelperMessage(access.message || "This number is not ready for agent login yet.");
+        }
+        return;
       }
+
+      if (Platform.OS !== "web") return showFormError("Agent phone OTP is currently supported on web in this build.");
       if (isLocalhostWeb && !useFirebaseTestPhoneAuth) {
         return showFormError("Use the hosted site for real OTP. On localhost, use Firebase test phone numbers only.");
       }
 
       resetOtpSession();
       let verifier = recaptchaVerifierRef.current;
-      if (!verifier) {
-        verifier = await getFreshWebRecaptchaVerifier();
-      }
-      if (useFirebaseTestPhoneAuth && !recaptchaReady) {
-        return showFormError("reCAPTCHA is still loading. Please wait a moment and try again.");
-      }
-      if (useFirebaseTestPhoneAuth && !recaptchaSolved) {
-        return showFormError("Please complete the reCAPTCHA verification before sending OTP.");
-      }
+      if (!verifier) verifier = await getFreshWebRecaptchaVerifier();
+      if (useFirebaseTestPhoneAuth && !recaptchaReady) return showFormError("reCAPTCHA is still loading. Please wait a moment and try again.");
+      if (useFirebaseTestPhoneAuth && !recaptchaSolved) return showFormError("Please complete the reCAPTCHA verification before sending OTP.");
 
       const auth = await getFirebaseAuth();
       const { signInWithPhoneNumber } = await getFirebasePhoneAuthHelpers();
@@ -258,16 +255,11 @@ export default function AgentLoginScreen() {
     } catch (error: any) {
       const message = String(error?.message || "");
       const normalized = message.toLowerCase();
-
-      if (
-        normalized.includes("no approved agent account exists for this phone number") ||
-        normalized.includes("does not belong to an agent account")
-      ) {
+      if (normalized.includes("no approved agent account exists for this phone number") || normalized.includes("does not belong to an agent account")) {
         setHelperMessage("This number is not yet registered as an approved agent account. Complete the application to send it for admin approval.");
       } else if (normalized.includes("pending manager approval")) {
         setHelperMessage("This phone number already has an agent application, but approval is still pending.");
       }
-
       showFormError(message || formatPhoneOtpError(error, isLocalhostWeb, useFirebaseTestPhoneAuth, setOtpCooldownSeconds));
     } finally {
       setLoading(false);
@@ -284,125 +276,134 @@ export default function AgentLoginScreen() {
   }
 
   return (
-    <SafeAreaProviderView style={styles.safe}>
-      <ScrollView contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]} showsVerticalScrollIndicator={false}>
-        <View style={[styles.shell, isWide && styles.shellWide]}>
-          <View style={styles.hero}>
-            <Text style={styles.heroEyebrow}>Agent access</Text>
-            <Text style={styles.heroTitle}>Approved agents can enter directly through secure OTP.</Text>
-            <Text style={styles.heroBody}>
-              Use the same phone number that was approved for your agent account. If the number is not registered yet, complete the application flow first.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.cardTitle}>Agent login</Text>
-                <Text style={styles.cardSubtitle}>OTP-based access linked to approved agent records.</Text>
-              </View>
-              <TouchableOpacity onPress={() => router.replace("/")}>
-                <Text style={styles.backLink}>Home</Text>
-              </TouchableOpacity>
+    <SafeAreaView style={styles.safe}>
+      <AuthSplitShell
+        eyebrow="Rivan Agent Access"
+        title="Approved agents can enter directly through secure OTP."
+        body="Use the same phone number that was approved for your agent account. If the number is not registered yet, complete the application first."
+        points={[
+          { icon: "briefcase", text: "Real-time access linked to approved agent records only" },
+          { icon: "check-circle", text: "Agent approvals continue to be controlled by the current admin workflow" },
+          { icon: "arrow-right-circle", text: "Move into the live agent dashboard after OTP verification" },
+        ]}
+        formEyebrow="Agent login"
+        formTitle="Simple agent entry"
+        formSubtitle="OTP-based access for approved agent numbers."
+        onHome={() => {
+          blurActiveWebElement();
+          router.replace("/");
+        }}
+        scrollable
+      >
+        <View style={styles.formContent}>
+          {!hasFirebaseConfig ? (
+            <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={14} color={colors.danger} />
+              <Text style={styles.errorBannerText}>{firebaseConfigError}</Text>
             </View>
+          ) : null}
 
-            {!hasFirebaseConfig ? (
-              <View style={styles.errorBanner}>
-                <Feather name="alert-circle" size={14} color={colors.danger} />
-                <Text style={styles.errorBannerText}>{firebaseConfigError}</Text>
-              </View>
-            ) : null}
-
-            {errorMessage ? (
-              <View style={styles.errorBanner}>
-                <Feather name="alert-circle" size={14} color={colors.danger} />
-                <Text style={styles.errorBannerText}>{errorMessage}</Text>
-              </View>
-            ) : null}
-
-            {helperMessage ? (
-              <View style={styles.infoBanner}>
-                <Text style={styles.infoBannerText}>{helperMessage}</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Registered mobile number</Text>
-              <View style={styles.inputShell}>
-                <Text style={styles.phonePrefix}>+91</Text>
-                <TextInput
-                  testID="agent-login-phone"
-                  style={styles.input}
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={(text) => {
-                    setPhone(text.replace(/\D/g, ""));
-                    setErrorMessage("");
-                    setHelperMessage("");
-                    resetOtpSession();
-                  }}
-                  placeholder="Enter 10-digit mobile number"
-                  placeholderTextColor={colors.stone400}
-                  maxLength={10}
-                />
-              </View>
+          {errorMessage ? (
+            <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={14} color={colors.danger} />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
             </View>
+          ) : null}
 
-            {!otpSent && helperMessage ? (
-              <TouchableOpacity style={styles.secondaryCta} onPress={() => router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } })}>
-                <Text style={styles.secondaryCtaText}>Complete agent application</Text>
-              </TouchableOpacity>
-            ) : null}
+          {helperMessage ? (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoBannerText}>{helperMessage}</Text>
+            </View>
+          ) : null}
 
-            {isLocalhostWeb && !otpSent ? (
-              <Text style={styles.localHint}>
-                {useFirebaseTestPhoneAuth
-                  ? recaptchaReady
-                    ? recaptchaSolved
-                      ? "Firebase test verification is ready."
-                      : "Complete the reCAPTCHA box at the bottom-right to continue."
-                    : "Loading Firebase test verification..."
-                  : "Use the hosted site for real OTP. On localhost, use Firebase test phone numbers only."}
-              </Text>
-            ) : null}
-
-            {otpSent ? (
-              <>
-                <Text style={styles.otpLabel}>Enter the 6-digit OTP sent to {otpSentToPhone}</Text>
-                <View style={styles.otpRow}>
-                  {otp.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      ref={(input) => {
-                        otpRefs.current[index] = input;
-                      }}
-                      testID={`agent-otp-digit-${index}`}
-                      style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      value={digit}
-                      onChangeText={(text) => handleOtpChange(index, text)}
-                    />
-                  ))}
-                </View>
-                <Button title="Open Dashboard" onPress={handleVerifyOtp} loading={loading} testID="agent-login-verify" />
-                <TouchableOpacity onPress={handleSendOtp} disabled={otpCooldownSeconds > 0 || loading} style={styles.resend}>
-                  <Text style={styles.resendText}>{otpCooldownSeconds > 0 ? `Resend in ${otpCooldownSeconds}s` : "Resend OTP"}</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <Button
-                title={otpCooldownSeconds > 0 ? `Send OTP in ${otpCooldownSeconds}s` : "Continue"}
-                onPress={handleSendOtp}
-                loading={loading}
-                disabled={otpCooldownSeconds > 0 || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved))}
-                testID="agent-login-submit"
+          <View style={styles.field}>
+            <Text style={styles.label}>Registered mobile number</Text>
+            <View style={styles.inputShell}>
+              <Text style={styles.phonePrefix}>+91</Text>
+              <TextInput
+                testID="agent-login-phone"
+                style={styles.input}
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={(text) => {
+                  setPhone(text.replace(/\D/g, ""));
+                  setErrorMessage("");
+                  setHelperMessage("");
+                  resetOtpSession();
+                }}
+                placeholder="Enter 10-digit mobile number"
+                placeholderTextColor={colors.stone400}
+                maxLength={10}
               />
-            )}
+            </View>
           </View>
+
+          {!otpSent && helperMessage ? (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                blurActiveWebElement();
+                router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Complete agent application</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {isLocalhostWeb && !otpSent ? (
+            <Text style={styles.localHint}>
+              {useFirebaseTestPhoneAuth
+                ? recaptchaReady
+                  ? recaptchaSolved
+                    ? "Firebase test verification is ready."
+                    : "Complete the reCAPTCHA box at the bottom-right to continue."
+                  : "Loading Firebase test verification..."
+                : "Use the hosted site for real OTP. On localhost, use Firebase test phone numbers only."}
+            </Text>
+          ) : null}
+
+          {otpSent ? (
+            <>
+              <Text style={styles.otpLabel}>Enter the 6-digit OTP sent to {otpSentToPhone}</Text>
+              <View style={styles.otpRow}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(input) => {
+                      otpRefs.current[index] = input;
+                    }}
+                    testID={`agent-otp-digit-${index}`}
+                    style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(text) => handleOtpChange(index, text)}
+                  />
+                ))}
+              </View>
+              <TouchableOpacity style={[styles.primaryButton, loading && styles.primaryButtonDisabled]} onPress={handleVerifyOtp} disabled={loading}>
+                <Text style={styles.primaryButtonText}>{loading ? "Opening..." : "Open Dashboard"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSendOtp} disabled={otpCooldownSeconds > 0 || loading} style={styles.resend}>
+                <Text style={styles.resendText}>{otpCooldownSeconds > 0 ? `Resend in ${otpCooldownSeconds}s` : "Resend OTP"}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                (otpCooldownSeconds > 0 || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved)) || loading) && styles.primaryButtonDisabled,
+              ]}
+              onPress={handleSendOtp}
+              disabled={otpCooldownSeconds > 0 || loading || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved))}
+              testID="agent-login-submit"
+            >
+              <Text style={styles.primaryButtonText}>{loading ? "Please wait..." : otpCooldownSeconds > 0 ? `Send OTP in ${otpCooldownSeconds}s` : "Continue"}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </ScrollView>
-    </SafeAreaProviderView>
+      </AuthSplitShell>
+    </SafeAreaView>
   );
 }
 
@@ -433,93 +434,74 @@ function formatPhoneOtpError(
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
-  scroll: { flexGrow: 1, padding: spacing.xl, justifyContent: "center" },
-  scrollWide: { paddingVertical: spacing.xxxl },
-  shell: { gap: spacing.xl },
-  shellWide: { flexDirection: "row", alignItems: "stretch" },
-  hero: {
-    flex: 1,
-    borderRadius: 28,
-    backgroundColor: colors.primaryDeepest,
-    padding: spacing.xxl,
-    gap: spacing.md,
-    justifyContent: "center",
-    ...shadow.md,
-  },
-  heroEyebrow: { ...typography.label, color: colors.accentLight },
-  heroTitle: { ...typography.h2, color: colors.white },
-  heroBody: { ...typography.body, color: "#D7E7DD" },
-  card: {
-    flex: 1,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xxl,
-    gap: spacing.lg,
-    ...shadow.md,
-  },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.md },
-  cardTitle: { ...typography.h3, color: colors.primaryDeepest },
-  cardSubtitle: { ...typography.body, color: colors.stone500, marginTop: 4 },
-  backLink: { ...typography.small, color: colors.primary, fontWeight: "700" },
+  formContent: { gap: spacing.lg },
   field: { gap: spacing.sm },
-  label: { ...typography.small, color: colors.stone500, fontWeight: "700" },
+  label: { color: colors.stone500, fontSize: 13, fontWeight: "700" },
   inputShell: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 56,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceAlt,
+    minHeight: 82,
+    borderRadius: 18,
+    backgroundColor: "#F1F6F2",
     borderWidth: 1,
     borderColor: colors.borderSoft,
     paddingLeft: spacing.lg,
   },
-  phonePrefix: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 12, color: colors.primaryDeepest, fontSize: 15 },
-  otpLabel: { ...typography.small, color: colors.stone600, fontWeight: "700" },
+  phonePrefix: { color: colors.primaryDeepest, fontSize: 17, fontWeight: "700" },
+  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 12, color: colors.primaryDeepest, fontSize: 17 },
+  otpLabel: { color: colors.stone600, fontSize: 13, fontWeight: "700" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   otpBox: {
-    width: 50,
-    height: 56,
-    borderRadius: radii.md,
+    width: 56,
+    height: 64,
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.primary,
     backgroundColor: colors.surface,
     textAlign: "center",
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700",
     color: colors.primary,
   },
-  otpBoxFilled: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  otpBoxFilled: { backgroundColor: colors.primarySoft },
   resend: { alignItems: "center", paddingVertical: spacing.xs },
-  resendText: { ...typography.body, color: colors.primary, fontWeight: "600" },
+  resendText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
   errorBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.sm,
     backgroundColor: colors.rejectedBg,
-    borderRadius: radii.md,
+    borderRadius: 16,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: "#EDC1B8",
   },
-  errorBannerText: { flex: 1, ...typography.small, color: colors.rejectedText, fontWeight: "600", lineHeight: 20 },
+  errorBannerText: { flex: 1, color: colors.rejectedText, fontSize: 13, fontWeight: "600", lineHeight: 20 },
   infoBanner: {
     backgroundColor: colors.primarySoft,
-    borderRadius: radii.md,
+    borderRadius: 16,
     padding: spacing.lg,
   },
-  infoBannerText: { ...typography.small, color: colors.primaryDeepest, lineHeight: 20 },
-  secondaryCta: {
-    minHeight: 50,
-    borderRadius: radii.md,
+  infoBannerText: { color: colors.primaryDeepest, fontSize: 13, lineHeight: 20, fontWeight: "600" },
+  secondaryButton: {
+    minHeight: 58,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryCtaText: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
-  localHint: { ...typography.small, color: colors.stone600, lineHeight: 20 },
+  secondaryButtonText: { color: colors.primaryDeepest, fontSize: 15, fontWeight: "700" },
+  primaryButton: {
+    minHeight: 78,
+    borderRadius: 39,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.md,
+  },
+  primaryButtonDisabled: { opacity: 0.6 },
+  primaryButtonText: { color: colors.white, fontSize: 17, fontWeight: "800" },
+  localHint: { color: colors.stone600, fontSize: 13, lineHeight: 20 },
 });

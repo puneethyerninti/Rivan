@@ -6,6 +6,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
+import { normalizePropertyRecord } from "@/src/property-presenter";
+import { enrichProperty } from "@/src/real-property-overrides";
 import { colors, radii, spacing, typography, shadow } from "@/src/theme";
 import { Button } from "@/src/components/Button";
 
@@ -34,7 +36,7 @@ export default function CentreVisitScreen() {
       try {
         if (isSiteVisit && propertyId) {
           const p = await api.getProperty(propertyId);
-          setProperty(p);
+          setProperty(enrichProperty(normalizePropertyRecord(p)));
         } else {
           const c = await api.getCentre(idStr);
           setCentre(c);

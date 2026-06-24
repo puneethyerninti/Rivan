@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  LayoutChangeEvent,
   Modal,
   Platform,
   Pressable,
@@ -17,41 +16,25 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import CustomerAuthModal from "@/src/components/CustomerAuthModal";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
-import { mockProperties } from "@/src/mock-data";
-import { normalizePropertyCollection, normalizePropertyRecord, type NormalizedProperty } from "@/src/property-presenter";
-import { colors, formatINR, radii, shadow, spacing, typography } from "@/src/theme";
+import { type NormalizedProperty, normalizePropertyCollection } from "@/src/property-presenter";
+import { enrichPropertyCollection } from "@/src/real-property-overrides";
+import { colors, formatINR, shadow } from "@/src/theme";
+import { blurActiveWebElement } from "@/src/utils/web-focus";
 
 const LOGO = require("../../assets/images/rivan-logo.png");
 
 const NAV_ITEMS = [
-  { key: "home", label: "Home" },
-  { key: "discover", label: "Discover" },
-  { key: "trust", label: "Trust" },
-  { key: "access", label: "Access" },
+  { key: "process", label: "How it works" },
+  { key: "featured", label: "Properties" },
 ] as const;
 
-const SEARCH_FILTERS = ["All", "Homes", "Plots", "Verified", "Premium"] as const;
-
-const TRUST_POINTS = [
-  "Property-first browsing",
-  "Role-based actions kept secondary",
-  "Cleaner search and card hierarchy",
-] as const;
-
-type SectionKey = (typeof NAV_ITEMS)[number]["key"];
-
-function buildFallbackProperties() {
-  return mockProperties
-    .map((item) => normalizePropertyRecord(item))
-    .filter((item): item is NormalizedProperty => Boolean(item));
-}
+type SectionKey = (typeof NAV_ITEMS)[number]["key"] | "top";
 
 function getUserInitials(name?: string) {
   const parts = String(name || "Rivan User")
@@ -70,40 +53,32 @@ function getUserDisplayName(user?: { name?: string; phone?: string } | null) {
 export function HomeScreen() {
   const router = useRouter();
   const { isAuthed, signOut, user } = useAuth();
-  const scrollRef = useRef<ScrollView | null>(null);
   const { width } = useWindowDimensions();
 
-  const isDesktop = width >= 1120;
-  const isTablet = width >= 760;
+  const isDesktop = width >= 980;
+  const isWide = width >= 1200;
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [query, setQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<(typeof SEARCH_FILTERS)[number]>("All");
-  const [sectionOffsets, setSectionOffsets] = useState<Record<string, number>>({});
-  const [properties, setProperties] = useState<NormalizedProperty[]>(buildFallbackProperties());
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState<NormalizedProperty[]>([]);
 
   useEffect(() => {
     let active = true;
 
     async function loadProperties() {
       try {
-        const featured = normalizePropertyCollection(await api.featured());
-        if (featured.length) {
-          if (active) setProperties(featured);
-          return;
-        }
+        const featured = enrichPropertyCollection(normalizePropertyCollection(await api.featured()));
+        const liveProperties = featured.length
+          ? featured
+          : enrichPropertyCollection(normalizePropertyCollection(await api.listProperties()));
 
-        const listed = normalizePropertyCollection(await api.listProperties());
-        if (listed.length && active) {
-          setProperties(listed);
-        }
+        if (active) setProperties(liveProperties);
       } catch {
-        if (active) {
-          setProperties(buildFallbackProperties());
-        }
+        if (active) setProperties([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -115,125 +90,139 @@ export function HomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const html = document.documentElement;
-    const previousScrollBehavior = html.style.scrollBehavior;
-    html.style.scrollBehavior = "smooth";
-    return () => {
-      html.style.scrollBehavior = previousScrollBehavior;
-    };
-  }, []);
-
   const heroProperty = properties[0] || null;
+  const mosaicProperties = properties.slice(0, 3);
+  const previewProperties = properties.slice(0, 3);
 
-  const featuredCards = useMemo(() => {
-    return properties.slice(0, 6);
-  }, [properties]);
+  const filteredProperties = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return previewProperties;
 
-  const filteredCards = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return featuredCards.filter((property) => {
-      const corpus = [
-        property.name,
-        property.location,
-        property.category,
-        property.description,
-        property.highlights,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesQuery = !normalizedQuery || corpus.includes(normalizedQuery);
-      const matchesFilter =
-        selectedFilter === "All" ||
-        corpus.includes(selectedFilter.toLowerCase()) ||
-        property.category.toLowerCase().includes(selectedFilter.toLowerCase());
-
-      return matchesQuery && matchesFilter;
-    });
-  }, [featuredCards, query, selectedFilter]);
+    return properties
+      .filter((property) =>
+        [property.name, property.location, property.category, property.description, property.highlights]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      )
+      .slice(0, 3);
+  }, [previewProperties, properties, searchQuery]);
 
   const openAuth = useCallback((mode: "login" | "signup") => {
+    blurActiveWebElement();
     setAuthMode(mode);
     setAuthVisible(true);
     setMenuOpen(false);
   }, []);
 
-  const handleSectionLayout = useCallback((key: string, event: LayoutChangeEvent) => {
-    setSectionOffsets((current) => ({ ...current, [key]: event.nativeEvent.layout.y }));
+  const scrollToSection = useCallback((key: SectionKey) => {
+    if (key === "top") {
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const target = document.getElementById(key);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, []);
 
-  const scrollToSection = useCallback(
-    (key: SectionKey) => {
-      const y = sectionOffsets[key] ?? 0;
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 84), animated: true });
-      setMenuOpen(false);
-    },
-    [sectionOffsets]
-  );
-
-  const openProperty = useCallback(
-    (propertyId?: string) => {
-      if (!propertyId) return;
-      router.push(`/property/${propertyId}`);
-    },
-    [router]
-  );
-
-  const navActions = (
+  const navContent = (
     <>
-      {NAV_ITEMS.map((item) => (
-        <TouchableOpacity key={item.key} onPress={() => scrollToSection(item.key)} style={styles.navLink}>
-          <Text style={styles.navLinkText}>{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-      <TouchableOpacity onPress={() => router.push("/agent-login")} style={styles.navSecondary}>
-        <Text style={styles.navSecondaryText}>Agent</Text>
+      <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
+        <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
+        <View>
+          <Text style={styles.logoText}>Rivan</Text>
+          <Text style={styles.logoSup}>REALTY</Text>
+        </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => router.push("/admin-login")} style={styles.navSecondary}>
-        <Text style={styles.navSecondaryText}>Admin</Text>
-      </TouchableOpacity>
-      {isAuthed ? (
-        <>
-          <TouchableOpacity
-            onPress={() => {
-              router.push("/profile");
-              setMenuOpen(false);
-            }}
-            style={styles.profileChip}
-          >
-            <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>{getUserInitials(user?.name)}</Text>
-            </View>
-            <View style={styles.profileCopy}>
-              <Text style={styles.profileName}>{getUserDisplayName(user)}</Text>
-              <Text style={styles.profileLink}>Profile</Text>
-            </View>
+
+      <View style={styles.navLinks}>
+        {NAV_ITEMS.map((item) => (
+          <TouchableOpacity key={item.key} style={styles.navLinkChip} onPress={() => scrollToSection(item.key)}>
+            <Text style={styles.navLink}>{item.label}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              await signOut();
-              setMenuOpen(false);
-            }}
-            style={styles.navPrimary}
-          >
-            <Text style={styles.navPrimaryText}>Sign Out</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <TouchableOpacity onPress={() => openAuth("login")} style={styles.navPrimary}>
-          <Text style={styles.navPrimaryText}>User Login / Signup</Text>
+        ))}
+
+        <TouchableOpacity
+          style={styles.navButtonGhost}
+          onPress={() => {
+            blurActiveWebElement();
+            router.push("/agent-login");
+          }}
+        >
+          <Text style={styles.navButtonGhostText}>Agent Login</Text>
         </TouchableOpacity>
-      )}
+
+        <TouchableOpacity
+          style={styles.navButtonGhost}
+          onPress={() => {
+            blurActiveWebElement();
+            router.push("/admin-login");
+          }}
+        >
+          <Text style={styles.navButtonGhostText}>Admin</Text>
+        </TouchableOpacity>
+
+        {isAuthed ? (
+          <>
+            <TouchableOpacity style={styles.profileChip} onPress={() => router.push("/profile")}>
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{getUserInitials(user?.name)}</Text>
+              </View>
+              <View>
+                <Text style={styles.profileName}>{getUserDisplayName(user)}</Text>
+                <Text style={styles.profileSub}>Customer</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.navButtonGhost}
+              onPress={async () => {
+                await signOut();
+                setMenuOpen(false);
+              }}
+            >
+              <Text style={styles.navButtonGhostText}>Sign Out</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.navButton} onPress={() => openAuth("login")}>
+            <Text style={styles.navButtonText}>Login / Signup</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </>
   );
 
+  const processSteps = [
+    {
+      number: "01",
+      title: "Search real inventory",
+      description: "Browse active listings, verified details, and genuine project media from the live backend feed.",
+    },
+    {
+      number: "02",
+      title: "Review layout clarity",
+      description: "Open the layout viewer, understand plot positioning, and check availability without changing flows.",
+    },
+    {
+      number: "03",
+      title: "Schedule your visit",
+      description: "Continue into the existing site-visit workflow only when a property is worth your time.",
+    },
+    {
+      number: "04",
+      title: "Move to booking",
+      description: "Use the current booking and login journey once you are ready to act on a chosen property.",
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.offWhite} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primaryDeepest} />
 
       <CustomerAuthModal
         visible={authVisible}
@@ -242,261 +231,301 @@ export function HomeScreen() {
         onSuccess={() => setAuthVisible(false)}
       />
 
-      <Modal animationType="fade" transparent visible={menuOpen && !isDesktop} onRequestClose={() => setMenuOpen(false)}>
+      <Modal visible={menuOpen && !isDesktop} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuSheet}>
-            <Text style={styles.menuTitle}>Navigate Rivan</Text>
-            <Text style={styles.menuBody}>Discovery stays primary while customer, agent, and admin access remain easy to reach.</Text>
-            <View style={styles.menuLinks}>{navActions}</View>
-          </Pressable>
+          <Pressable style={styles.menuCard}>{navContent}</Pressable>
         </Pressable>
       </Modal>
 
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={["#FCF9F2", "#F1F6F0", "#F8F5ED"]} style={styles.heroWrap}>
-          <View style={[styles.navbar, isDesktop && styles.navbarDesktop]}>
-            <View style={styles.brandCluster}>
-              <View style={styles.brandBadge}>
-                <Image source={LOGO} style={styles.brandImage} resizeMode="contain" />
+      <View style={[styles.navbar, scrolled && styles.navbarScrolled]}>
+        {isDesktop ? (
+          <View style={styles.navDesktop}>{navContent}</View>
+        ) : (
+          <View style={styles.navMobile}>
+            <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
+              <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
+              <View>
+                <Text style={styles.logoText}>Rivan</Text>
+                <Text style={styles.logoSup}>REALTY</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.mobileMenuButton} onPress={() => setMenuOpen(true)}>
+              <Feather name="menu" size={20} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => setScrolled(event.nativeEvent.contentOffset.y > 20)}
+      >
+        <View style={[styles.hero, !isDesktop && styles.heroMobile]}>
+          <View style={styles.heroLeft}>
+            <View style={styles.heroBadge}>
+              <View style={styles.heroBadgeDot} />
+              <Text style={styles.heroBadgeText}>Now active in customer discovery</Text>
+            </View>
+
+            <Text style={styles.heroTitle}>
+              Live where you{"\n"}truly <Text style={styles.heroItalic}>belong.</Text>
+            </Text>
+            <Text style={styles.heroSub}>
+              Rivan Realty pairs discerning buyers with real property inventory, layout clarity, and a cleaner journey
+              from discovery to visit scheduling.
+            </Text>
+
+            <View style={styles.ctaRow}>
+              <TouchableOpacity style={styles.btnPrimary} onPress={() => scrollToSection("featured")}>
+                <Text style={styles.btnPrimaryText}>Explore Listings</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnWhite} onPress={() => scrollToSection("process")}>
+                <Text style={styles.btnWhiteText}>How It Works</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View>
+                <Text style={styles.hStatNum}>{properties.length || 0}</Text>
+                <Text style={styles.hStatLabel}>Properties</Text>
               </View>
               <View>
-                <Text style={styles.brandWordmark}>RIVAN</Text>
-                <Text style={styles.brandCaption}>Premium real estate discovery</Text>
+                <Text style={styles.hStatNum}>{heroProperty?.approvals?.length || 0}</Text>
+                <Text style={styles.hStatLabel}>Approvals</Text>
+              </View>
+              <View>
+                <Text style={styles.hStatNum}>{heroProperty ? "Ready" : "Soon"}</Text>
+                <Text style={styles.hStatLabel}>Visit Flow</Text>
               </View>
             </View>
-
-            {isDesktop ? (
-              <View style={styles.navDesktop}>{navActions}</View>
-            ) : (
-              <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)}>
-                <Feather name="menu" size={20} color={colors.primaryDeepest} />
-              </TouchableOpacity>
-            )}
           </View>
 
-          <View onLayout={(event) => handleSectionLayout("home", event)} style={[styles.heroSection, isDesktop && styles.heroSectionDesktop]}>
-            <View style={styles.heroCopy}>
-              <Text style={styles.heroKicker}>Search-first property experience</Text>
-              <Text style={styles.heroTitle}>Discover homes and plots through a calmer, premium browsing flow.</Text>
-              <Text style={styles.heroBody}>
-                Property discovery leads the experience now. Pricing, availability, and the next best action are easier to understand across both web and mobile.
-              </Text>
-
-              <View style={styles.heroActions}>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => scrollToSection("discover")}>
-                  <Text style={styles.primaryButtonText}>Explore properties</Text>
-                </TouchableOpacity>
-                {heroProperty ? (
-                  <TouchableOpacity style={styles.secondaryButton} onPress={() => openProperty(heroProperty.id)}>
-                    <Text style={styles.secondaryButtonText}>Open featured listing</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-
-              <View style={styles.trustRail}>
-                {TRUST_POINTS.map((point) => (
-                  <View key={point} style={styles.trustPill}>
-                    <Feather name="check" size={13} color={colors.primaryDark} />
-                    <Text style={styles.trustPillText}>{point}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.heroVisual}>
-              <View style={styles.showcaseCard}>
-                {heroProperty?.image ? (
-                  <>
-                    <PropertyMedia image={heroProperty.image} videoUrl={heroProperty.videoUrl} style={styles.showcaseImage} />
-                    <LinearGradient colors={["rgba(10,45,28,0.02)", "rgba(10,45,28,0.84)"]} style={styles.showcaseOverlay} />
-                    <View style={styles.showcaseContent}>
-                      <Text style={styles.showcaseEyebrow}>Featured today</Text>
-                      <Text style={styles.showcaseTitle}>{heroProperty.name}</Text>
-                      <Text style={styles.showcaseLocation}>{heroProperty.location || "Premium project location"}</Text>
-                    </View>
-                  </>
+          <View style={styles.heroRight}>
+            <View style={styles.mosaic}>
+              <View style={styles.mosaicMain}>
+                {mosaicProperties[0]?.image ? (
+                  <PropertyMedia image={mosaicProperties[0].image} style={styles.mosaicMedia} />
                 ) : (
-                  <View style={styles.loadingState}>
-                    <ActivityIndicator color={colors.primary} />
-                  </View>
+                  <View style={styles.mosaicFallback} />
                 )}
               </View>
-
-              {heroProperty ? (
-                <View style={[styles.metricRow, isTablet && styles.metricRowTablet]}>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Starting from</Text>
-                    <Text style={styles.metricValue}>{heroProperty.startingPrice ? formatINR(heroProperty.startingPrice) : "On request"}</Text>
+              {isDesktop ? (
+                <>
+                  <View style={styles.mosaicSmall}>
+                    {mosaicProperties[1]?.image ? (
+                      <PropertyMedia image={mosaicProperties[1].image} style={styles.mosaicMedia} />
+                    ) : (
+                      <View style={styles.mosaicFallback} />
+                    )}
                   </View>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Category</Text>
-                    <Text style={styles.metricValue}>{heroProperty.category || "Property"}</Text>
+                  <View style={styles.mosaicSmall}>
+                    {mosaicProperties[2]?.image ? (
+                      <PropertyMedia image={mosaicProperties[2].image} style={styles.mosaicMedia} />
+                    ) : (
+                      <View style={styles.mosaicFallback} />
+                    )}
                   </View>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Availability</Text>
-                    <Text style={styles.metricValue}>{heroProperty.availability || "Open for enquiry"}</Text>
-                  </View>
-                </View>
+                </>
               ) : null}
             </View>
-          </View>
-        </LinearGradient>
+            <View style={styles.heroRightOverlay} />
 
-        <View style={styles.mainWrap}>
-          <View style={styles.searchPanel}>
-            <View style={styles.searchHead}>
-              <Text style={styles.sectionEyebrow}>Discover</Text>
-              <Text style={styles.searchTitle}>Search and shortlist without the clutter.</Text>
-            </View>
-
-            <View style={[styles.searchRow, isTablet && styles.searchRowTablet]}>
-              <View style={styles.searchField}>
-                <Feather name="search" size={18} color={colors.stone400} />
-                <TextInput
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder="Search by location, category, project name"
-                  placeholderTextColor={colors.stone400}
-                  style={styles.searchInput}
-                />
-                {query ? (
-                  <TouchableOpacity onPress={() => setQuery("")}>
-                    <Feather name="x" size={18} color={colors.stone400} />
-                  </TouchableOpacity>
-                ) : null}
+            {isDesktop ? (
+              <View style={styles.searchBar}>
+                <View style={styles.searchField}>
+                  <Text style={styles.searchLabel}>Location</Text>
+                  <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder={heroProperty?.location?.split(",")[0] || "Hyderabad"}
+                    placeholderTextColor="#6B7A6E"
+                    style={styles.searchInput}
+                  />
+                </View>
+                <View style={styles.searchField}>
+                  <Text style={styles.searchLabel}>Property type</Text>
+                  <TextInput value={heroProperty?.category || "Independent House"} editable={false} style={styles.searchInput} />
+                </View>
+                <TouchableOpacity style={styles.btnSearch} onPress={() => scrollToSection("featured")}>
+                  <Feather name="search" size={18} color={colors.white} />
+                </TouchableOpacity>
               </View>
+            ) : null}
+          </View>
+        </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-                {SEARCH_FILTERS.map((filter) => {
-                  const active = selectedFilter === filter;
-                  return (
-                    <TouchableOpacity
-                      key={filter}
-                      style={[styles.filterChip, active && styles.filterChipActive]}
-                      onPress={() => setSelectedFilter(filter)}
-                    >
-                      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{filter}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+        <View style={styles.sectionSoft} nativeID="process">
+          <Text style={styles.sectionEye}>How It Works</Text>
+          <Text style={styles.sectionHeading}>A cleaner path from discovery to confident action.</Text>
+
+          <View style={[styles.stepsGrid, !isDesktop && styles.stepsGridMobile]}>
+            {processSteps.map((step) => (
+              <View key={step.number} style={styles.step}>
+                <View style={styles.stepCircle}>
+                  <Text style={styles.stepN}>{step.number}</Text>
+                </View>
+                <Text style={styles.stepTitle}>{step.title}</Text>
+                <Text style={styles.stepDesc}>{step.description}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.sectionWhite} nativeID="featured">
+          <View style={styles.featuredHeader}>
+            <View>
+              <Text style={styles.sectionEye}>Featured</Text>
+              <Text style={styles.sectionHeadingDark}>Live listings from the current platform feed.</Text>
             </View>
+            {heroProperty ? (
+              <TouchableOpacity onPress={() => router.push(`/property/${heroProperty.id}`)}>
+                <Text style={styles.featLink}>Open featured property</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
-          <View onLayout={(event) => handleSectionLayout("discover", event)} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionEyebrow}>Featured collection</Text>
-              <Text style={styles.sectionTitle}>Production inventory first, local fallback only when needed.</Text>
-              <Text style={styles.sectionBody}>
-                The homepage now prefers live backend property data. Local mock content only helps when inventory is temporarily unavailable.
-              </Text>
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={styles.loadingText}>Loading live listings...</Text>
             </View>
-
-            {loading ? (
-              <View style={styles.inlineLoader}>
-                <ActivityIndicator color={colors.primary} />
-                <Text style={styles.inlineLoaderText}>Loading featured properties...</Text>
-              </View>
-            ) : (
-              <View style={[styles.cardGrid, isDesktop && styles.cardGridDesktop]}>
-                {filteredCards.map((property) => (
-                  <TouchableOpacity
-                    key={property.id}
-                    style={[styles.propertyCard, isDesktop && styles.propertyCardDesktop]}
-                    activeOpacity={0.95}
-                    onPress={() => openProperty(property.id)}
-                  >
+          ) : !filteredProperties.length ? (
+            <View style={styles.loadingBox}>
+              <Text style={styles.loadingText}>No live property is available right now.</Text>
+            </View>
+          ) : (
+            <View style={[styles.cardsGrid, !isDesktop && styles.cardsGridMobile]}>
+              {filteredProperties.map((property, index) => (
+                <TouchableOpacity
+                  key={property.id}
+                  style={styles.propCard}
+                  activeOpacity={0.95}
+                  onPress={() => router.push(`/property/${property.id}`)}
+                >
+                  <View style={styles.propImg}>
                     {property.image ? (
-                      <PropertyMedia image={property.image} videoUrl={property.videoUrl} style={styles.propertyImage} />
+                      <PropertyMedia image={property.image} style={styles.propMedia} />
                     ) : (
-                      <View style={styles.propertyImageFallback} />
+                      <View style={styles.propFallback} />
                     )}
-                    <View style={styles.propertyContent}>
-                      <View style={styles.propertyMetaRow}>
-                        <Text style={styles.propertyEyebrow}>{property.category || "Property"}</Text>
-                        <Text style={styles.propertyStat}>{property.startingPrice ? formatINR(property.startingPrice) : "On request"}</Text>
+                    <View style={styles.propTag}>
+                      <Text style={styles.propTagText}>{index === 0 ? "Featured" : "Live"}</Text>
+                    </View>
+                    {property.approvals.length ? (
+                      <View style={styles.propBadge}>
+                        <Text style={styles.propBadgeText}>Verified</Text>
                       </View>
-                      <Text style={styles.propertyTitle}>{property.name}</Text>
-                      <Text style={styles.propertySubtitle}>{property.location || "Premium location"}</Text>
-                      <Text style={styles.propertyCopy} numberOfLines={3}>
-                        {property.description || property.highlights || "A refined real-estate experience with clearer details and smoother discovery."}
-                      </Text>
-                      <View style={styles.propertyActionRow}>
-                        <Text style={styles.propertyActionText}>View property</Text>
-                        <Feather name="arrow-up-right" size={16} color={colors.primaryDeepest} />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+                    ) : null}
+                  </View>
 
-          <View onLayout={(event) => handleSectionLayout("trust", event)} style={styles.section}>
-            <View style={[styles.trustGrid, isDesktop && styles.trustGridDesktop]}>
-              <LinearGradient colors={["#0A2D1C", "#114028"]} style={styles.storyPanel}>
-                <Text style={styles.storyEyebrow}>Trust by design</Text>
-                <Text style={styles.storyTitle}>Better hierarchy turns browsing into decision-making.</Text>
-                <Text style={styles.storyBody}>
-                  Important information now appears in clearer groups: what the property is, where it sits, how much it starts at, and where the user should go next.
-                </Text>
-              </LinearGradient>
-
-              <View style={styles.detailColumn}>
-                <View style={styles.detailCard}>
-                  <Text style={styles.detailLabel}>What stays strong</Text>
-                  {["Same routes", "Same auth actions", "Same backend integration", "Cleaner public journey"].map((item) => (
-                    <View key={item} style={styles.detailItem}>
-                      <Feather name="check-circle" size={16} color={colors.primary} />
-                      <Text style={styles.detailItemText}>{item}</Text>
+                  <View style={styles.propBody}>
+                    <Text style={styles.propPrice}>
+                      {property.startingPrice ? formatINR(property.startingPrice) : "On request"}
+                    </Text>
+                    <Text style={styles.propName}>{property.name}</Text>
+                    <View style={styles.propMeta}>
+                      <Text style={styles.propM}>{property.location}</Text>
+                      <Text style={styles.propM}>{property.size || "Layout based"}</Text>
+                      <Text style={styles.propM}>{property.facing || "Facing options"}</Text>
                     </View>
-                  ))}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.loginSection, !isDesktop && styles.loginSectionMobile]}>
+          <View style={styles.loginLeft}>
+            <Text style={styles.sectionEyeGold}>Customer Access</Text>
+            <Text style={styles.loginHeading}>The property journey stays public until you are ready to continue.</Text>
+            <Text style={styles.loginParagraph}>
+              Use secure customer login only when you want to save your journey, open your profile, schedule site visits,
+              or move into booking. Agent and admin routes remain separate and untouched.
+            </Text>
+
+            <View style={styles.portalCards}>
+              <TouchableOpacity
+                style={styles.portalCard}
+                onPress={() => router.push(heroProperty ? `/property/${heroProperty.id}` : "/property/prop-1")}
+              >
+                <View style={[styles.portalIcon, styles.portalAgent]}>
+                  <Feather name="home" size={20} color="#4DBB7A" />
                 </View>
-
-                <View style={styles.detailCard}>
-                  <Text style={styles.detailLabel}>Where to continue</Text>
-                  {[
-                    "Browse public listings from the homepage",
-                    "Open plot layout from property detail",
-                    "Book visits from the centre route",
-                    "Use profile for account and role shortcuts",
-                  ].map((item) => (
-                    <View key={item} style={styles.detailItem}>
-                      <Feather name="arrow-right" size={16} color={colors.accentDark} />
-                      <Text style={styles.detailItemText}>{item}</Text>
-                    </View>
-                  ))}
+                <View style={styles.portalInfo}>
+                  <Text style={styles.portalTitle}>Open property details</Text>
+                  <Text style={styles.portalDescription}>See pricing, layout media, approvals, and full property context.</Text>
                 </View>
+                <Text style={styles.portalArrow}>→</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.portalCard}
+                onPress={() => router.push(heroProperty ? `/centre/site-${heroProperty.id}` : "/centre/site-prop-1")}
+              >
+                <View style={[styles.portalIcon, styles.portalAdmin]}>
+                  <Feather name="calendar" size={20} color="#C8A96E" />
+                </View>
+                <View style={styles.portalInfo}>
+                  <Text style={styles.portalTitle}>Continue to site visit</Text>
+                  <Text style={styles.portalDescription}>Move directly into the current visit scheduling flow.</Text>
+                </View>
+                <Text style={styles.portalArrow}>→</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.loginFormWrap}>
+            <Text style={styles.formLogo}>Rivan Realty</Text>
+            <Text style={styles.formSub}>Continue into your customer account</Text>
+
+            <View style={styles.roleSwitch}>
+              <View style={styles.roleSwitchActive}>
+                <Text style={styles.roleSwitchText}>Customer</Text>
               </View>
             </View>
-          </View>
 
-          <View onLayout={(event) => handleSectionLayout("access", event)} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionEyebrow}>Access</Text>
-              <Text style={styles.sectionTitle}>Customer, agent, and admin entry stay available without crowding the homepage.</Text>
+            <View style={styles.fgroup}>
+              <Text style={styles.flabel}>Account</Text>
+              <TextInput
+                editable={false}
+                value={user?.phone || user?.email || "Secure Firebase customer login"}
+                style={styles.finput}
+              />
             </View>
 
-            <View style={[styles.accessGrid, isDesktop && styles.accessGridDesktop]}>
-              <TouchableOpacity style={styles.accessCard} onPress={() => openAuth("signup")}>
-                <Text style={styles.accessTitle}>User account</Text>
-                <Text style={styles.accessBody}>Sign in when ready to save properties, manage bookings, and continue the journey.</Text>
-                <Text style={styles.accessLink}>Open user access</Text>
-              </TouchableOpacity>
+            <View style={styles.fgroup}>
+              <Text style={styles.flabel}>Flow</Text>
+              <TextInput editable={false} value="Existing OTP + backend profile session" style={styles.finput} />
+            </View>
 
-              <TouchableOpacity style={styles.accessCard} onPress={() => router.push("/agent-login")}>
-                <Text style={styles.accessTitle}>Agent entry</Text>
-                <Text style={styles.accessBody}>Approved agents can go directly into the dashboard while the public experience stays property-first.</Text>
-                <Text style={styles.accessLink}>Open agent login</Text>
-              </TouchableOpacity>
+            <TouchableOpacity style={styles.btnSignin} onPress={() => openAuth(isAuthed ? "login" : "signup")}>
+              <Text style={styles.btnSigninText}>{isAuthed ? "Open Customer Profile" : "Login / Signup"}</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity style={styles.accessCard} onPress={() => router.push("/admin-login")}>
-                <Text style={styles.accessTitle}>Admin console</Text>
-                <Text style={styles.accessBody}>Operations remain accessible without visually dominating the public product surface.</Text>
-                <Text style={styles.accessLink}>Open admin login</Text>
+            <Text style={styles.formDivider}>Customer homepage only. Existing agent and admin routes stay intact.</Text>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <View style={[styles.footerInner, !isDesktop && styles.footerInnerMobile]}>
+            <Text style={styles.footerLogo}>Rivan Realty</Text>
+            <View style={styles.footerLinks}>
+              <TouchableOpacity onPress={() => scrollToSection("top")}>
+                <Text style={styles.footerLink}>Home</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => scrollToSection("featured")}>
+                <Text style={styles.footerLink}>Properties</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push("/profile")}>
+                <Text style={styles.footerLink}>Profile</Text>
               </TouchableOpacity>
             </View>
           </View>
+          <Text style={styles.footerCopy}>Live customer experience powered by the existing Rivan backend workflows.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -506,322 +535,553 @@ export function HomeScreen() {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.offWhite },
+  safe: { flex: 1, backgroundColor: colors.white },
   scroll: { flex: 1 },
-  content: { paddingBottom: 80 },
-  heroWrap: { paddingBottom: spacing.xxxl },
+  content: { paddingBottom: 0 },
   navbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: Platform.OS === "web" ? 60 : 24,
+    paddingTop: 20,
+    paddingBottom: 18,
   },
-  navbarDesktop: { paddingHorizontal: 56, paddingTop: spacing.xl },
-  brandCluster: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  brandBadge: {
-    width: 58,
-    height: 58,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.sm,
+  navbarScrolled: {
+    backgroundColor: "rgba(10,46,31,0.96)",
+    ...(Platform.OS === "web" ? ({ backdropFilter: "blur(12px)" } as any) : null),
   },
-  brandImage: { width: 30, height: 30 },
-  brandWordmark: { ...typography.label, fontSize: 14, letterSpacing: 5, color: colors.primaryDeepest },
-  brandCaption: { marginTop: 4, ...typography.small, color: colors.stone500 },
   navDesktop: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-    flex: 1,
-    marginLeft: spacing.xl,
+    justifyContent: "space-between",
   },
-  navLink: { paddingHorizontal: spacing.md, paddingVertical: 10 },
-  navLinkText: { ...typography.small, fontWeight: "700", color: colors.stone600 },
-  navSecondary: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navSecondaryText: { ...typography.small, fontWeight: "700", color: colors.primaryDeepest },
-  navPrimary: {
-    minHeight: 46,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.sm,
-  },
-  navPrimaryText: { ...typography.small, fontWeight: "800", color: colors.white },
-  profileChip: {
-    minHeight: 52,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+  navMobile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    ...shadow.sm,
+    justifyContent: "space-between",
+  },
+  logoWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
+  navLogoImage: { width: 38, height: 38, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)" },
+  logoText: {
+    color: colors.white,
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+  },
+  logoSup: {
+    color: "#C8A96E",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  navLinks: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  navLinkChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 60 },
+  navLink: { color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500", letterSpacing: 1 },
+  navButton: {
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 60,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "transparent",
+  },
+  navButtonText: { color: colors.white, fontSize: 13, fontWeight: "600", letterSpacing: 1 },
+  navButtonGhost: {
+    borderWidth: 1.5,
+    borderColor: "rgba(200,169,110,0.5)",
+    borderRadius: 60,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  navButtonGhostText: { color: "#C8A96E", fontSize: 13, fontWeight: "600", letterSpacing: 1 },
+  profileChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
   profileAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primarySoft,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  profileAvatarText: { ...typography.small, fontWeight: "800", color: colors.primaryDeepest },
-  profileCopy: { gap: 2 },
-  profileName: { ...typography.small, fontWeight: "800", color: colors.primaryDeepest },
-  profileLink: { ...typography.small, color: colors.stone500 },
-  menuButton: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
+  profileAvatarText: { color: colors.primaryDeepest, fontSize: 11, fontWeight: "800" },
+  profileName: { color: colors.white, fontSize: 12, fontWeight: "700" },
+  profileSub: { color: "rgba(255,255,255,0.6)", fontSize: 10 },
+  mobileMenuButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
-  menuBackdrop: { flex: 1, backgroundColor: "rgba(10,45,28,0.18)", justifyContent: "flex-start" },
-  menuSheet: {
-    marginTop: 84,
-    marginHorizontal: spacing.lg,
-    borderRadius: radii.xl,
+  menuBackdrop: { flex: 1, backgroundColor: "rgba(10,46,31,0.7)", justifyContent: "flex-start" },
+  menuCard: {
+    marginTop: 88,
+    marginHorizontal: 20,
+    borderRadius: 24,
     backgroundColor: colors.surface,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    ...shadow.md,
+    padding: 20,
+    gap: 12,
   },
-  menuTitle: { ...typography.h3, color: colors.primaryDeepest },
-  menuBody: { marginTop: spacing.sm, ...typography.body, color: colors.stone500 },
-  menuLinks: { marginTop: spacing.xl, gap: spacing.sm },
-  heroSection: { paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, gap: spacing.xxl },
-  heroSectionDesktop: { flexDirection: "row", alignItems: "stretch", paddingHorizontal: 56 },
-  heroCopy: { flex: 1, gap: spacing.lg },
-  heroKicker: {
+  hero: {
+    minHeight: Platform.OS === "web" ? 760 : 620,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  heroMobile: { flexDirection: "column" },
+  heroLeft: {
+    flex: 1,
+    backgroundColor: colors.primaryDeepest,
+    justifyContent: "flex-end",
+    paddingHorizontal: Platform.OS === "web" ? 64 : 28,
+    paddingBottom: 80,
+    paddingTop: 130,
+  },
+  heroRight: {
+    flex: 1,
+    position: "relative",
+    minHeight: 380,
+  },
+  heroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(200,169,110,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(200,169,110,0.35)",
+    borderRadius: 60,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 28,
     alignSelf: "flex-start",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-    ...typography.small,
-    fontWeight: "700",
-    color: colors.primaryDark,
+  },
+  heroBadgeDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#C8A96E" },
+  heroBadgeText: {
+    color: "#DDC48F",
+    fontSize: 11,
+    fontWeight: "500",
+    letterSpacing: 2,
+    textTransform: "uppercase",
   },
   heroTitle: {
-    ...typography.h1,
-    color: colors.primaryDeepest,
-    fontSize: Platform.OS === "web" ? 50 : 40,
-    lineHeight: Platform.OS === "web" ? 58 : 48,
-    maxWidth: 700,
+    color: colors.white,
+    fontSize: Platform.OS === "web" ? 60 : 42,
+    lineHeight: Platform.OS === "web" ? 68 : 50,
+    fontWeight: "500",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    marginBottom: 24,
   },
-  heroBody: { ...typography.bodyLarge, color: colors.stone500, maxWidth: 620 },
-  heroActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  primaryButton: {
-    minHeight: 56,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.sm,
+  heroItalic: { color: "#DDC48F", fontStyle: "italic" },
+  heroSub: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 15,
+    lineHeight: 28,
+    maxWidth: 440,
+    marginBottom: 44,
   },
-  primaryButtonText: { ...typography.body, fontWeight: "800", color: colors.white },
-  secondaryButton: {
-    minHeight: 56,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
+  ctaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
+  btnPrimary: {
+    backgroundColor: "#C8A96E",
+    borderRadius: 60,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
   },
-  secondaryButtonText: { ...typography.body, fontWeight: "700", color: colors.primaryDeepest },
-  trustRail: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  trustPill: {
+  btnPrimaryText: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "600", letterSpacing: 1 },
+  btnWhite: {
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.22)",
+    borderRadius: 60,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  btnWhiteText: { color: colors.white, fontSize: 13, fontWeight: "500", letterSpacing: 1 },
+  heroStats: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.76)",
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    gap: 40,
+    paddingTop: 44,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+    marginTop: 44,
+    flexWrap: "wrap",
   },
-  trustPillText: { ...typography.small, fontWeight: "700", color: colors.primaryDeepest },
-  heroVisual: { flex: 0.96, gap: spacing.lg },
-  showcaseCard: {
-    minHeight: 360,
-    borderRadius: 30,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceMuted,
-    ...shadow.lg,
-  },
-  showcaseImage: { width: "100%", height: "100%" },
-  showcaseOverlay: { ...StyleSheet.absoluteFillObject },
-  showcaseContent: { position: "absolute", left: spacing.xl, right: spacing.xl, bottom: spacing.xl, gap: spacing.sm },
-  showcaseEyebrow: { ...typography.label, color: "#D7E7DD" },
-  showcaseTitle: { ...typography.h2, color: colors.white },
-  showcaseLocation: { ...typography.body, color: "#E5EDE7" },
-  metricRow: { gap: spacing.md },
-  metricRowTablet: { flexDirection: "row" },
-  metricCard: {
-    flex: 1,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xl,
-    ...shadow.sm,
-  },
-  metricLabel: { ...typography.label, color: colors.stone400 },
-  metricValue: { marginTop: spacing.sm, ...typography.h4, color: colors.primaryDeepest },
-  mainWrap: { marginTop: -18, paddingHorizontal: spacing.xl },
-  searchPanel: {
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xl,
-    ...shadow.md,
-  },
-  searchHead: { gap: spacing.sm },
-  searchTitle: { ...typography.h3, color: colors.primaryDeepest },
-  searchRow: { marginTop: spacing.lg, gap: spacing.md },
-  searchRowTablet: { flexDirection: "row", alignItems: "center" },
-  searchField: {
-    flex: 1,
-    minHeight: 58,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  searchInput: { flex: 1, ...typography.body, color: colors.primaryDeepest },
-  filterRow: { gap: spacing.sm, paddingVertical: 2 },
-  filterChip: {
-    minHeight: 42,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primaryDark },
-  filterChipText: { ...typography.small, fontWeight: "700", color: colors.stone600 },
-  filterChipTextActive: { color: colors.white },
-  section: { paddingTop: spacing.xxxl, gap: spacing.xl },
-  sectionHeader: { gap: spacing.sm, maxWidth: 760 },
-  sectionEyebrow: { ...typography.label, color: colors.primary },
-  sectionTitle: { ...typography.h2, color: colors.primaryDeepest },
-  sectionBody: { ...typography.body, color: colors.stone500 },
-  inlineLoader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.xl,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-  },
-  inlineLoaderText: { ...typography.body, color: colors.stone500 },
-  cardGrid: { gap: spacing.lg },
-  cardGridDesktop: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  propertyCard: {
-    borderRadius: 28,
-    overflow: "hidden",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    ...shadow.md,
-  },
-  propertyCardDesktop: { width: "31.7%" },
-  propertyImage: { width: "100%", height: 244, backgroundColor: colors.surfaceMuted },
-  propertyImageFallback: { width: "100%", height: 244, backgroundColor: colors.surfaceMuted },
-  propertyContent: { padding: spacing.xl },
-  propertyMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  propertyEyebrow: {
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-    ...typography.small,
+  hStatNum: {
+    color: colors.white,
+    fontSize: 28,
     fontWeight: "700",
-    color: colors.primaryDark,
+    lineHeight: 32,
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
   },
-  propertyStat: { ...typography.small, fontWeight: "700", color: colors.stone500 },
-  propertyTitle: { marginTop: spacing.lg, ...typography.h3, color: colors.primaryDeepest },
-  propertySubtitle: { marginTop: spacing.sm, ...typography.small, fontWeight: "700", color: colors.stone500 },
-  propertyCopy: { marginTop: spacing.md, ...typography.body, color: colors.stone500 },
-  propertyActionRow: { marginTop: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  propertyActionText: { ...typography.small, fontWeight: "800", color: colors.primaryDeepest },
-  trustGrid: { gap: spacing.lg },
-  trustGridDesktop: { flexDirection: "row", alignItems: "stretch" },
-  storyPanel: {
-    flex: 1,
-    borderRadius: 30,
-    padding: spacing.xxl,
-    gap: spacing.md,
+  hStatLabel: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    fontWeight: "500",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+  mosaic: {
+    position: "absolute",
+    inset: 0,
+    ...(Platform.OS === "web"
+      ? ({
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "1fr 1fr",
+          gap: 4,
+        } as any)
+      : {}),
+  },
+  mosaicMain: Platform.OS === "web" ? ({ gridRow: "1 / 3" } as any) : { flex: 1 },
+  mosaicSmall: Platform.OS === "web" ? ({} as any) : { flex: 1 },
+  mosaicMedia: { width: "100%", height: "100%" },
+  mosaicFallback: { flex: 1, backgroundColor: "#31513E" },
+  heroRightOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(10,46,31,0.18)",
+  },
+  searchBar: {
+    position: "absolute",
+    left: "50%",
+    bottom: 40,
+    transform: [{ translateX: -280 }],
+    width: 560,
+    maxWidth: "90%",
+    backgroundColor: "rgba(255,255,255,0.97)",
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    ...(Platform.OS === "web"
+      ? ({
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr auto",
+          gap: 12,
+          alignItems: "end",
+        } as any)
+      : {}),
     ...shadow.lg,
   },
-  storyEyebrow: { ...typography.label, color: colors.accentLight },
-  storyTitle: { ...typography.h2, color: colors.white },
-  storyBody: { ...typography.body, color: "#D7E7DD" },
-  detailColumn: { flex: 1, gap: spacing.lg },
-  detailCard: {
-    flex: 1,
-    borderRadius: 28,
+  searchField: { flex: 1 },
+  searchLabel: {
+    color: "#6B7A6E",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  searchInput: {
+    width: "100%",
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#D4DDD6",
+    paddingBottom: 6,
+    color: colors.primaryDeepest,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  btnSearch: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: colors.primaryDeepest,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionSoft: {
+    backgroundColor: "#F6F8F5",
+    paddingVertical: 110,
+    paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+  },
+  sectionWhite: {
+    backgroundColor: colors.white,
+    paddingVertical: 110,
+    paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+  },
+  sectionEye: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginBottom: 16,
+  },
+  sectionEyeGold: {
+    color: "#DDC48F",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginBottom: 16,
+  },
+  sectionHeading: {
+    color: colors.primaryDeepest,
+    fontSize: Platform.OS === "web" ? 42 : 32,
+    lineHeight: Platform.OS === "web" ? 50 : 40,
+    fontWeight: "500",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    maxWidth: 560,
+    marginBottom: 64,
+  },
+  sectionHeadingDark: {
+    color: colors.primaryDeepest,
+    fontSize: Platform.OS === "web" ? 42 : 32,
+    lineHeight: Platform.OS === "web" ? 50 : 40,
+    fontWeight: "500",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    maxWidth: 620,
+  },
+  stepsGrid: {
+    ...(Platform.OS === "web"
+      ? ({
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 0,
+          position: "relative",
+        } as any)
+      : {}),
+  },
+  stepsGridMobile: { gap: 32 },
+  step: { paddingHorizontal: 24, alignItems: "center" },
+  stepCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: "#D8E8DD",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+  stepN: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+  },
+  stepTitle: { color: colors.primaryDeepest, fontSize: 15, fontWeight: "600", marginBottom: 10, textAlign: "center" },
+  stepDesc: { color: "#6B7A6E", fontSize: 13, lineHeight: 24, textAlign: "center" },
+  featuredHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 16,
+    marginBottom: 48,
+    flexWrap: "wrap",
+  },
+  featLink: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "500",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(26,122,74,0.3)",
+    paddingBottom: 2,
+  },
+  loadingBox: {
+    borderRadius: 18,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xl,
-    ...shadow.sm,
+    borderColor: "#EAEEE9",
+    padding: 24,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
   },
-  detailLabel: { ...typography.h4, color: colors.primaryDeepest },
-  detailItem: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, marginTop: spacing.lg },
-  detailItemText: { flex: 1, ...typography.body, color: colors.stone500 },
-  accessGrid: { gap: spacing.lg },
-  accessGridDesktop: { flexDirection: "row", justifyContent: "space-between" },
-  accessCard: {
-    flex: 1,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
+  loadingText: { color: colors.stone500, fontSize: 14 },
+  cardsGrid: {
+    ...(Platform.OS === "web"
+      ? ({
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 24,
+        } as any)
+      : {}),
+  },
+  cardsGridMobile: { gap: 24 },
+  propCard: {
+    borderRadius: 16,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xl,
-    ...shadow.sm,
+    borderColor: "#EAEEE9",
+    backgroundColor: colors.white,
+    ...shadow.md,
   },
-  accessTitle: { ...typography.h4, color: colors.primaryDeepest },
-  accessBody: { marginTop: spacing.md, ...typography.body, color: colors.stone500 },
-  accessLink: { marginTop: spacing.xl, ...typography.small, fontWeight: "800", color: colors.primaryDeepest },
-  loadingState: { flex: 1, alignItems: "center", justifyContent: "center" },
+  propImg: { height: 220, position: "relative" },
+  propMedia: { width: "100%", height: "100%" },
+  propFallback: { flex: 1, backgroundColor: colors.surfaceMuted },
+  propTag: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: colors.white,
+    borderRadius: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  propTagText: {
+    color: colors.primaryDeepest,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  propBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: colors.primary,
+    borderRadius: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  propBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  propBody: { padding: 22 },
+  propPrice: {
+    color: colors.primaryDeepest,
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    marginBottom: 4,
+  },
+  propName: { color: "#3A4E40", fontSize: 14, fontWeight: "500", marginBottom: 16 },
+  propMeta: { borderTopWidth: 1, borderTopColor: "#EAEEE9", paddingTop: 16, gap: 6 },
+  propM: { color: "#6B7A6E", fontSize: 12 },
+  loginSection: {
+    backgroundColor: colors.primaryDeepest,
+    paddingVertical: 110,
+    paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+    flexDirection: "row",
+    gap: 80,
+    alignItems: "center",
+  },
+  loginSectionMobile: { flexDirection: "column", gap: 44, alignItems: "stretch" },
+  loginLeft: { flex: 1 },
+  loginHeading: {
+    color: colors.white,
+    fontSize: Platform.OS === "web" ? 40 : 30,
+    lineHeight: Platform.OS === "web" ? 48 : 38,
+    fontWeight: "500",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    marginBottom: 20,
+  },
+  loginParagraph: { color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 28, marginBottom: 40 },
+  portalCards: { gap: 14 },
+  portalCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  portalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portalAgent: { backgroundColor: "rgba(26,122,74,0.25)" },
+  portalAdmin: { backgroundColor: "rgba(200,169,110,0.18)" },
+  portalInfo: { flex: 1 },
+  portalTitle: { color: colors.white, fontSize: 15, fontWeight: "600", marginBottom: 4 },
+  portalDescription: { color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 20 },
+  portalArrow: { color: "rgba(255,255,255,0.55)", fontSize: 18 },
+  loginFormWrap: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 40,
+    paddingVertical: 44,
+    minWidth: isFinite(460) ? 0 : 0,
+  },
+  formLogo: {
+    color: colors.primaryDeepest,
+    fontSize: 20,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    marginBottom: 4,
+  },
+  formSub: { color: "#6B7A6E", fontSize: 13, marginBottom: 28 },
+  roleSwitch: { backgroundColor: "#F1F5F2", borderRadius: 10, padding: 5, marginBottom: 28 },
+  roleSwitchActive: { backgroundColor: colors.white, borderRadius: 7, paddingVertical: 10, alignItems: "center" },
+  roleSwitchText: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "600" },
+  fgroup: { marginBottom: 18 },
+  flabel: {
+    color: "#8A9A8E",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 7,
+  },
+  finput: {
+    width: "100%",
+    borderWidth: 1.5,
+    borderColor: "#E0E8E2",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.primaryDeepest,
+    fontSize: 14,
+    backgroundColor: colors.white,
+  },
+  btnSignin: {
+    width: "100%",
+    backgroundColor: colors.primaryDeepest,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  btnSigninText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  formDivider: { textAlign: "center", color: "#B0BCB3", fontSize: 12, marginTop: 18 },
+  footer: {
+    backgroundColor: colors.primaryDark,
+    paddingHorizontal: Platform.OS === "web" ? 60 : 28,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  footerInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+    marginBottom: 28,
+  },
+  footerInnerMobile: { flexDirection: "column", gap: 20 },
+  footerLogo: {
+    color: colors.white,
+    fontSize: 21,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+  },
+  footerLinks: { flexDirection: "row", gap: 28, flexWrap: "wrap" },
+  footerLink: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
+  footerCopy: { color: "rgba(255,255,255,0.3)", fontSize: 12 },
 });

@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { normalizePropertyRecord, type NormalizedProperty } from "@/src/property-presenter";
+import { enrichProperty } from "@/src/real-property-overrides";
 import { colors, formatINR, plotStatusColor, plotStatusLabel, radii, shadow, spacing, typography } from "@/src/theme";
 
 const STATUS_KEYS = ["all", "available", "reserved", "booked", "sold"] as const;
@@ -98,7 +99,7 @@ export default function LayoutScreen() {
           api.getPropertyPlots(id as string),
         ]);
         if (!active) return;
-        setProperty(normalizePropertyRecord(propertyPayload));
+        setProperty(enrichProperty(normalizePropertyRecord(propertyPayload)));
         setUnits(normalizeUnits(Array.isArray(unitsPayload) ? unitsPayload : []));
       } catch (error: any) {
         if (active) {
@@ -115,17 +116,47 @@ export default function LayoutScreen() {
     };
   }, [id]);
 
+  const mappedLayoutUnits = useMemo(() => {
+    if (!property?.mapBlocks?.length) return [];
+
+    return property.mapBlocks.map((block) => {
+      const backendUnit =
+        units.find((unit) => unit.number === `P-${String(block.label).padStart(3, "0")}`) ||
+        units.find((unit) => unit.number === block.label);
+
+      return {
+        id: backendUnit?.id || block.id,
+        number: backendUnit?.number || `P-${String(block.label).padStart(3, "0")}`,
+        status: (backendUnit?.status || block.status || "available").toLowerCase(),
+        size: backendUnit?.size || block.size,
+        facing: backendUnit?.facing || block.facing,
+        price: backendUnit?.price || block.price,
+        propertyId: backendUnit?.propertyId || property.id,
+        x: block.x,
+        y: block.y,
+        w: block.w,
+        h: block.h,
+        hasBackendBooking: Boolean(backendUnit?.id),
+      };
+    });
+  }, [property, units]);
+
   const filteredUnits = useMemo(() => {
+    if (mappedLayoutUnits.length) {
+      if (selectedStatus === "all") return mappedLayoutUnits;
+      return mappedLayoutUnits.filter((unit) => unit.status === selectedStatus);
+    }
     if (selectedStatus === "all") return units;
     return units.filter((unit) => unit.status === selectedStatus);
-  }, [selectedStatus, units]);
+  }, [mappedLayoutUnits, selectedStatus, units]);
 
   const counts = useMemo(() => {
+    const source = mappedLayoutUnits.length ? mappedLayoutUnits : units;
     return STATUS_KEYS.reduce<Record<string, number>>((acc, key) => {
-      acc[key] = key === "all" ? units.length : units.filter((unit) => unit.status === key).length;
+      acc[key] = key === "all" ? source.length : source.filter((unit) => unit.status === key).length;
       return acc;
     }, {});
-  }, [units]);
+  }, [mappedLayoutUnits, units]);
 
   function handleVisit(unit: any) {
     if (isAgent) {
@@ -143,6 +174,11 @@ export default function LayoutScreen() {
   }
 
   function handleBook(unit: any) {
+    if (!unit?.hasBackendBooking && !String(unit?.id || "").startsWith("plot-")) {
+      Alert.alert("Booking", "This plot is visible in the layout map, but live booking is not open for it yet. You can still schedule a visit.");
+      return;
+    }
+
     if (isAgent) {
       router.push({
         pathname: "/agent" as never,
@@ -186,16 +222,16 @@ export default function LayoutScreen() {
         <View style={[styles.heroCard, isDesktop && styles.heroCardDesktop]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>Interactive availability</Text>
-            <Text style={styles.heroTitle}>Choose available units with a cleaner layout view.</Text>
+            <Text style={styles.heroTitle}>Siripuram Gardens plot map with accurate square-box layout blocks.</Text>
             <Text style={styles.heroBody}>
-              Instead of a dense technical map, this screen now surfaces inventory in a clearer, faster-to-scan format while preserving the same booking and visit actions.
+              Browse the plotted estate through the real Siripuram square-grid structure while keeping the same visit scheduling and booking flow already used across the platform.
             </Text>
           </View>
 
           <View style={styles.heroStats}>
             <View style={styles.heroStatCard}>
               <Text style={styles.heroStatValue}>{counts.all}</Text>
-              <Text style={styles.heroStatLabel}>Total units</Text>
+              <Text style={styles.heroStatLabel}>Total plots</Text>
             </View>
             <View style={styles.heroStatCard}>
               <Text style={styles.heroStatValue}>{counts.available}</Text>
@@ -220,39 +256,60 @@ export default function LayoutScreen() {
           ))}
         </ScrollView>
 
-        <View style={[styles.unitGrid, isDesktop && styles.unitGridDesktop]}>
-          {filteredUnits.map((unit) => (
-            <TouchableOpacity
-              key={unit.id}
-              style={styles.unitCard}
-              activeOpacity={0.94}
-              onPress={() => setSelectedUnit(unit)}
-            >
-              <View style={[styles.unitStatusBar, { backgroundColor: plotStatusColor(unit.status) }]} />
-              <View style={styles.unitCardBody}>
-                <View style={styles.unitTopRow}>
-                  <Text style={styles.unitNumber}>{unit.number || "Unit"}</Text>
-                  <View style={[styles.unitStatusPill, { backgroundColor: `${plotStatusColor(unit.status)}22` }]}>
-                    <Text style={[styles.unitStatusText, { color: plotStatusColor(unit.status) }]}>{plotStatusLabel(unit.status)}</Text>
-                  </View>
-                </View>
-                <Text style={styles.unitMeta}>{unit.size || "Size on request"}</Text>
-                <Text style={styles.unitMeta}>{unit.facing || "Facing not specified"}</Text>
-                {unit.tower || unit.floor ? (
-                  <Text style={styles.unitMeta}>
-                    {[unit.tower, unit.floor].filter(Boolean).join(" • ")}
+        {mappedLayoutUnits.length ? (
+          <View style={styles.mapShell}>
+            <Text style={styles.mapTitle}>Siripuram Gardens Plot Layout</Text>
+            <Text style={styles.mapBody}>Select a plot block to view its facing, size, and next available customer or agent action.</Text>
+            <View style={styles.mapCanvas}>
+              {filteredUnits.map((unit) => (
+                <TouchableOpacity
+                  key={unit.id}
+                  style={[
+                    styles.mapPlot,
+                    {
+                      left: `${unit.x}%`,
+                      top: `${unit.y}%`,
+                      width: `${unit.w}%`,
+                      height: `${unit.h}%`,
+                      backgroundColor: `${plotStatusColor(unit.status)}18`,
+                      borderColor: plotStatusColor(unit.status),
+                    },
+                  ]}
+                  activeOpacity={0.9}
+                  onPress={() => setSelectedUnit(unit)}
+                >
+                  <Text style={[styles.mapPlotNumber, { color: plotStatusColor(unit.status) }]}>
+                    {String(unit.number || "").replace("P-", "")}
                   </Text>
-                ) : null}
-                <Text style={styles.unitPrice}>{unit.price ? formatINR(unit.price) : "Price on request"}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.unitGrid, isDesktop && styles.unitGridDesktop]}>
+            {filteredUnits.map((unit) => (
+              <TouchableOpacity key={unit.id} style={styles.unitCard} activeOpacity={0.94} onPress={() => setSelectedUnit(unit)}>
+                <View style={[styles.unitStatusBar, { backgroundColor: plotStatusColor(unit.status) }]} />
+                <View style={styles.unitCardBody}>
+                  <View style={styles.unitTopRow}>
+                    <Text style={styles.unitNumber}>{unit.number || "Unit"}</Text>
+                    <View style={[styles.unitStatusPill, { backgroundColor: `${plotStatusColor(unit.status)}22` }]}>
+                      <Text style={[styles.unitStatusText, { color: plotStatusColor(unit.status) }]}>{plotStatusLabel(unit.status)}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.unitMeta}>{unit.size || "Size on request"}</Text>
+                  <Text style={styles.unitMeta}>{unit.facing || "Facing not specified"}</Text>
+                  <Text style={styles.unitPrice}>{unit.price ? formatINR(unit.price) : "Price on request"}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {!filteredUnits.length ? (
           <View style={styles.emptyState}>
             <Feather name="inbox" size={42} color={colors.stone300} />
-            <Text style={styles.emptyTitle}>No units in this status</Text>
+            <Text style={styles.emptyTitle}>No plots in this status</Text>
             <Text style={styles.emptyBody}>Try another availability filter.</Text>
           </View>
         ) : null}
@@ -263,7 +320,7 @@ export default function LayoutScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderCopy}>
-                <Text style={styles.modalTitle}>{selectedUnit?.number || "Selected unit"}</Text>
+                <Text style={styles.modalTitle}>{selectedUnit?.number || "Selected plot"}</Text>
                 <Text style={styles.modalSubtitle}>{property?.name || "Property"}</Text>
               </View>
               <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedUnit(null)}>
@@ -283,12 +340,25 @@ export default function LayoutScreen() {
                 <Text style={styles.modalSecondaryText}>Schedule visit</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalPrimary, selectedUnit?.status !== "available" && styles.modalDisabled]}
+                style={[
+                  styles.modalPrimary,
+                  (selectedUnit?.status !== "available" || (!selectedUnit?.hasBackendBooking && !String(selectedUnit?.id || "").startsWith("plot-"))) &&
+                    styles.modalDisabled,
+                ]}
                 onPress={() => selectedUnit?.status === "available" && handleBook(selectedUnit)}
-                disabled={selectedUnit?.status !== "available"}
+                disabled={
+                  selectedUnit?.status !== "available" ||
+                  (!selectedUnit?.hasBackendBooking && !String(selectedUnit?.id || "").startsWith("plot-"))
+                }
               >
                 <Text style={styles.modalPrimaryText}>
-                  {isAgent ? "Create booking" : selectedUnit?.status === "available" ? "Book this unit" : "Not available"}
+                  {!selectedUnit?.hasBackendBooking && !String(selectedUnit?.id || "").startsWith("plot-")
+                    ? "Visit only"
+                    : isAgent
+                      ? "Create booking"
+                      : selectedUnit?.status === "available"
+                        ? "Book this plot"
+                        : "Not available"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -366,6 +436,35 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusChipText: { ...typography.small, fontWeight: "700", color: colors.primaryDeepest },
   statusChipTextActive: { color: colors.white },
+  mapShell: {
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.xl,
+    gap: spacing.md,
+    ...shadow.sm,
+  },
+  mapTitle: { ...typography.h4, color: colors.primaryDeepest },
+  mapBody: { ...typography.body, color: colors.stone500, maxWidth: 760 },
+  mapCanvas: {
+    position: "relative",
+    width: "100%",
+    minHeight: 780,
+    borderRadius: 24,
+    backgroundColor: "#FBF8F2",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: "hidden",
+  },
+  mapPlot: {
+    position: "absolute",
+    borderWidth: 1,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapPlotNumber: { fontSize: 9, lineHeight: 11, fontWeight: "800" },
   unitGrid: { gap: spacing.md },
   unitGridDesktop: { flexDirection: "row", flexWrap: "wrap" },
   unitCard: {

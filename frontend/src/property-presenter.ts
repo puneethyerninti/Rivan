@@ -5,6 +5,28 @@ export type PropertyPlan = {
   description?: string;
 };
 
+export type PropertyMapBlock = {
+  id: string;
+  label: string;
+  sizeSqYd: number;
+  size: string;
+  facing: string;
+  status: "available" | "reserved" | "booked" | "sold";
+  price: number;
+  zoneId: string;
+  zoneTitle: string;
+  zoneSubtitle: string;
+  zoneLeft: string;
+  zoneTop: string;
+  zoneWidth: string;
+  zoneColumns: number;
+  zoneOrder: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
 export type NormalizedProperty = {
   id: string;
   name: string;
@@ -28,6 +50,7 @@ export type NormalizedProperty = {
   layoutPlans: PropertyPlan[];
   availabilityImage?: string;
   featuresImage?: string;
+  mapBlocks?: PropertyMapBlock[];
 };
 
 function firstString(...values: unknown[]) {

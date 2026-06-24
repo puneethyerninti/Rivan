@@ -16,16 +16,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
-import { findMockPropertyById } from "@/src/mock-data";
 import { normalizePropertyRecord, type NormalizedProperty } from "@/src/property-presenter";
+import { enrichProperty } from "@/src/real-property-overrides";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { colors, formatINR, radii, shadow, spacing, typography } from "@/src/theme";
 
 const SALES_CONTACT_NUMBER = "+919966826567";
-
-function buildFallbackProperty(id?: string) {
-  return normalizePropertyRecord(findMockPropertyById(id));
-}
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -44,7 +40,7 @@ export default function PropertyDetailScreen() {
   const isDesktop = width >= 1100;
   const isTablet = width >= 760;
 
-  const [property, setProperty] = useState<NormalizedProperty | null>(buildFallbackProperty(id));
+  const [property, setProperty] = useState<NormalizedProperty | null>(null);
   const [plotCount, setPlotCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +54,7 @@ export default function PropertyDetailScreen() {
           api.getPropertyPlots(id as string).catch(() => []),
         ]);
 
-        const normalized = normalizePropertyRecord(propertyPayload);
+        const normalized = enrichProperty(normalizePropertyRecord(propertyPayload));
         const plots = Array.isArray(plotPayload) ? plotPayload : [];
 
         if (active) {
@@ -67,7 +63,7 @@ export default function PropertyDetailScreen() {
         }
       } catch {
         if (active) {
-          setProperty(buildFallbackProperty(id));
+          setProperty(null);
         }
       } finally {
         if (active) setLoading(false);

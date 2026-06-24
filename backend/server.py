@@ -915,6 +915,9 @@ class AgentFirebaseAuthReq(BaseModel):
     id_token: str
     phone: str
 
+class AgentAccessStatusReq(BaseModel):
+    phone: str
+
 class SendOtpReq(BaseModel):
     phone: str
 
@@ -2561,10 +2564,24 @@ async def apply_agent_access(req: AgentApplicationReq):
 
     if existing:
         if not is_agent_role(existing.get("role")):
-            raise HTTPException(
-                status_code=409,
-                detail="This phone number is already linked to a customer account. Ask your manager to convert it into an agent account.",
-            )
+            application_updates["auth_methods"] = auth_methods_union(existing.get("auth_methods"), "agent_application")
+            application_updates["review_notes"] = ""
+            application_updates["reviewed_at"] = None
+            application_updates["reviewed_by_manager"] = None
+            application_updates["approved_by_manager"] = None
+            if await is_database_available():
+                await db.users.update_one({"_id": existing["_id"]}, {"$set": application_updates})
+                updated = await db.users.find_one({"_id": existing["_id"]}, {"_id": 0})
+            else:
+                existing.update(application_updates)
+                local_save_user(existing)
+                updated = local_find_user(user_id=existing["id"])
+            return {
+                "success": True,
+                "already_approved": False,
+                "message": "Agent application submitted. Manager approval is required before login.",
+                "agent": clean_user(updated or existing),
+            }
         if existing.get("approval_status") == "approved":
             return {
                 "success": True,
@@ -2617,6 +2634,54 @@ async def apply_agent_access(req: AgentApplicationReq):
         "already_approved": False,
         "message": "Agent application submitted. Manager approval is required before login.",
         "agent": clean_user(agent),
+    }
+
+
+@api_router.post("/auth/agent/status")
+async def agent_access_status(req: AgentAccessStatusReq):
+    phone = normalize_phone(req.phone)
+
+    if await is_database_available():
+        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        user = local_find_user(phone=phone)
+    else:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+
+    if not user:
+        return {
+            "phone": phone,
+            "exists": False,
+            "role": None,
+            "approval_status": None,
+            "can_login": False,
+            "message": "No agent account exists for this phone number yet.",
+        }
+
+    role = user.get("role")
+    approval_status = str(user.get("approval_status") or "pending").strip().lower() if is_agent_role(role) else None
+    if not is_agent_role(role):
+        return {
+            "phone": phone,
+            "exists": True,
+            "role": role,
+            "approval_status": None,
+            "can_login": False,
+            "message": "This phone number belongs to a non-agent account and cannot open the agent dashboard.",
+        }
+
+    return {
+        "phone": phone,
+        "exists": True,
+        "role": role,
+        "approval_status": approval_status,
+        "can_login": approval_status == "approved" and str(user.get("status") or "active").lower() != "suspended",
+        "message": (
+            "This phone number is approved for agent login."
+            if approval_status == "approved"
+            else agent_approval_error_message(user)
+        ),
+        "agent": clean_user(user),
     }
 
 

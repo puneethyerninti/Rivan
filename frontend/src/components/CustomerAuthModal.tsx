@@ -10,12 +10,11 @@ import {
   TextInputProps,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import { Button } from "@/src/components/Button";
+import { AuthSplitShell } from "@/src/components/AuthSplitShell";
 import { useAuth } from "@/src/auth-context";
 import { api, warmBackendReady } from "@/src/api";
 import {
@@ -25,6 +24,7 @@ import {
   hasFirebaseConfig,
 } from "@/src/firebase";
 import { colors, radii, shadow, spacing, typography } from "@/src/theme";
+import { blurActiveWebElement } from "@/src/utils/web-focus";
 
 type Props = {
   visible: boolean;
@@ -47,8 +47,6 @@ export default function CustomerAuthModal({
 }: Props) {
   const { signIn } = useAuth();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isWide = width >= 1080;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [phone, setPhone] = useState("");
@@ -96,6 +94,7 @@ export default function CustomerAuthModal({
   }, [visible]);
 
   function handleSuccess() {
+    blurActiveWebElement();
     resetTransientState();
     onSuccess?.();
     onClose();
@@ -245,7 +244,9 @@ export default function CustomerAuthModal({
 
   function showFormError(message: string) {
     setErrorMessage(message);
-    Alert.alert("Authentication", message);
+    if (Platform.OS !== "web") {
+      Alert.alert("Authentication", message);
+    }
   }
 
   return (
@@ -253,63 +254,30 @@ export default function CustomerAuthModal({
       <View style={styles.root}>
         <View style={[styles.backdrop, Platform.OS === "web" ? ({ backdropFilter: "blur(16px)" } as any) : null]} />
         <View style={styles.centerWrap}>
-          <View style={[styles.card, isWide && styles.cardWide]}>
-            <View style={[styles.brandPanel, isWide && styles.brandPanelWide]}>
-              <Text style={styles.brandEyebrow}>Rivan Customer Access</Text>
-              <Text style={styles.brandTitle}>
-                {mode === "signup" ? "Create your account in one quick step." : "Sign in and get back to browsing fast."}
-              </Text>
-              <Text style={styles.brandText}>
-                Save properties, raise enquiries, and continue exactly where you left off.
-              </Text>
-              <View style={styles.brandPoints}>
-                <View style={styles.brandPoint}>
-                  <Feather name="map-pin" size={16} color={colors.accentLight} />
-                  <Text style={styles.brandPointText}>Browse projects first, unlock details only when needed</Text>
-                </View>
-                <View style={styles.brandPoint}>
-                  <Feather name="shield" size={16} color={colors.accentLight} />
-                  <Text style={styles.brandPointText}>Secure OTP access from the same simple screen</Text>
-                </View>
-                <View style={styles.brandPoint}>
-                  <Feather name="bookmark" size={16} color={colors.accentLight} />
-                  <Text style={styles.brandPointText}>Continue straight into saved actions after authentication</Text>
-                </View>
-              </View>
-            </View>
-
-            <ScrollView
-              style={styles.formPanel}
-              contentContainerStyle={styles.cardContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.cardTop}>
-                <View style={styles.headings}>
-                  <Text style={styles.eyebrow}>{mode === "signup" ? "Create account" : "Customer login"}</Text>
-                  <Text style={styles.title}>{mode === "signup" ? "Create account" : "Simple login"}</Text>
-                  <Text style={styles.subtitle}>
-                    Quick sign-in with phone OTP.
-                  </Text>
-                </View>
-                <View style={styles.topActions}>
-                  <TouchableOpacity
-                    style={styles.homeButton}
-                    onPress={() => {
-                      onClose();
-                      router.replace("/");
-                    }}
-                    testID="auth-modal-home"
-                  >
-                    <Feather name="arrow-left" size={16} color={colors.primaryDeepest} />
-                    <Text style={styles.homeButtonText}>Home</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.closeButton} onPress={onClose} testID="auth-modal-close">
-                    <Feather name="x" size={18} color={colors.stone700} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
+          <AuthSplitShell
+            eyebrow="Rivan Customer Access"
+            title={mode === "signup" ? "Create your account in one quick step." : "Sign in and get back to browsing fast."}
+            body="Save properties, raise enquiries, and continue exactly where you left off."
+            points={[
+              { icon: "map-pin", text: "Browse projects first, unlock details only when needed" },
+              { icon: "shield", text: "Secure OTP access from the same simple screen" },
+              { icon: "bookmark", text: "Continue straight into saved actions after authentication" },
+            ]}
+            formEyebrow={mode === "signup" ? "Create account" : "Customer login"}
+            formTitle={mode === "signup" ? "Simple signup" : "Simple login"}
+            formSubtitle="Quick sign-in with phone OTP."
+            onHome={() => {
+              blurActiveWebElement();
+              onClose();
+              router.replace("/");
+            }}
+            onClose={() => {
+              blurActiveWebElement();
+              onClose();
+            }}
+            scrollable={false}
+          >
+            <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {errorMessage ? (
                 <View style={styles.errorBanner}>
                   <Feather name="alert-circle" size={14} color={colors.danger} />
@@ -318,70 +286,76 @@ export default function CustomerAuthModal({
               ) : null}
 
               <View style={styles.section}>
-                  <InputField
-                    label="Phone Number"
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    placeholder="Enter 10-digit mobile number"
-                    leftAdornment={<Text style={styles.phonePrefix}>+91</Text>}
-                  />
-                  <InputField
-                    label="Name"
-                    value={phoneName}
-                    onChangeText={setPhoneName}
-                    autoCapitalize="words"
-                    placeholder="Rajesh Kumar"
-                  />
-                  {isLocalhostWeb && !otpSent ? (
-                    <Text style={styles.recaptchaHint}>
-                      {useFirebaseTestPhoneAuth
-                        ? recaptchaReady
-                          ? recaptchaSolved
-                            ? "Verification complete. You can send OTP now."
-                            : "Complete the reCAPTCHA box shown at the bottom-right."
-                          : "Loading verification..."
-                        : "Use the hosted site for real OTPs. On localhost, use Firebase test phone numbers only."}
-                    </Text>
-                  ) : null}
+                <InputField
+                  label="Phone Number"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  placeholder="Enter 10-digit mobile number"
+                  leftAdornment={<Text style={styles.phonePrefix}>+91</Text>}
+                />
+                <InputField
+                  label="Name"
+                  value={phoneName}
+                  onChangeText={setPhoneName}
+                  autoCapitalize="words"
+                  placeholder="Rajesh Kumar"
+                />
+                {isLocalhostWeb && !otpSent ? (
+                  <Text style={styles.recaptchaHint}>
+                    {useFirebaseTestPhoneAuth
+                      ? recaptchaReady
+                        ? recaptchaSolved
+                          ? "Verification complete. You can send OTP now."
+                          : "Complete the reCAPTCHA box shown at the bottom-right."
+                        : "Loading verification..."
+                      : "Use the hosted site for real OTPs. On localhost, use Firebase test phone numbers only."}
+                  </Text>
+                ) : null}
 
-                  {otpSent ? (
-                    <>
-                      <Text style={styles.otpLabel}>Enter OTP sent to {otpSentToPhone}</Text>
-                      <View style={styles.otpRow}>
-                        {otp.map((digit, index) => (
-                          <TextInput
-                            key={index}
-                            ref={(input) => {
-                              otpRefs.current[index] = input;
-                            }}
-                            style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
-                            keyboardType="number-pad"
-                            maxLength={1}
-                            value={digit}
-                            onChangeText={(text) => handleOtpChange(index, text)}
-                          />
-                        ))}
-                      </View>
-                      <Button title="Verify OTP" onPress={handleVerifyOtp} loading={loading} />
-                      <TouchableOpacity onPress={handleSendOtp} disabled={otpCooldownSeconds > 0 || loading} style={styles.resend}>
-                        <Text style={styles.resendText}>
-                          {otpCooldownSeconds > 0 ? `Resend in ${otpCooldownSeconds}s` : "Resend OTP"}
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <Button
-                      title={mode === "signup" ? "Create with OTP" : "Continue"}
-                      onPress={handleSendOtp}
-                      loading={loading}
-                      disabled={otpCooldownSeconds > 0 || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved))}
-                    />
-                  )}
+                {otpSent ? (
+                  <>
+                    <Text style={styles.otpLabel}>Enter OTP sent to {otpSentToPhone}</Text>
+                    <View style={styles.otpRow}>
+                      {otp.map((digit, index) => (
+                        <TextInput
+                          key={index}
+                          ref={(input) => {
+                            otpRefs.current[index] = input;
+                          }}
+                          style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                          keyboardType="number-pad"
+                          maxLength={1}
+                          value={digit}
+                          onChangeText={(text) => handleOtpChange(index, text)}
+                        />
+                      ))}
+                    </View>
+                    <TouchableOpacity style={styles.primaryButton} onPress={handleVerifyOtp} disabled={loading}>
+                      <Text style={styles.primaryButtonText}>{loading ? "Verifying..." : "Verify OTP"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSendOtp} disabled={otpCooldownSeconds > 0 || loading} style={styles.resend}>
+                      <Text style={styles.resendText}>{otpCooldownSeconds > 0 ? `Resend in ${otpCooldownSeconds}s` : "Resend OTP"}</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      otpCooldownSeconds > 0 || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved))
+                        ? styles.primaryButtonDisabled
+                        : null,
+                    ]}
+                    onPress={handleSendOtp}
+                    disabled={otpCooldownSeconds > 0 || loading || (useFirebaseTestPhoneAuth && (!recaptchaReady || !recaptchaSolved))}
+                  >
+                    <Text style={styles.primaryButtonText}>{loading ? "Please wait..." : mode === "signup" ? "Create with OTP" : "Continue"}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </ScrollView>
-          </View>
+          </AuthSplitShell>
         </View>
       </View>
     </Modal>
@@ -558,6 +532,17 @@ const styles = StyleSheet.create({
     borderColor: "#EDC1B8",
   },
   errorBannerText: { flex: 1, ...typography.small, color: colors.rejectedText, fontWeight: "600", lineHeight: 20 },
+  primaryButton: {
+    minHeight: 58,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    ...shadow.md,
+  },
+  primaryButtonDisabled: { opacity: 0.55 },
+  primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: "800" },
   otpLabel: { ...typography.small, color: colors.stone600, fontWeight: "700" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   otpBox: {
