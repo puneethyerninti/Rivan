@@ -5308,7 +5308,19 @@ async def seed_data():
 
 
 # ---------- Lifecycle ----------
+def log_registered_auth_routes() -> None:
+    auth_routes: List[str] = []
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/auth/"):
+            continue
+        methods = ",".join(sorted(getattr(route, "methods", []) or []))
+        auth_routes.append(f"{path} [{methods}]")
+    logger.info("Registered auth routes: %s", "; ".join(sorted(auth_routes)))
+
+
 app.include_router(api_router)
+log_registered_auth_routes()
 
 app.add_middleware(
     CORSMiddleware,
