@@ -51,6 +51,8 @@ export default function AgentApplyScreen() {
   const initialPhone = typeof params.phone === "string" ? params.phone.replace(/\D/g, "").slice(-10) : "";
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, phone: initialPhone });
   const [loading, setLoading] = useState(false);
+  const [submissionMessage, setSubmissionMessage] = useState("");
+  const [submittedPhone, setSubmittedPhone] = useState("");
 
   const phoneDigits = useMemo(() => form.phone.replace(/\D/g, "").slice(-10), [form.phone]);
 
@@ -59,6 +61,7 @@ export default function AgentApplyScreen() {
   }
 
   async function submitApplication() {
+    setSubmissionMessage("");
     if (!form.name.trim()) {
       Alert.alert("Agent application", "Please enter your full name.");
       return;
@@ -94,13 +97,8 @@ export default function AgentApplyScreen() {
         router.replace({ pathname: "/agent-login", params: { phone: `+91${phoneDigits}`, application: "approved" } });
         return;
       }
-      Alert.alert("Application submitted", response.message || "Your agent application has been sent for manager approval.", [
-        {
-          text: "Continue",
-          onPress: () =>
-            router.replace({ pathname: "/agent-login", params: { phone: `+91${phoneDigits}`, application: "submitted" } }),
-        },
-      ]);
+      setSubmittedPhone(`+91${phoneDigits}`);
+      setSubmissionMessage(response.message || "Agent application submitted. Manager approval is required before login.");
     } catch (error: any) {
       Alert.alert("Agent application", error?.message || "Unable to submit your application right now.");
     } finally {
@@ -149,6 +147,33 @@ export default function AgentApplyScreen() {
                   <Text style={styles.backLink}>Back to Agent Login</Text>
                 </TouchableOpacity>
               </View>
+
+              {submissionMessage ? (
+                <View style={styles.successCard}>
+                  <View style={styles.successIcon}>
+                    <Feather name="check" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.successCopy}>
+                    <Text style={styles.successTitle}>Application submitted successfully</Text>
+                    <Text style={styles.successBody}>{submissionMessage}</Text>
+                    <Text style={styles.successBody}>Awaiting manager approval.</Text>
+                    <Text style={styles.successBody}>
+                      The same phone number {submittedPhone || `+91${phoneDigits}`} can be used after approval.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.successButton}
+                    onPress={() =>
+                      router.replace({
+                        pathname: "/agent-login",
+                        params: { phone: submittedPhone || `+91${phoneDigits}`, application: "submitted" },
+                      })
+                    }
+                  >
+                    <Text style={styles.successButtonText}>Back to agent login</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
 
               <View style={styles.fieldGrid}>
                 <View style={styles.field}>
@@ -333,6 +358,35 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "800" },
   cardSubtitle: { ...typography.body, color: colors.stone500, lineHeight: 24, maxWidth: 560 },
   backLink: { color: colors.primary, fontWeight: "700" },
+  successCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: "rgba(26,122,74,0.18)",
+    backgroundColor: "#F3FAF5",
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  successIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(26,122,74,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successCopy: { gap: spacing.xs },
+  successTitle: { ...typography.h4, color: colors.primaryDeepest },
+  successBody: { ...typography.body, color: colors.stone600, lineHeight: 22 },
+  successButton: {
+    alignSelf: "flex-start",
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successButtonText: { ...typography.body, color: colors.white, fontWeight: "800" },
   fieldGrid: { flexDirection: "row", gap: spacing.md, flexWrap: "wrap" },
   field: { flex: 1, minWidth: 240, gap: spacing.sm },
   label: { ...typography.label, color: colors.primaryDeepest },

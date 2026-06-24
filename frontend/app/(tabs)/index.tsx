@@ -125,6 +125,29 @@ export function HomeScreen() {
       .slice(0, 3);
   }, [curatedProperties, selectedLocation, selectedPropertyType]);
 
+  const searchBarLayoutStyle = useMemo(
+    () =>
+      isDesktop
+        ? null
+        : ({
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+          } as const),
+    [isDesktop]
+  );
+
+  const featuredGridLayoutStyle = useMemo(
+    () =>
+      isDesktop
+        ? null
+        : ({
+            display: "flex",
+            flexDirection: "column",
+          } as const),
+    [isDesktop]
+  );
+
   const openAuth = useCallback((mode: "login" | "signup") => {
     blurActiveWebElement();
     setAuthMode(mode);
@@ -272,7 +295,7 @@ export function HomeScreen() {
 
       <Modal visible={menuOpen && !isDesktop} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuCard}>{mobileMenuContent}</Pressable>
+          <Pressable style={[styles.menuCard, isPhone && styles.menuCardPhone]}>{mobileMenuContent}</Pressable>
         </Pressable>
       </Modal>
 
@@ -306,7 +329,7 @@ export function HomeScreen() {
           <View style={styles.navDesktop}>{navContent}</View>
         ) : (
           <View style={[styles.navMobile, isPhone && styles.navMobilePhone]}>
-            <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
+            <TouchableOpacity style={[styles.logoWrap, isPhone && styles.logoWrapPhone]} onPress={() => scrollToSection("top")}>
               <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
               <View>
                 <Text style={styles.logoText}>Rivan</Text>
@@ -371,22 +394,22 @@ export function HomeScreen() {
           </View>
 
           <View style={[styles.heroSearchWrap, isPhone && styles.heroSearchWrapPhone]}>
-            <View style={[styles.searchBarInline, isPhone && styles.searchBarInlinePhone]}>
-              <View style={styles.searchField}>
+            <View style={[styles.searchBarInline, searchBarLayoutStyle, isPhone && styles.searchBarInlinePhone]}>
+              <View style={[styles.searchField, isPhone && styles.searchFieldPhone]}>
                 <Text style={styles.searchLabel}>Location</Text>
                 <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
                   <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedLocation}</Text>
                   <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
-              <View style={styles.searchField}>
+              <View style={[styles.searchField, isPhone && styles.searchFieldPhone]}>
                 <Text style={styles.searchLabel}>Property type</Text>
                 <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("type")}>
                   <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedPropertyType}</Text>
                   <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.btnSearchWide} onPress={() => scrollToSection("featured")}>
+              <TouchableOpacity style={[styles.btnSearchWide, isPhone && styles.btnSearchWidePhone]} onPress={() => scrollToSection("featured")}>
                 <Feather name="search" size={18} color={colors.white} />
                 <Text style={styles.btnSearchWideText}>Show properties</Text>
               </TouchableOpacity>
@@ -417,7 +440,7 @@ export function HomeScreen() {
               <Text style={styles.loadingText}>No live property is available right now.</Text>
             </View>
           ) : (
-            <View style={[styles.cardsGrid, !isDesktop && styles.cardsGridMobile]}>
+            <View style={[styles.cardsGrid, featuredGridLayoutStyle, !isDesktop && styles.cardsGridMobile]}>
               {filteredProperties.map((property, index) => (
                 <TouchableOpacity
                   key={property.id}
@@ -441,7 +464,7 @@ export function HomeScreen() {
                     ) : null}
                   </View>
 
-                  <View style={styles.propBody}>
+                  <View style={[styles.propBody, isPhone && styles.propBodyPhone]}>
                     <Text style={styles.propPrice}>
                       {property.startingPrice ? formatINR(property.startingPrice) : "On request"}
                     </Text>
@@ -578,6 +601,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    flexShrink: 0,
   },
   mobileAuthButton: {
     minHeight: 38,
@@ -613,6 +637,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   logoWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
+  logoWrapPhone: { flex: 1, minWidth: 0 },
   navLogoImage: { width: 38, height: 38, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)" },
   logoText: {
     color: colors.white,
@@ -689,6 +714,13 @@ const styles = StyleSheet.create({
     width: "auto",
     maxWidth: 360,
     alignSelf: "flex-end",
+  },
+  menuCardPhone: {
+    marginTop: 80,
+    marginHorizontal: 16,
+    maxWidth: 9999,
+    alignSelf: "stretch",
+    borderRadius: 18,
   },
   mobileMenuStack: {
     gap: 10,
@@ -906,6 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   searchField: { flex: 1 },
+  searchFieldPhone: { width: "100%" },
   searchLabel: {
     color: "#6B7A6E",
     fontSize: 10,
@@ -946,6 +979,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
   },
+  btnSearchWidePhone: { width: "100%" },
   btnSearchWideText: {
     color: colors.white,
     fontSize: 13,
@@ -1110,6 +1144,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   propBody: { padding: 22 },
+  propBodyPhone: { padding: 16 },
   propPrice: {
     color: colors.primaryDeepest,
     fontSize: 24,

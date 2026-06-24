@@ -28,6 +28,8 @@ function statusLabel(value?: string) {
 export default function AdminScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const normalizedRole = String(user?.role || "").toLowerCase();
+  const hasAdminAccess = Boolean(user?.is_admin) || ["admin", "manager", "super_admin"].includes(normalizedRole);
 
   const [agents, setAgents] = useState<any[]>([]);
   const [visits, setVisits] = useState<any[]>([]);
@@ -117,7 +119,7 @@ export default function AdminScreen() {
     router.replace("/");
   }
 
-  if (!user?.is_admin) {
+  if (!hasAdminAccess) {
     return (
       <SafeAreaProviderView style={styles.safe}>
         <View style={styles.emptyState}>
@@ -194,8 +196,14 @@ export default function AdminScreen() {
                   <View style={styles.recordBody}>
                     <Text style={styles.recordTitle}>{agent.name || "Agent application"}</Text>
                     <Text style={styles.recordMeta}>{agent.phone || "-"}</Text>
+                    {agent.email ? <Text style={styles.recordMeta}>{agent.email}</Text> : null}
                     {agent.agent_brand_name ? <Text style={styles.recordMeta}>{agent.agent_brand_name}</Text> : null}
                     {agent.occupation ? <Text style={styles.recordMeta}>{agent.occupation}</Text> : null}
+                    {agent.address ? <Text style={styles.recordMeta}>{agent.address}</Text> : null}
+                    {agent.application_notes ? <Text style={styles.recordMeta}>{agent.application_notes}</Text> : null}
+                    {agent.agent_application_submitted_at ? (
+                      <Text style={styles.recordMeta}>Submitted {new Date(agent.agent_application_submitted_at).toLocaleString()}</Text>
+                    ) : null}
                   </View>
                   <View style={styles.recordActions}>
                     <TouchableOpacity style={styles.secondaryMiniButton} onPress={() => handleReject(agent.id)}>

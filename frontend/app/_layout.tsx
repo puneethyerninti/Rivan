@@ -20,6 +20,10 @@ function RootLayoutInner() {
   const { user, isLoading, isAuthed } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+  const normalizedRole = String(user?.role || "").toLowerCase();
+  const isAdminUser = Boolean(user?.is_admin) || ["admin", "manager", "super_admin"].includes(normalizedRole);
+  const isApprovedAgent =
+    ["agent", "sub_agent"].includes(normalizedRole) && String(user?.approval_status || "").toLowerCase() === "approved";
 
   useEffect(() => {
     if (isLoading) return;
@@ -30,15 +34,15 @@ function RootLayoutInner() {
       return;
     }
 
-    if (isAuthed && rootSegment === "admin" && !user?.is_admin) {
+    if (isAuthed && rootSegment === "admin" && !isAdminUser) {
       router.replace("/admin-login");
       return;
     }
 
-    if (!isAuthed && rootSegment === "agent" && Platform.OS !== "web") {
+    if (rootSegment === "agent" && !isApprovedAgent) {
       router.replace("/agent-login");
     }
-  }, [isAuthed, isLoading, router, segments, user]);
+  }, [isAdminUser, isApprovedAgent, isAuthed, isLoading, router, segments]);
 
   if (isLoading) {
     return (
