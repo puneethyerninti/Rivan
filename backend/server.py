@@ -70,7 +70,7 @@ MONGO_URL = require_env("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME", "rivaan")
 JWT_SECRET = require_env("JWT_SECRET")
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
-ALLOW_LOCAL_AUTH_FALLBACK = get_env_bool("ALLOW_LOCAL_AUTH_FALLBACK", True)
+ALLOW_LOCAL_AUTH_FALLBACK = get_env_bool("ALLOW_LOCAL_AUTH_FALLBACK", False)
 MONGO_SERVER_SELECTION_TIMEOUT_MS = int(os.environ.get("MONGO_SERVER_SELECTION_TIMEOUT_MS", "15000"))
 MONGO_CONNECT_TIMEOUT_MS = int(os.environ.get("MONGO_CONNECT_TIMEOUT_MS", "15000"))
 MONGO_SOCKET_TIMEOUT_MS = int(os.environ.get("MONGO_SOCKET_TIMEOUT_MS", "20000"))
@@ -296,13 +296,12 @@ def ensure_local_demo_users() -> None:
             "email": "admin@rivanreality.com",
             "phone": "+919491348973",
             "role": "admin",
-            "auth_methods": ["email"],
+            "auth_methods": ["phone"],
             "address": "Rivan HQ, Hyderabad",
             "kyc_status": "verified",
             "is_admin": True,
             "email_verified": True,
             "phone_verified": True,
-            "password_hash": hash_password("Admin@123"),
             "created_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat(),
             "last_login_at": now_utc().isoformat(),
@@ -440,13 +439,12 @@ async def sync_demo_auth_users_to_db() -> None:
             "email": "admin@rivanreality.com",
             "phone": "+919491348973",
             "role": "admin",
-            "auth_methods": ["email"],
+            "auth_methods": ["phone"],
             "address": "Rivan HQ, Hyderabad",
             "kyc_status": "verified",
             "is_admin": True,
             "email_verified": True,
             "phone_verified": True,
-            "password_hash": hash_password("Admin@123"),
             "created_at": timestamp,
             "updated_at": timestamp,
             "last_login_at": timestamp,
@@ -874,9 +872,24 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
 
 async def get_admin_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
     user = await get_current_user(token)
-    if not user.get("is_admin"):
+    if not has_admin_access(user):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+def has_admin_access(user: Dict[str, Any]) -> bool:
+    role = str(user.get("role") or "").strip().lower()
+    return bool(user.get("is_admin")) or role in {"admin", "manager", "super_admin"}
+
+
+def admin_access_is_active(user: Dict[str, Any]) -> bool:
+    status_value = str(user.get("status") or "active").strip().lower()
+    approval_status = str(user.get("approval_status") or "approved").strip().lower()
+    return status_value not in {"inactive", "rejected", "suspended"} and approval_status not in {
+        "pending",
+        "rejected",
+        "suspended",
+    }
 
 
 def is_agent_role(role: Optional[str]) -> bool:
@@ -915,6 +928,10 @@ class AgentFirebaseAuthReq(BaseModel):
     id_token: str
     phone: str
 
+class AdminFirebaseAuthReq(BaseModel):
+    id_token: str
+    phone: str
+
 class AgentAccessStatusReq(BaseModel):
     phone: str
 
@@ -934,10 +951,6 @@ class RegisterReq(BaseModel):
 class LoginReq(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-
-class AdminLoginReq(BaseModel):
-    phone: str = Field(min_length=8, max_length=20)
-    password: str = Field(min_length=6, max_length=128)
 
 class GoogleAuthReq(BaseModel):
     id_token: str = Field(min_length=20)
@@ -2442,67 +2455,27 @@ async def login(req: LoginReq):
     return await issue_token_response(user)
 
 
-@api_router.post("/auth/admin/login", response_model=TokenResp)
-async def admin_login(req: AdminLoginReq):
+@api_router.post("/auth/admin/status")
+async def admin_access_status(req: AgentAccessStatusReq):
     phone = normalize_phone(req.phone)
-    if await is_database_available():
-        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
-    elif ALLOW_LOCAL_AUTH_FALLBACK:
-        ensure_local_demo_users()
-        user = local_find_user(phone=phone)
-    else:
+    if not await is_database_available():
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
-    if not user or not user.get("password_hash") or not user.get("is_admin"):
-        raise HTTPException(status_code=401, detail="Invalid admin phone or password")
-    if not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid admin phone or password")
-
-    timestamp = now_utc().isoformat()
-    if await is_database_available():
-        await db.users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"updated_at": timestamp, "last_login_at": timestamp, "phone_verified": True}},
-        )
-        refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
-        return await issue_token_response(refreshed)
-
-    if not ALLOW_LOCAL_AUTH_FALLBACK:
-        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
-    user["updated_at"] = timestamp
-    user["last_login_at"] = timestamp
-    user["phone_verified"] = True
-    local_save_user(user)
-    return await issue_token_response(user)
-
-
-@api_router.post("/auth/admin/demo-access", response_model=TokenResp)
-async def admin_demo_access():
-    if await is_database_available():
-        user = await db.users.find_one({"is_admin": True}, {"_id": 0})
-    elif ALLOW_LOCAL_AUTH_FALLBACK:
-        ensure_local_demo_users()
-        user = local_find_user(email="admin@rivanreality.com") or local_find_user(phone="+919491348973")
-    else:
-        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
-
-    if not user or not user.get("is_admin"):
-        raise HTTPException(status_code=404, detail="No seeded admin access is available for preview mode")
-
-    timestamp = now_utc().isoformat()
-    if await is_database_available():
-        await db.users.update_one(
-            {"id": user["id"]},
-            {"$set": {"updated_at": timestamp, "last_login_at": timestamp, "phone_verified": True}},
-        )
-        refreshed = await db.users.find_one({"id": user["id"]}, {"_id": 0})
-        return await issue_token_response(refreshed or user)
-
-    user["updated_at"] = timestamp
-    user["last_login_at"] = timestamp
-    user["phone_verified"] = True
-    local_save_user(user)
-    return await issue_token_response(user)
+    user = await db.users.find_one(
+        {"phone": {"$in": phone_identity_variants(phone)}},
+        {"_id": 0},
+    )
+    can_login = bool(user and has_admin_access(user) and admin_access_is_active(user))
+    return {
+        "phone": phone,
+        "exists": bool(user),
+        "can_login": can_login,
+        "message": (
+            "This mobile number is authorized for admin access."
+            if can_login
+            else "This mobile number is not authorized for admin access."
+        ),
+    }
 
 
 @api_router.post("/auth/send-otp")
@@ -2853,6 +2826,50 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq):
     local_save_user(user)
     logger.info("Agent Firebase phone auth succeeded for user_id=%s", user.get("id"))
     return await issue_token_response(user)
+
+
+@api_router.post("/auth/admin/firebase", response_model=TokenResp)
+async def admin_firebase_auth(req: AdminFirebaseAuthReq):
+    project_id = get_firebase_project_id()
+    if not project_id:
+        logger.error("Admin Firebase auth failed: Firebase project id is not configured")
+        raise HTTPException(status_code=500, detail="Firebase project is not configured")
+
+    try:
+        payload = verify_firebase_id_token(req.id_token, project_id)
+    except HTTPException as exc:
+        logger.warning("Admin Firebase auth token verification failed: %s", exc.detail)
+        raise
+
+    phone = normalize_phone(req.phone or payload.get("phone_number") or "")
+    token_phone = normalize_phone(payload.get("phone_number") or "")
+    if not phone or not token_phone:
+        raise HTTPException(status_code=400, detail="Firebase phone number is missing")
+    if token_phone != phone:
+        logger.warning("Admin Firebase auth rejected a phone/token mismatch")
+        raise HTTPException(status_code=401, detail="Firebase phone token does not match requested phone")
+    if not await is_database_available():
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+
+    user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+    if not user or not has_admin_access(user):
+        raise HTTPException(status_code=403, detail="This mobile number is not authorized for admin access")
+    if not admin_access_is_active(user):
+        raise HTTPException(status_code=403, detail="This admin account is not active")
+
+    timestamp = now_utc().isoformat()
+    updates = {
+        "firebase_uid": payload.get("user_id") or payload.get("sub"),
+        "phone": phone,
+        "phone_verified": True,
+        "updated_at": timestamp,
+        "last_login_at": timestamp,
+        "auth_methods": auth_methods_union(user.get("auth_methods"), "phone"),
+    }
+    await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
+    refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
+    logger.info("Admin Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
+    return await issue_token_response(refreshed or {**user, **updates})
 
 
 @api_router.get("/auth/me")
@@ -5193,10 +5210,9 @@ async def seed_data():
         "kyc_status": "verified",
         "is_admin": True,
         "role": "admin",
-        "password_hash": hash_password("Admin@123"),
         "email_verified": True,
         "phone_verified": True,
-        "auth_methods": ["email"],
+        "auth_methods": ["phone"],
         "updated_at": now_utc().isoformat(),
         "last_login_at": now_utc().isoformat(),
         "created_at": now_utc().isoformat(),

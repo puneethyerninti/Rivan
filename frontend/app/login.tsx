@@ -246,8 +246,8 @@ export default function LoginScreen() {
           { icon: "bookmark", text: "Continue straight into saved actions after authentication" },
         ]}
         formEyebrow="Customer login"
-        formTitle="Simple login"
-        formSubtitle="Quick sign-in with phone OTP."
+        formTitle="Customer login"
+        formSubtitle="Sign in with your mobile number."
         onHome={() => {
           blurActiveWebElement();
           router.replace("/");
@@ -383,12 +383,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F6F2",
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    borderRadius: 18,
-    minHeight: 82,
+    borderRadius: 16,
+    minHeight: 54,
     paddingHorizontal: spacing.lg,
   },
-  input: { flex: 1, paddingVertical: 14, fontSize: 17, color: colors.primaryDeepest },
-  phonePrefix: { color: colors.primaryDeepest, fontSize: 17, fontWeight: "700", marginRight: spacing.sm },
+  input: { flex: 1, paddingVertical: 10, fontSize: 15, color: colors.primaryDeepest },
+  phonePrefix: { color: colors.primaryDeepest, fontSize: 15, fontWeight: "700", marginRight: spacing.sm },
   errorBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -404,9 +404,9 @@ const styles = StyleSheet.create({
   otpLabel: { color: colors.stone600, fontSize: 13, fontWeight: "700" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   otpBox: {
-    width: 56,
-    height: 64,
-    borderRadius: 16,
+    width: 48,
+    height: 56,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.surface,
@@ -417,15 +417,15 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: { backgroundColor: colors.primarySoft },
   primaryButton: {
-    minHeight: 78,
-    borderRadius: 39,
+    minHeight: 52,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     ...shadow.md,
   },
   primaryButtonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: colors.white, fontSize: 17, fontWeight: "800" },
+  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: "800" },
   resend: { alignItems: "center", paddingVertical: spacing.xs },
   resendText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
 });

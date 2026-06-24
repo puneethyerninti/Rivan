@@ -24,13 +24,12 @@ import CustomerAuthModal from "@/src/components/CustomerAuthModal";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { type NormalizedProperty, normalizePropertyCollection } from "@/src/property-presenter";
 import { enrichPropertyCollection } from "@/src/real-property-overrides";
-import { colors, formatINR, shadow } from "@/src/theme";
+import { colors, fonts, formatINR, shadow } from "@/src/theme";
 import { blurActiveWebElement } from "@/src/utils/web-focus";
 
 const LOGO = require("../../assets/images/rivan-logo.png");
 
 const NAV_ITEMS = [
-  { key: "process", label: "How it works" },
   { key: "featured", label: "Properties" },
 ] as const;
 
@@ -56,7 +55,6 @@ export function HomeScreen() {
   const { width } = useWindowDimensions();
 
   const isDesktop = width >= 980;
-  const isWide = width >= 1200;
 
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -197,29 +195,6 @@ export function HomeScreen() {
     </>
   );
 
-  const processSteps = [
-    {
-      number: "01",
-      title: "Search real inventory",
-      description: "Browse active listings, verified details, and genuine project media from the live backend feed.",
-    },
-    {
-      number: "02",
-      title: "Review layout clarity",
-      description: "Open the layout viewer, understand plot positioning, and check availability without changing flows.",
-    },
-    {
-      number: "03",
-      title: "Schedule your visit",
-      description: "Continue into the existing site-visit workflow only when a property is worth your time.",
-    },
-    {
-      number: "04",
-      title: "Move to booking",
-      description: "Use the current booking and login journey once you are ready to act on a chosen property.",
-    },
-  ];
-
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primaryDeepest} />
@@ -278,15 +253,6 @@ export function HomeScreen() {
               from discovery to visit scheduling.
             </Text>
 
-            <View style={styles.ctaRow}>
-              <TouchableOpacity style={styles.btnPrimary} onPress={() => scrollToSection("featured")}>
-                <Text style={styles.btnPrimaryText}>Explore Listings</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnWhite} onPress={() => scrollToSection("process")}>
-                <Text style={styles.btnWhiteText}>How It Works</Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.heroStats}>
               <View>
                 <Text style={styles.hStatNum}>{properties.length || 0}</Text>
@@ -333,14 +299,13 @@ export function HomeScreen() {
             </View>
             <View style={styles.heroRightOverlay} />
 
-            {isDesktop ? (
-              <View style={styles.searchBar}>
+              <View style={[styles.searchBar, !isDesktop && styles.searchBarMobile]}>
                 <View style={styles.searchField}>
                   <Text style={styles.searchLabel}>Location</Text>
                   <TextInput
                     value={searchQuery}
                     onChangeText={setSearchQuery}
-                    placeholder={heroProperty?.location?.split(",")[0] || "Hyderabad"}
+                    placeholder="Siripuram, Tukkuguda, Shadnagar"
                     placeholderTextColor="#6B7A6E"
                     style={styles.searchInput}
                   />
@@ -353,24 +318,6 @@ export function HomeScreen() {
                   <Feather name="search" size={18} color={colors.white} />
                 </TouchableOpacity>
               </View>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.sectionSoft} nativeID="process">
-          <Text style={styles.sectionEye}>How It Works</Text>
-          <Text style={styles.sectionHeading}>A cleaner path from discovery to confident action.</Text>
-
-          <View style={[styles.stepsGrid, !isDesktop && styles.stepsGridMobile]}>
-            {processSteps.map((step) => (
-              <View key={step.number} style={styles.step}>
-                <View style={styles.stepCircle}>
-                  <Text style={styles.stepN}>{step.number}</Text>
-                </View>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepDesc}>{step.description}</Text>
-              </View>
-            ))}
           </View>
         </View>
 
@@ -480,7 +427,7 @@ export function HomeScreen() {
 
           <View style={styles.loginFormWrap}>
             <Text style={styles.formLogo}>Rivan Realty</Text>
-            <Text style={styles.formSub}>Continue into your customer account</Text>
+            <Text style={styles.formSub}>Sign in when you want to continue.</Text>
 
             <View style={styles.roleSwitch}>
               <View style={styles.roleSwitchActive}>
@@ -488,31 +435,26 @@ export function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.fgroup}>
-              <Text style={styles.flabel}>Account</Text>
-              <TextInput
-                editable={false}
-                value={user?.phone || user?.email || "Secure Firebase customer login"}
-                style={styles.finput}
-              />
-            </View>
-
-            <View style={styles.fgroup}>
-              <Text style={styles.flabel}>Flow</Text>
-              <TextInput editable={false} value="Existing OTP + backend profile session" style={styles.finput} />
-            </View>
+            {isAuthed ? (
+              <View style={styles.customerPill}>
+                <Text style={styles.customerPillText}>{user?.phone || user?.email || "Signed in"}</Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity style={styles.btnSignin} onPress={() => openAuth(isAuthed ? "login" : "signup")}>
               <Text style={styles.btnSigninText}>{isAuthed ? "Open Customer Profile" : "Login / Signup"}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.formDivider}>Customer homepage only. Existing agent and admin routes stay intact.</Text>
+            <Text style={styles.formDivider}>Customer access only. Agent and admin routes stay separate.</Text>
           </View>
         </View>
 
         <View style={styles.footer}>
           <View style={[styles.footerInner, !isDesktop && styles.footerInnerMobile]}>
-            <Text style={styles.footerLogo}>Rivan Realty</Text>
+            <TouchableOpacity style={styles.footerBrand} onPress={() => scrollToSection("top")}>
+              <Image source={LOGO} style={styles.footerLogoImage} resizeMode="contain" />
+              <Text style={styles.footerLogo}>Rivan Realty</Text>
+            </TouchableOpacity>
             <View style={styles.footerLinks}>
               <TouchableOpacity onPress={() => scrollToSection("top")}>
                 <Text style={styles.footerLink}>Home</Text>
@@ -525,7 +467,6 @@ export function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.footerCopy}>Live customer experience powered by the existing Rivan backend workflows.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -679,8 +620,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.white,
-    fontSize: Platform.OS === "web" ? 60 : 42,
-    lineHeight: Platform.OS === "web" ? 68 : 50,
+    fontSize: Platform.OS === "web" ? 48 : 38,
+    lineHeight: Platform.OS === "web" ? 56 : 46,
     fontWeight: "500",
     fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
     marginBottom: 24,
@@ -693,23 +634,6 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     marginBottom: 44,
   },
-  ctaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
-  btnPrimary: {
-    backgroundColor: "#C8A96E",
-    borderRadius: 60,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-  },
-  btnPrimaryText: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "600", letterSpacing: 1 },
-  btnWhite: {
-    backgroundColor: "rgba(255,255,255,0.09)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 60,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-  },
-  btnWhiteText: { color: colors.white, fontSize: 13, fontWeight: "500", letterSpacing: 1 },
   heroStats: {
     flexDirection: "row",
     gap: 40,
@@ -774,6 +698,17 @@ const styles = StyleSheet.create({
         } as any)
       : {}),
     ...shadow.lg,
+  },
+  searchBarMobile: {
+    position: "relative",
+    left: undefined,
+    bottom: undefined,
+    transform: [],
+    width: "auto",
+    maxWidth: "100%",
+    marginHorizontal: 18,
+    marginBottom: 18,
+    gap: 14,
   },
   searchField: { flex: 1 },
   searchLabel: {
@@ -1014,9 +949,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
     borderRadius: 24,
-    paddingHorizontal: 40,
-    paddingVertical: 44,
-    minWidth: isFinite(460) ? 0 : 0,
+    paddingHorizontal: 32,
+    paddingVertical: 32,
   },
   formLogo: {
     color: colors.primaryDeepest,
@@ -1029,6 +963,16 @@ const styles = StyleSheet.create({
   roleSwitch: { backgroundColor: "#F1F5F2", borderRadius: 10, padding: 5, marginBottom: 28 },
   roleSwitchActive: { backgroundColor: colors.white, borderRadius: 7, paddingVertical: 10, alignItems: "center" },
   roleSwitchText: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "600" },
+  customerPill: {
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 18,
+  },
+  customerPillText: { color: colors.primaryDeepest, fontSize: 14, fontWeight: "600" },
   fgroup: { marginBottom: 18 },
   flabel: {
     color: "#8A9A8E",
@@ -1079,9 +1023,10 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 21,
     fontWeight: "700",
-    fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
+    fontFamily: fonts.heading,
   },
+  footerBrand: { flexDirection: "row", alignItems: "center", gap: 12 },
+  footerLogoImage: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.white },
   footerLinks: { flexDirection: "row", gap: 28, flexWrap: "wrap" },
   footerLink: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  footerCopy: { color: "rgba(255,255,255,0.3)", fontSize: 12 },
 });

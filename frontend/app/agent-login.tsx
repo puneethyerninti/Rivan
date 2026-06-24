@@ -24,7 +24,7 @@ function normalizePublicEnv(value?: string) {
 
 export default function AgentLoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone?: string }>();
+  const params = useLocalSearchParams<{ phone?: string; application?: string }>();
   const { signIn } = useAuth();
 
   const isLocalhostWeb =
@@ -59,7 +59,12 @@ export default function AgentLoginScreen() {
     if (typeof params.phone === "string" && params.phone) {
       setPhone(params.phone.replace(/\D/g, "").slice(-10));
     }
-  }, [params.phone]);
+    if (params.application === "submitted") {
+      setHelperMessage("Application submitted successfully. You can sign in after manager approval.");
+    } else if (params.application === "approved") {
+      setHelperMessage("This number is already approved. Continue with OTP to sign in.");
+    }
+  }, [params.application, params.phone]);
 
   useEffect(() => {
     warmBackendReady();
@@ -287,8 +292,8 @@ export default function AgentLoginScreen() {
           { icon: "arrow-right-circle", text: "Move into the live agent dashboard after OTP verification" },
         ]}
         formEyebrow="Agent login"
-        formTitle="Simple agent entry"
-        formSubtitle="OTP-based access for approved agent numbers."
+        formTitle="Agent login"
+        formSubtitle="Use your approved mobile number."
         onHome={() => {
           blurActiveWebElement();
           router.replace("/");
@@ -337,6 +342,22 @@ export default function AgentLoginScreen() {
               />
             </View>
           </View>
+
+          {!otpSent ? (
+            <View style={styles.applyCard}>
+              <Text style={styles.applyTitle}>New agent?</Text>
+              <Text style={styles.applyText}>If this number is not approved yet, open the application form and submit your details for admin review.</Text>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => {
+                  blurActiveWebElement();
+                  router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>Open application form</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {!otpSent && helperMessage ? (
             <TouchableOpacity
@@ -440,21 +461,31 @@ const styles = StyleSheet.create({
   inputShell: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 82,
-    borderRadius: 18,
+    minHeight: 54,
+    borderRadius: 16,
     backgroundColor: "#F1F6F2",
     borderWidth: 1,
     borderColor: colors.borderSoft,
     paddingLeft: spacing.lg,
   },
-  phonePrefix: { color: colors.primaryDeepest, fontSize: 17, fontWeight: "700" },
-  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 12, color: colors.primaryDeepest, fontSize: 17 },
+  phonePrefix: { color: colors.primaryDeepest, fontSize: 15, fontWeight: "700" },
+  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 10, color: colors.primaryDeepest, fontSize: 15 },
+  applyCard: {
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  applyTitle: { color: colors.primaryDeepest, fontSize: 14, fontWeight: "800" },
+  applyText: { color: colors.stone500, fontSize: 13, lineHeight: 20 },
   otpLabel: { color: colors.stone600, fontSize: 13, fontWeight: "700" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   otpBox: {
-    width: 56,
-    height: 64,
-    borderRadius: 16,
+    width: 48,
+    height: 56,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.surface,
@@ -484,7 +515,7 @@ const styles = StyleSheet.create({
   },
   infoBannerText: { color: colors.primaryDeepest, fontSize: 13, lineHeight: 20, fontWeight: "600" },
   secondaryButton: {
-    minHeight: 58,
+    minHeight: 48,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
@@ -494,14 +525,14 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: { color: colors.primaryDeepest, fontSize: 15, fontWeight: "700" },
   primaryButton: {
-    minHeight: 78,
-    borderRadius: 39,
+    minHeight: 52,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     ...shadow.md,
   },
   primaryButtonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: colors.white, fontSize: 17, fontWeight: "800" },
+  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: "800" },
   localHint: { color: colors.stone600, fontSize: 13, lineHeight: 20 },
 });

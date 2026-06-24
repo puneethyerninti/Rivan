@@ -264,8 +264,8 @@ export default function CustomerAuthModal({
               { icon: "bookmark", text: "Continue straight into saved actions after authentication" },
             ]}
             formEyebrow={mode === "signup" ? "Create account" : "Customer login"}
-            formTitle={mode === "signup" ? "Simple signup" : "Simple login"}
-            formSubtitle="Quick sign-in with phone OTP."
+            formTitle={mode === "signup" ? "Create account" : "Customer login"}
+            formSubtitle="Sign in with your mobile number."
             onHome={() => {
               blurActiveWebElement();
               onClose();
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardContent: {
-    padding: spacing.xxl,
+    padding: spacing.xl,
     gap: spacing.md,
   },
   cardTop: {
@@ -503,11 +503,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderRadius: radii.md,
-    minHeight: 56,
+    minHeight: 50,
   },
   inputShellWithAdornment: { paddingLeft: spacing.lg },
   inputAdornment: { marginRight: spacing.sm },
-  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 12, fontSize: 16, color: colors.primaryDeepest },
+  input: { flex: 1, paddingHorizontal: spacing.lg, paddingVertical: 10, fontSize: 15, color: colors.primaryDeepest },
   inputWithAdornment: { paddingLeft: 0 },
   phonePrefix: { ...typography.body, color: colors.primaryDeepest, fontWeight: "700" },
   infoCard: {
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   errorBannerText: { flex: 1, ...typography.small, color: colors.rejectedText, fontWeight: "600", lineHeight: 20 },
   primaryButton: {
-    minHeight: 58,
+    minHeight: 52,
     borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: "center",
@@ -542,12 +542,12 @@ const styles = StyleSheet.create({
     ...shadow.md,
   },
   primaryButtonDisabled: { opacity: 0.55 },
-  primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: "800" },
+  primaryButtonText: { color: colors.white, fontSize: 15, fontWeight: "800" },
   otpLabel: { ...typography.small, color: colors.stone600, fontWeight: "700" },
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   otpBox: {
-    width: 48,
-    height: 56,
+    width: 44,
+    height: 50,
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: colors.border,

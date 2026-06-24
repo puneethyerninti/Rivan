@@ -64,8 +64,18 @@ export const radii = {
 };
 
 export const fonts = {
-  heading: "System" as const,
-  body: "System" as const,
+  heading: Platform.select({
+    web: "Avenir Next, Segoe UI, sans-serif",
+    ios: "Avenir Next",
+    android: "sans-serif-medium",
+    default: "System",
+  }) as string,
+  body: Platform.select({
+    web: "Avenir, Segoe UI, sans-serif",
+    ios: "Avenir",
+    android: "sans-serif",
+    default: "System",
+  }) as string,
 };
 
 export const typography = {
