@@ -262,9 +262,20 @@ export function HomeScreen() {
                 <Text style={styles.logoSup}>REALTY</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.mobileMenuButton} onPress={() => setMenuOpen(true)}>
-              <Feather name="menu" size={20} color={colors.white} />
-            </TouchableOpacity>
+            <View style={styles.navMobileActions}>
+              {isAuthed ? (
+                <TouchableOpacity style={styles.mobileProfileChip} onPress={() => router.push("/profile")}>
+                  <Text style={styles.mobileProfileChipText}>Profile</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.mobileAuthButton} onPress={() => openAuth("login")}>
+                  <Text style={styles.mobileAuthButtonText}>Login / Signup</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.mobileMenuButton} onPress={() => setMenuOpen(true)}>
+                <Feather name="menu" size={20} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -549,6 +560,41 @@ const styles = StyleSheet.create({
   },
   navMobilePhone: {
     gap: 8,
+  },
+  navMobileActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mobileAuthButton: {
+    minHeight: 38,
+    borderRadius: 19,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  mobileAuthButtonText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  mobileProfileChip: {
+    minHeight: 38,
+    borderRadius: 19,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileProfileChipText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
   },
   logoWrap: { flexDirection: "row", alignItems: "center", gap: 12 },
   navLogoImage: { width: 38, height: 38, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)" },
