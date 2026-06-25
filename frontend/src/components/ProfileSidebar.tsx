@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -66,16 +67,34 @@ export default function ProfileSidebar({
 }: Props) {
   const { updateUser } = useAuth();
   const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
   const isPhone = width < 640;
+  const [mounted, setMounted] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  function isPlaceholderEmail(value?: string) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return !normalized || normalized === "pendingagent@rivaan.com" || normalized.endsWith("@rivaan.com");
+  }
 
   useEffect(() => {
     setName(user?.name || "");
-    setEmail(user?.email || "");
+    setEmail(isPlaceholderEmail(user?.email) ? "" : String(user?.email || ""));
   }, [user]);
+
+  useEffect(() => {
+    if (!visible) {
+      setEditing(false);
+      setSaving(false);
+    }
+  }, [visible]);
 
   const roleLabel = useMemo(() => getRoleLabel(user), [user]);
   const kycVerified = String(user?.kyc_status || "").toLowerCase() === "verified";
@@ -84,7 +103,10 @@ export default function ProfileSidebar({
     setSaving(true);
     try {
       const payload: Record<string, any> = { name: name.trim() };
-      if (email.trim()) payload.email = email.trim();
+      const trimmedEmail = email.trim();
+      if (trimmedEmail && trimmedEmail !== String(user?.email || "").trim()) {
+        payload.email = trimmedEmail;
+      }
       const updatedUser = await api.updateProfile(payload);
       await updateUser(updatedUser);
       await onRefresh();
@@ -96,86 +118,100 @@ export default function ProfileSidebar({
     }
   }
 
+  const displayEmail = isPlaceholderEmail(user?.email) ? "Enter your email" : String(user?.email || "");
+
+  const sidebarBody = (
+    <View style={styles.overlay}>
+      <Pressable style={styles.backdrop} onPress={onClose} />
+      <View style={[styles.drawer, isPhone ? styles.drawerPhone : styles.drawerDesktop]}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>Account</Text>
+            <Text style={styles.title}>Profile</Text>
+          </View>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Feather name="x" size={18} color={colors.primaryDeepest} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.heroCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroName}>{user?.name || "Rivan User"}</Text>
+              <Text style={styles.heroMeta}>{user?.phone || "Phone not available"}</Text>
+              <Text style={styles.heroMeta}>{displayEmail}</Text>
+              <View style={styles.badgeRow}>
+                <View style={[styles.badge, kycVerified ? styles.badgeApproved : styles.badgePending]}>
+                  <Text style={[styles.badgeText, kycVerified ? styles.badgeTextApproved : styles.badgeTextPending]}>
+                    {kycVerified ? "KYC Verified" : "KYC Pending"}
+                  </Text>
+                </View>
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {editing ? (
+            <View style={styles.editCardInline}>
+              <View style={styles.editHeaderRow}>
+                <Text style={styles.editTitle}>Edit Profile</Text>
+                <TouchableOpacity style={styles.inlineCloseButton} onPress={() => setEditing(false)}>
+                  <Feather name="x" size={16} color={colors.primaryDeepest} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Full name</Text>
+                <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={colors.stone400} />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.stone400}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+              <View style={[styles.editActions, isPhone && styles.editActionsPhone]}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(false)}>
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.primaryButton, saving && styles.primaryButtonDisabled]} onPress={handleSave} disabled={saving}>
+                  <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.menuGroup}>
+            <SidebarRow icon="edit-2" label="Edit Profile" onPress={() => setEditing(true)} />
+            <SidebarRow icon="heart" label="Saved Properties" onPress={onSavedProperties} />
+            <SidebarRow icon="calendar" label="Site Visits" onPress={onSiteVisits} />
+            <SidebarRow icon="help-circle" label="Help & Support" onPress={onSupport} />
+          </View>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+            <Feather name="log-out" size={16} color={colors.danger} />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </View>
+  );
+
+  if (!mounted) return null;
+
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <View style={styles.overlay}>
-          <Pressable style={styles.backdrop} onPress={onClose} />
-          <View style={[styles.drawer, isPhone ? styles.drawerPhone : styles.drawerDesktop]}>
-            <View style={styles.header}>
-              <View>
-                <Text style={styles.eyebrow}>Account</Text>
-                <Text style={styles.title}>Profile</Text>
-              </View>
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <Feather name="x" size={18} color={colors.primaryDeepest} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-              {editing ? (
-                <View style={styles.editCardInline}>
-                  <View style={styles.editHeaderRow}>
-                    <Text style={styles.editTitle}>Edit Profile</Text>
-                    <TouchableOpacity style={styles.inlineCloseButton} onPress={() => setEditing(false)}>
-                      <Feather name="x" size={16} color={colors.primaryDeepest} />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Full name</Text>
-                    <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={colors.stone400} />
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Email</Text>
-                    <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.stone400} autoCapitalize="none" keyboardType="email-address" />
-                  </View>
-                  <View style={[styles.editActions, isPhone && styles.editActionsPhone]}>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(false)}>
-                      <Text style={styles.secondaryButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.primaryButton, saving && styles.primaryButtonDisabled]} onPress={handleSave} disabled={saving}>
-                      <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : null}
-
-              <View style={styles.heroCard}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-                </View>
-                <View style={styles.heroCopy}>
-                  <Text style={styles.heroName}>{user?.name || "Rivan User"}</Text>
-                  <Text style={styles.heroMeta}>{user?.phone || "Phone not available"}</Text>
-                  <Text style={styles.heroMeta}>{user?.email || "Email not added"}</Text>
-                  <View style={styles.badgeRow}>
-                    <View style={[styles.badge, kycVerified ? styles.badgeApproved : styles.badgePending]}>
-                      <Text style={[styles.badgeText, kycVerified ? styles.badgeTextApproved : styles.badgeTextPending]}>
-                        {kycVerified ? "KYC Verified" : "KYC Pending"}
-                      </Text>
-                    </View>
-                    <View style={styles.roleBadge}>
-                      <Text style={styles.roleBadgeText}>{roleLabel}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.menuGroup}>
-                <SidebarRow icon="edit-2" label="Edit Profile" onPress={() => setEditing(true)} />
-                <SidebarRow icon="heart" label="Saved Properties" onPress={onSavedProperties} />
-                <SidebarRow icon="calendar" label="Site Visits" onPress={onSiteVisits} />
-                <SidebarRow icon="help-circle" label="Help & Support" onPress={onSupport} />
-              </View>
-
-              <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-                <Feather name="log-out" size={16} color={colors.danger} />
-                <Text style={styles.logoutText}>Logout</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {isWeb ? (visible ? sidebarBody : null) : <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>{sidebarBody}</Modal>}
     </>
   );
 }
