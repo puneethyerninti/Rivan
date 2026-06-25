@@ -5,7 +5,7 @@ FastAPI + MongoDB customer platform with production auth flows.
 import asyncio
 import base64
 from collections import defaultdict, deque
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,6 +20,7 @@ import logging
 import time
 import json
 import hashlib
+import re
 import requests
 from pymongo.errors import OperationFailure
 
@@ -5631,6 +5632,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def origin_is_allowed(origin: Optional[str]) -> bool:
+    normalized = (origin or "").strip().rstrip("/")
+    if not normalized:
+        return False
+    if normalized in CORS_ORIGINS:
+        return True
+    if CORS_ORIGIN_REGEX:
+        try:
+            return re.fullmatch(CORS_ORIGIN_REGEX, normalized) is not None
+        except re.error:
+            logger.exception("Invalid CORS_ORIGIN_REGEX configured")
+    return False
+
+
+@app.middleware("http")
+async def ensure_cors_headers(request: Request, call_next):
+    origin = request.headers.get("origin")
+    allowed_origin = origin.strip().rstrip("/") if origin_is_allowed(origin) else None
+
+    if request.method == "OPTIONS" and allowed_origin:
+        response = Response(status_code=204)
+    else:
+        response = await call_next(request)
+
+    if allowed_origin:
+        response.headers["Access-Control-Allow-Origin"] = allowed_origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = request.headers.get(
+            "access-control-request-headers",
+            "Authorization,Content-Type,Accept,Origin,X-Requested-With",
+        )
+        response.headers["Vary"] = "Origin"
+
+    return response
 
 
 @app.on_event("startup")

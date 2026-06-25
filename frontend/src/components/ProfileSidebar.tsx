@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -114,6 +113,33 @@ export default function ProfileSidebar({
             </View>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {editing ? (
+                <View style={styles.editCardInline}>
+                  <View style={styles.editHeaderRow}>
+                    <Text style={styles.editTitle}>Edit Profile</Text>
+                    <TouchableOpacity style={styles.inlineCloseButton} onPress={() => setEditing(false)}>
+                      <Feather name="x" size={16} color={colors.primaryDeepest} />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Full name</Text>
+                    <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={colors.stone400} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Email</Text>
+                    <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.stone400} autoCapitalize="none" keyboardType="email-address" />
+                  </View>
+                  <View style={[styles.editActions, isPhone && styles.editActionsPhone]}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(false)}>
+                      <Text style={styles.secondaryButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.primaryButton, saving && styles.primaryButtonDisabled]} onPress={handleSave} disabled={saving}>
+                      <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+
               <View style={styles.heroCard}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
@@ -147,30 +173,6 @@ export default function ProfileSidebar({
                 <Text style={styles.logoutText}>Logout</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
-        <View style={styles.editOverlay}>
-          <View style={[styles.editCard, isPhone && styles.editCardPhone]}>
-            <Text style={styles.editTitle}>Edit Profile</Text>
-            <View style={styles.field}>
-              <Text style={styles.label}>Full name</Text>
-              <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={colors.stone400} />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="you@example.com" placeholderTextColor={colors.stone400} autoCapitalize="none" keyboardType="email-address" />
-            </View>
-            <View style={[styles.editActions, isPhone && styles.editActionsPhone]}>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(false)}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.primaryButton, saving && styles.primaryButtonDisabled]} onPress={handleSave} disabled={saving}>
-                <Text style={styles.primaryButtonText}>{saving ? "Saving..." : "Save"}</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -222,9 +224,30 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, ...typography.body, color: colors.primaryDeepest, fontWeight: "600" },
   logoutButton: { minHeight: 52, borderRadius: 18, borderWidth: 1, borderColor: "#F2C4C4", backgroundColor: colors.surface, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
   logoutText: { ...typography.body, color: colors.danger, fontWeight: "700" },
-  editOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.32)", justifyContent: "flex-end" },
-  editCard: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.xl, gap: spacing.lg },
-  editCardPhone: { padding: spacing.lg },
+  editCardInline: {
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  editHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  inlineCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   editTitle: { ...typography.h4, color: colors.primaryDeepest },
   field: { gap: spacing.sm },
   label: { ...typography.small, color: colors.stone500, fontWeight: "700" },
