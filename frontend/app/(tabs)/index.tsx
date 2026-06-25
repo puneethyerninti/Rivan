@@ -20,6 +20,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { api, warmBackendReady } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import CustomerAuthModal from "@/src/components/CustomerAuthModal";
+import ProfileSidebar from "@/src/components/ProfileSidebar";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
 import { type NormalizedProperty, normalizePropertyCollection } from "@/src/property-presenter";
 import { enrichPropertyCollection } from "@/src/real-property-overrides";
@@ -57,8 +58,8 @@ function getUserRoleLabel(user?: { role?: string; is_admin?: boolean } | null) {
 
 export function HomeScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ section?: string }>();
-  const { isAuthed, signOut, user } = useAuth();
+  const params = useLocalSearchParams<{ section?: string; profile?: string }>();
+  const { isAuthed, signOut, user, refresh } = useAuth();
   const { width } = useWindowDimensions();
 
   const isDesktop = width >= 980;
@@ -67,6 +68,7 @@ export function HomeScreen() {
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileVisible, setProfileVisible] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("All locations");
   const [selectedPropertyType, setSelectedPropertyType] = useState("All types");
@@ -205,6 +207,12 @@ export function HomeScreen() {
     return () => clearTimeout(timer);
   }, [params.section, scrollToSection]);
 
+  useEffect(() => {
+    if (params.profile === "1" && isAuthed) {
+      setProfileVisible(true);
+    }
+  }, [isAuthed, params.profile]);
+
   const navContent = (
     <>
       <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
@@ -244,7 +252,7 @@ export function HomeScreen() {
 
         {isAuthed ? (
           <>
-            <TouchableOpacity style={styles.profileChip} onPress={() => router.push("/profile")}>
+            <TouchableOpacity style={styles.profileChip} onPress={() => setProfileVisible(true)}>
               <View style={styles.profileAvatar}>
                 <Text style={styles.profileAvatarText}>{getUserInitials(user?.name)}</Text>
               </View>
@@ -297,7 +305,7 @@ export function HomeScreen() {
       </TouchableOpacity>
       {isAuthed ? (
         <>
-          <TouchableOpacity style={styles.mobileMenuLink} onPress={() => { setMenuOpen(false); router.push("/profile"); }}>
+          <TouchableOpacity style={styles.mobileMenuLink} onPress={() => { setMenuOpen(false); setProfileVisible(true); }}>
             <Text style={styles.mobileMenuLinkText}>Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -327,6 +335,28 @@ export function HomeScreen() {
         mode={authMode}
         onClose={() => setAuthVisible(false)}
         onSuccess={() => setAuthVisible(false)}
+      />
+      <ProfileSidebar
+        visible={profileVisible}
+        user={user}
+        onClose={() => setProfileVisible(false)}
+        onRefresh={refresh}
+        onSavedProperties={() => {
+          setProfileVisible(false);
+          router.push("/wishlist");
+        }}
+        onSiteVisits={() => {
+          setProfileVisible(false);
+          router.push("/(tabs)/visits");
+        }}
+        onSupport={() => {
+          setProfileVisible(false);
+          router.push("/services");
+        }}
+        onLogout={async () => {
+          await signOut();
+          setProfileVisible(false);
+        }}
       />
 
       <Modal visible={menuOpen && !isDesktop} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -374,8 +404,8 @@ export function HomeScreen() {
             </TouchableOpacity>
             <View style={styles.navMobileActions}>
               {isAuthed ? (
-                <TouchableOpacity style={styles.mobileProfileChip} onPress={() => router.push("/profile")}>
-                  <Text style={styles.mobileProfileChipText}>Profile</Text>
+                <TouchableOpacity style={styles.mobileProfileChip} onPress={() => setProfileVisible(true)}>
+                  <Text style={styles.mobileProfileChipText}>{getUserDisplayName(user)}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={[styles.mobileAuthButton, isPhone && styles.mobileAuthButtonPhone]} onPress={() => openAuth("login")}>
@@ -573,7 +603,7 @@ export function HomeScreen() {
               </View>
             ) : null}
 
-            <TouchableOpacity style={styles.btnSignin} onPress={() => openAuth(isAuthed ? "login" : "signup")}>
+            <TouchableOpacity style={styles.btnSignin} onPress={() => (isAuthed ? setProfileVisible(true) : openAuth("signup"))}>
               <Text style={styles.btnSigninText}>{isAuthed ? "Open Customer Profile" : "Login / Signup"}</Text>
             </TouchableOpacity>
 

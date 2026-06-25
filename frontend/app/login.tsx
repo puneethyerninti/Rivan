@@ -23,7 +23,7 @@ function normalizePublicEnv(value?: string) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { isAuthed, signIn, user } = useAuth();
+  const { isAuthed, signIn } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -66,17 +66,8 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!isAuthed) return;
-    const role = String(user?.role || "").toLowerCase();
-    if (["admin", "manager", "super_admin"].includes(role) || user?.is_admin) {
-      router.replace("/admin");
-      return;
-    }
-    if (["agent", "sub_agent"].includes(role) && String(user?.approval_status || "").toLowerCase() === "approved") {
-      router.replace("/agent" as never);
-      return;
-    }
-    router.replace("/profile");
-  }, [isAuthed, router, user]);
+    router.replace("/");
+  }, [isAuthed, router]);
 
   useEffect(() => {
     if (!isLocalhostWeb || !useFirebaseTestPhoneAuth) return;
@@ -231,7 +222,7 @@ export default function LoginScreen() {
       const idToken = await getIdToken(credential.user, true);
       const session = await api.firebaseAuth(idToken, `+91${phoneDigits}`, phoneName.trim() || undefined);
       await signIn(session.access_token, session.user, session.refresh_token);
-      router.replace("/profile");
+      router.replace("/");
     } catch (error: any) {
       showFormError(formatPhoneOtpError(error, isLocalhostWeb, useFirebaseTestPhoneAuth, setOtpCooldownSeconds));
     } finally {

@@ -28,6 +28,7 @@ type User = {
   auth_methods?: string[];
   created_at?: string;
   updated_at?: string;
+  portal_role?: string;
 };
 
 type AuthContextValue = {
@@ -45,8 +46,20 @@ const USER_CACHE_KEY = "rivan_user_cache";
 const AGENT_DASHBOARD_CACHE_KEY = "rivan_agent_dashboard_cache";
 
 function userHasApprovedAgentAccess(user: User | null | undefined) {
-  const role = String(user?.role || "").toLowerCase();
+  const role = String(user?.portal_role || user?.role || "").toLowerCase();
   return ["agent", "sub_agent"].includes(role) && String(user?.approval_status || "").toLowerCase() === "approved";
+}
+
+function normalizeUserSession(user: User | null | undefined): User | null {
+  if (!user) return null;
+  const normalizedRole = String(user.portal_role || user.role || "").toLowerCase();
+  if (["admin", "manager", "super_admin"].includes(normalizedRole)) {
+    return { ...user, role: "admin", portal_role: "admin", is_admin: true };
+  }
+  if (["agent", "sub_agent"].includes(normalizedRole) && String(user.approval_status || "").toLowerCase() === "approved") {
+    return { ...user, role: normalizedRole as User["role"], portal_role: "agent" };
+  }
+  return { ...user, role: "customer", portal_role: "customer", is_admin: false };
 }
 
 async function clearRoleScopedCaches(user: User | null | undefined) {
@@ -87,17 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cachedUserRaw = await storage.secureGet(USER_CACHE_KEY, "");
       if (cachedUserRaw && typeof cachedUserRaw === "string") {
         try {
-          const cachedUser = JSON.parse(cachedUserRaw) as User;
+          const cachedUser = normalizeUserSession(JSON.parse(cachedUserRaw) as User);
           setUser(cachedUser);
           usedCachedUser = true;
         } catch {
           // ignore malformed cache and continue with live fetch
         }
       }
-      const u = await api.me();
-      setUser(u as User);
+      const u = normalizeUserSession((await api.me()) as User);
+      setUser(u);
       await storage.secureSet(USER_CACHE_KEY, JSON.stringify(u));
-      await clearRoleScopedCaches(u as User);
+      await clearRoleScopedCaches(u);
     } catch (error) {
       if (usedCachedUser && isTemporaryBackendError(error)) {
         return;
@@ -135,13 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn(token: string, u: User, refreshToken?: string) {
+    const normalizedUser = normalizeUserSession(u);
     await setToken(token);
     if (refreshToken) {
       await setRefreshToken(refreshToken);
     }
-    await storage.secureSet(USER_CACHE_KEY, JSON.stringify(u));
-    await clearRoleScopedCaches(u);
-    setUser(u);
+    await storage.secureSet(USER_CACHE_KEY, JSON.stringify(normalizedUser));
+    await clearRoleScopedCaches(normalizedUser);
+    setUser(normalizedUser);
     setIsSessionRefreshing(false);
     setIsLoading(false);
   }

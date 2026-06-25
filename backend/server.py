@@ -933,6 +933,7 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
     session_id = payload.get("sid")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token subject")
+    session = None
     if session_id:
         session = await get_user_session(str(session_id))
         if not session or session.get("revoked_at"):
@@ -951,7 +952,7 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
-    return user
+    return apply_session_role(user, session)
 
 
 async def get_admin_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
@@ -980,6 +981,40 @@ def is_agent_role(role: Optional[str]) -> bool:
     return role in {"agent", "sub_agent"}
 
 
+def agent_access_is_active(user: Dict[str, Any]) -> bool:
+    approval_status = str(user.get("approval_status") or "").strip().lower()
+    status_value = str(user.get("status") or "active").strip().lower()
+    kyc_status = str(user.get("kyc_status") or "").strip().lower()
+    return (
+        is_agent_role(user.get("role"))
+        and approval_status == "approved"
+        and status_value not in {"inactive", "rejected", "suspended"}
+        and kyc_status == "verified"
+    )
+
+
+def apply_session_role(user: Dict[str, Any], session: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    scoped = clean_user(user)
+    session_role = str((session or {}).get("session_role") or "").strip().lower()
+    if not session_role:
+        return scoped
+
+    scoped["portal_role"] = session_role
+    if session_role == "customer":
+        scoped["role"] = "customer"
+        scoped["is_admin"] = False
+        return scoped
+    if session_role == "agent":
+        if not agent_access_is_active(scoped):
+            raise HTTPException(status_code=403, detail="Your agent access is not active for this session")
+        return scoped
+    if session_role == "admin":
+        if not has_admin_access(scoped) or not admin_access_is_active(scoped):
+            raise HTTPException(status_code=403, detail="Your admin access is not active for this session")
+        return scoped
+    return scoped
+
+
 def agent_approval_error_message(user: Dict[str, Any]) -> str:
     approval_status = str(user.get("approval_status") or "pending").strip().lower()
     if approval_status == "approved":
@@ -997,7 +1032,9 @@ async def get_agent_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[
         raise HTTPException(status_code=403, detail="Agent access required")
     if user.get("approval_status") != "approved":
         raise HTTPException(status_code=403, detail=agent_approval_error_message(user))
-    if str(user.get("status") or "active").lower() == "suspended":
+    if not agent_access_is_active(user):
+        if str(user.get("kyc_status") or "").strip().lower() != "verified":
+            raise HTTPException(status_code=403, detail="Complete KYC verification before accessing the agent workspace")
         raise HTTPException(status_code=403, detail="Your agent access is suspended. Please contact your manager.")
     return user
 
@@ -2272,6 +2309,8 @@ async def upsert_user_identity(
             updates["google_sub"] = google_sub
         if password_hash:
             updates["password_hash"] = password_hash
+        if not existing.get("role"):
+            updates["role"] = "customer"
         if use_db:
             await db.users.update_one({"_id": existing["_id"]}, {"$set": updates})
             refreshed = await db.users.find_one({"_id": existing["_id"]}, {"_id": 0})
@@ -2284,6 +2323,7 @@ async def upsert_user_identity(
     user = {
         "id": user_id,
         "name": name or (email.split("@")[0] if email else f"User-{(phone or user_id)[-4:]}"),
+        "role": "customer",
         "auth_methods": [auth_method],
         "address": "",
         "kyc_status": "pending",
@@ -2365,7 +2405,12 @@ async def revoke_user_session(session_id: str) -> None:
             local_upsert_collection_item("sessions", session)
 
 
-async def issue_token_response(user: Dict[str, Any], request: Optional[Request] = None, session_id: Optional[str] = None) -> TokenResp:
+async def issue_token_response(
+    user: Dict[str, Any],
+    request: Optional[Request] = None,
+    session_id: Optional[str] = None,
+    session_role: Optional[str] = None,
+) -> TokenResp:
     clean = clean_user(user)
     current_session_id = session_id or str(uuid.uuid4())
     refresh_token, refresh_token_id = create_refresh_token(
@@ -2388,14 +2433,16 @@ async def issue_token_response(user: Dict[str, Any], request: Optional[Request] 
             "updated_at": timestamp,
             "last_seen_at": timestamp,
             "revoked_at": None,
+            "session_role": session_role,
             **metadata,
         }
     )
+    response_user = apply_session_role(clean, {"session_role": session_role} if session_role else None)
     return TokenResp(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in_seconds=JWT_EXPIRES_MIN * 60,
-        user=clean,
+        user=response_user,
     )
 
 
@@ -2594,7 +2641,7 @@ async def register(req: RegisterReq, request: Request):
         password_hash=hash_password(req.password),
         auth_method="email",
     )
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="customer")
 
 
 @api_router.post("/auth/login", response_model=TokenResp)
@@ -2621,13 +2668,13 @@ async def login(req: LoginReq, request: Request):
             {"$set": {"updated_at": now_utc().isoformat(), "last_login_at": now_utc().isoformat()}},
         )
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
-        return await issue_token_response(refreshed, request)
+        return await issue_token_response(refreshed, request, session_role="customer")
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["updated_at"] = now_utc().isoformat()
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="customer")
 
 
 @api_router.post("/auth/admin/status")
@@ -2677,7 +2724,7 @@ async def verify_otp(req: VerifyOtpReq, request: Request):
         phone=phone,
         auth_method="phone",
     )
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="customer")
 
 
 @api_router.post("/auth/agent/apply")
@@ -2904,7 +2951,7 @@ async def google_auth(req: GoogleAuthReq, request: Request):
         google_sub=payload["sub"],
         auth_method="google",
     )
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="customer")
 
 
 @api_router.post("/auth/firebase", response_model=TokenResp)
@@ -2943,7 +2990,7 @@ async def firebase_auth(req: FirebaseAuthReq, request: Request):
         )
         refreshed = await db.users.find_one({"id": user["id"]}, {"_id": 0})
         logger.info("Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed, request)
+        return await issue_token_response(refreshed, request, session_role="customer")
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["firebase_uid"] = payload.get("user_id") or payload.get("sub")
@@ -2951,7 +2998,7 @@ async def firebase_auth(req: FirebaseAuthReq, request: Request):
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
     logger.info("Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="customer")
 
 
 @api_router.post("/auth/agent/firebase", response_model=TokenResp)
@@ -3005,12 +3052,12 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request):
         await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
         logger.info("Agent Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed, request)
+        return await issue_token_response(refreshed, request, session_role="agent")
 
     user.update(updates)
     local_save_user(user)
     logger.info("Agent Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user, request)
+    return await issue_token_response(user, request, session_role="agent")
 
 
 @api_router.post("/auth/admin/firebase", response_model=TokenResp)
@@ -3056,7 +3103,7 @@ async def admin_firebase_auth(req: AdminFirebaseAuthReq, request: Request):
     await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
     refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
     logger.info("Admin Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-    return await issue_token_response(refreshed or {**user, **updates}, request)
+    return await issue_token_response(refreshed or {**user, **updates}, request, session_role="admin")
 
 
 @api_router.post("/auth/refresh", response_model=TokenResp)
@@ -3097,7 +3144,7 @@ async def refresh_auth_session(req: RefreshTokenReq, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    return await issue_token_response(user, request, session_id=session_id)
+    return await issue_token_response(user, request, session_id=session_id, session_role=session.get("session_role"))
 
 
 @api_router.post("/auth/logout")
