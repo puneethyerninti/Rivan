@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   { key: "featured", label: "Properties" },
 ] as const;
 
-type SectionKey = (typeof NAV_ITEMS)[number]["key"] | "top";
+type SectionKey = (typeof NAV_ITEMS)[number]["key"] | "top" | "access";
 
 function getUserInitials(name?: string) {
   const parts = String(name || "Rivan User")
@@ -201,9 +201,20 @@ export function HomeScreen() {
     setMenuOpen(false);
   }, [router, scrollToSection]);
 
+  const openAccessSection = useCallback(() => {
+    blurActiveWebElement();
+    if (typeof document !== "undefined" && document.getElementById("access")) {
+      scrollToSection("access");
+      setMenuOpen(false);
+      return;
+    }
+    router.push({ pathname: "/", params: { section: "access" } });
+    setMenuOpen(false);
+  }, [router, scrollToSection]);
+
   useEffect(() => {
-    if (params.section !== "featured") return;
-    const timer = setTimeout(() => scrollToSection("featured"), 120);
+    if (params.section !== "featured" && params.section !== "access") return;
+    const timer = setTimeout(() => scrollToSection(params.section === "access" ? "access" : "featured"), 120);
     return () => clearTimeout(timer);
   }, [params.section, scrollToSection]);
 
@@ -219,7 +230,7 @@ export function HomeScreen() {
         <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
         <View>
           <Text style={styles.logoText}>Rivan</Text>
-          <Text style={styles.logoSup}>REALTY</Text>
+          <Text style={styles.logoSup}>REALITY</Text>
         </View>
       </TouchableOpacity>
 
@@ -234,7 +245,7 @@ export function HomeScreen() {
           style={styles.navButtonGhost}
           onPress={() => {
             blurActiveWebElement();
-            router.push("/agent-login");
+            openAccessSection();
           }}
         >
           <Text style={styles.navButtonGhostText}>Agent Login</Text>
@@ -244,7 +255,7 @@ export function HomeScreen() {
           style={styles.navButtonGhost}
           onPress={() => {
             blurActiveWebElement();
-            router.push("/admin-login");
+            openAccessSection();
           }}
         >
           <Text style={styles.navButtonGhostText}>Admin</Text>
@@ -288,8 +299,7 @@ export function HomeScreen() {
       <TouchableOpacity
         style={styles.mobileMenuLink}
         onPress={() => {
-          setMenuOpen(false);
-          router.push("/agent-login");
+          openAccessSection();
         }}
       >
         <Text style={styles.mobileMenuLinkText}>Agent Login</Text>
@@ -297,8 +307,7 @@ export function HomeScreen() {
       <TouchableOpacity
         style={styles.mobileMenuLink}
         onPress={() => {
-          setMenuOpen(false);
-          router.push("/admin-login");
+          openAccessSection();
         }}
       >
         <Text style={styles.mobileMenuLinkText}>Admin</Text>
@@ -399,7 +408,7 @@ export function HomeScreen() {
               <Image source={LOGO} style={styles.navLogoImage} resizeMode="contain" />
               <View>
                 <Text style={styles.logoText}>Rivan</Text>
-                <Text style={styles.logoSup}>REALTY</Text>
+                <Text style={styles.logoSup}>REALITY</Text>
               </View>
             </TouchableOpacity>
             <View style={styles.navMobileActions}>
@@ -547,13 +556,13 @@ export function HomeScreen() {
           )}
         </View>
 
-        <View style={[styles.loginSection, !isDesktop && styles.loginSectionMobile, isPhone && styles.loginSectionPhone]}>
+        <View nativeID="access" style={[styles.loginSection, !isDesktop && styles.loginSectionMobile, isPhone && styles.loginSectionPhone]}>
           <View style={styles.loginLeft}>
-            <Text style={styles.sectionEyeGold}>Customer Access</Text>
-            <Text style={styles.loginHeading}>The property journey stays public until you are ready to continue.</Text>
+            <Text style={styles.sectionEyeGold}>Access</Text>
+            <Text style={styles.loginHeading}>Use the right portal without leaving the home experience.</Text>
             <Text style={styles.loginParagraph}>
-              Use secure customer login only when you want to save your journey, open your profile, schedule site visits,
-              or move into booking. Agent and admin routes remain separate and untouched.
+              Keep browsing publicly, then open the correct flow only when you need to continue as a customer, agent,
+              or admin.
             </Text>
 
             <View style={styles.portalCards}>
@@ -589,13 +598,7 @@ export function HomeScreen() {
 
           <View style={[styles.loginFormWrap, isPhone && styles.loginFormWrapPhone]}>
             <Text style={styles.formLogo}>Rivan Reality</Text>
-            <Text style={styles.formSub}>Sign in when you want to continue.</Text>
-
-            <View style={styles.roleSwitch}>
-              <View style={styles.roleSwitchActive}>
-                <Text style={styles.roleSwitchText}>Customer</Text>
-              </View>
-            </View>
+            <Text style={styles.formSub}>Compact access bars for every live login flow.</Text>
 
             {isAuthed ? (
               <View style={styles.customerPill}>
@@ -603,11 +606,39 @@ export function HomeScreen() {
               </View>
             ) : null}
 
-            <TouchableOpacity style={styles.btnSignin} onPress={() => (isAuthed ? setProfileVisible(true) : openAuth("signup"))}>
-              <Text style={styles.btnSigninText}>{isAuthed ? "Open Customer Profile" : "Login / Signup"}</Text>
-            </TouchableOpacity>
+            <View style={styles.accessBars}>
+              <View style={styles.accessBar}>
+                <View style={styles.accessBarCopy}>
+                  <Text style={styles.accessBarTitle}>Customer</Text>
+                  <Text style={styles.accessBarText}>Save visits, bookings, and your profile.</Text>
+                </View>
+                <TouchableOpacity style={styles.accessBarButton} onPress={() => (isAuthed ? setProfileVisible(true) : openAuth("login"))}>
+                  <Text style={styles.accessBarButtonText}>{isAuthed ? "Open" : "Login"}</Text>
+                </TouchableOpacity>
+              </View>
 
-            <Text style={styles.formDivider}>Customer access only. Agent and admin routes stay separate.</Text>
+              <View style={styles.accessBar}>
+                <View style={styles.accessBarCopy}>
+                  <Text style={styles.accessBarTitle}>Agent</Text>
+                  <Text style={styles.accessBarText}>Approved agent OTP access and application flow.</Text>
+                </View>
+                <TouchableOpacity style={styles.accessBarButtonMuted} onPress={() => router.push("/agent-login")}>
+                  <Text style={styles.accessBarButtonMutedText}>Open</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.accessBar}>
+                <View style={styles.accessBarCopy}>
+                  <Text style={styles.accessBarTitle}>Admin</Text>
+                  <Text style={styles.accessBarText}>Manager-approved OTP access for approvals and operations.</Text>
+                </View>
+                <TouchableOpacity style={styles.accessBarButtonMuted} onPress={() => router.push("/admin-login")}>
+                  <Text style={styles.accessBarButtonMutedText}>Open</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.formDivider}>Customer, agent, and admin access stay separated by live role checks.</Text>
           </View>
         </View>
 
@@ -1223,13 +1254,13 @@ const styles = StyleSheet.create({
   propM: { color: "#6B7A6E", fontSize: 12 },
   loginSection: {
     backgroundColor: colors.primaryDeepest,
-    paddingVertical: 110,
+    paddingVertical: 84,
     paddingHorizontal: Platform.OS === "web" ? 60 : 28,
     flexDirection: "row",
-    gap: 80,
+    gap: 48,
     alignItems: "center",
   },
-  loginSectionMobile: { flexDirection: "column", gap: 44, alignItems: "stretch" },
+  loginSectionMobile: { flexDirection: "column", gap: 28, alignItems: "stretch" },
   loginSectionPhone: {
     paddingVertical: 56,
     paddingHorizontal: 16,
@@ -1238,13 +1269,13 @@ const styles = StyleSheet.create({
   loginLeft: { flex: 1 },
   loginHeading: {
     color: colors.white,
-    fontSize: Platform.OS === "web" ? 40 : 30,
-    lineHeight: Platform.OS === "web" ? 48 : 38,
+    fontSize: Platform.OS === "web" ? 32 : 26,
+    lineHeight: Platform.OS === "web" ? 40 : 34,
     fontWeight: "500",
     fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
     marginBottom: 20,
   },
-  loginParagraph: { color: "rgba(255,255,255,0.55)", fontSize: 15, lineHeight: 28, marginBottom: 40 },
+  loginParagraph: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 24, marginBottom: 24 },
   portalCards: { gap: 14 },
   portalCard: {
     flexDirection: "row",
@@ -1278,36 +1309,71 @@ const styles = StyleSheet.create({
   loginFormWrap: {
     flex: 1,
     backgroundColor: colors.white,
-    borderRadius: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 32,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
   },
   loginFormWrapPhone: {
-    paddingHorizontal: 18,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     borderRadius: 18,
   },
   formLogo: {
     color: colors.primaryDeepest,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     fontFamily: Platform.OS === "web" ? ("Georgia, serif" as any) : undefined,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  formSub: { color: "#6B7A6E", fontSize: 13, marginBottom: 28 },
+  formSub: { color: "#6B7A6E", fontSize: 12, marginBottom: 18, lineHeight: 18 },
   roleSwitch: { backgroundColor: "#F1F5F2", borderRadius: 10, padding: 5, marginBottom: 28 },
   roleSwitchActive: { backgroundColor: colors.white, borderRadius: 7, paddingVertical: 10, alignItems: "center" },
   roleSwitchText: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "600" },
   customerPill: {
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
   },
   customerPillText: { color: colors.primaryDeepest, fontSize: 14, fontWeight: "600" },
+  accessBars: { gap: 10 },
+  accessBar: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  accessBarCopy: { flex: 1, gap: 4 },
+  accessBarTitle: { color: colors.primaryDeepest, fontSize: 13, fontWeight: "800" },
+  accessBarText: { color: colors.stone500, fontSize: 12, lineHeight: 18 },
+  accessBarButton: {
+    minHeight: 36,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accessBarButtonText: { color: colors.white, fontSize: 12, fontWeight: "800" },
+  accessBarButtonMuted: {
+    minHeight: 36,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(26,122,74,0.18)",
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accessBarButtonMutedText: { color: colors.primaryDeepest, fontSize: 12, fontWeight: "800" },
   fgroup: { marginBottom: 18 },
   flabel: {
     color: "#8A9A8E",
@@ -1337,7 +1403,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   btnSigninText: { color: colors.white, fontSize: 14, fontWeight: "600" },
-  formDivider: { textAlign: "center", color: "#B0BCB3", fontSize: 12, marginTop: 18 },
+  formDivider: { textAlign: "center", color: "#B0BCB3", fontSize: 11, marginTop: 14, lineHeight: 18 },
   footer: {
     backgroundColor: colors.primaryDark,
     paddingHorizontal: Platform.OS === "web" ? 60 : 28,
