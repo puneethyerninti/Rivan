@@ -155,7 +155,7 @@ export default function AdminScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.headerEyebrow}>Admin console</Text>
             <Text style={styles.headerTitle}>Approvals, visits, bookings, and oversight.</Text>
-            <Text style={styles.headerBody}>A production-facing review surface built around live records instead of preview data.</Text>
+            <Text style={styles.headerBody}>A production-facing review surface built around live records and current approval queues.</Text>
           </View>
           <TouchableOpacity style={styles.ghostButton} onPress={handleSignOut}>
             <Text style={styles.ghostButtonText}>Sign Out</Text>

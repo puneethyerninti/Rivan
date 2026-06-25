@@ -224,7 +224,7 @@ export default function CustomerAuthModal({
       const { getIdToken } = await getFirebasePhoneAuthHelpers();
       const idToken = await getIdToken(credential.user, true);
       const session = await api.firebaseAuth(idToken, `+91${phoneDigits}`, phoneName.trim() || undefined);
-      await signIn(session.access_token, session.user);
+      await signIn(session.access_token, session.user, session.refresh_token);
       handleSuccess();
     } catch (error: any) {
       showFormError(formatPhoneOtpError(error, isLocalhostWeb, useFirebaseTestPhoneAuth, setOtpCooldownSeconds));
@@ -256,12 +256,11 @@ export default function CustomerAuthModal({
         <View style={styles.centerWrap}>
           <AuthSplitShell
             eyebrow="Rivan Customer Access"
-            title={mode === "signup" ? "Create your account in one quick step." : "Sign in and get back to browsing fast."}
-            body="Save properties, raise enquiries, and continue exactly where you left off."
+            title={mode === "signup" ? "Create your account" : "Customer access"}
+            body="Sign in with your mobile number to continue with saved actions and property enquiries."
             points={[
-              { icon: "map-pin", text: "Browse projects first, unlock details only when needed" },
-              { icon: "shield", text: "Secure OTP access from the same simple screen" },
-              { icon: "bookmark", text: "Continue straight into saved actions after authentication" },
+              { icon: "map-pin", text: "Continue with your saved discovery flow" },
+              { icon: "shield", text: "Secure OTP verification for your account" },
             ]}
             formEyebrow={mode === "signup" ? "Create account" : "Customer login"}
             formTitle={mode === "signup" ? "Create account" : "Customer login"}

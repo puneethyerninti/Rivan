@@ -48,6 +48,13 @@ function getUserDisplayName(user?: { name?: string; phone?: string } | null) {
   return user?.name?.trim() || user?.phone?.trim() || "Rivan User";
 }
 
+function getUserRoleLabel(user?: { role?: string; is_admin?: boolean } | null) {
+  const role = String(user?.role || "").toLowerCase();
+  if (user?.is_admin || ["admin", "manager", "super_admin"].includes(role)) return "Admin";
+  if (["agent", "sub_agent"].includes(role)) return "Agent";
+  return "Customer";
+}
+
 export function HomeScreen() {
   const router = useRouter();
   const { isAuthed, signOut, user } = useAuth();
@@ -214,7 +221,7 @@ export function HomeScreen() {
               </View>
               <View>
                 <Text style={styles.profileName}>{getUserDisplayName(user)}</Text>
-                <Text style={styles.profileSub}>Customer</Text>
+                <Text style={styles.profileSub}>{getUserRoleLabel(user)}</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity

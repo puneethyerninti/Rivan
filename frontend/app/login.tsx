@@ -23,7 +23,7 @@ function normalizePublicEnv(value?: string) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { isAuthed, signIn, user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -63,6 +63,20 @@ export default function LoginScreen() {
   useEffect(() => {
     warmBackendReady();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    const role = String(user?.role || "").toLowerCase();
+    if (["admin", "manager", "super_admin"].includes(role) || user?.is_admin) {
+      router.replace("/admin");
+      return;
+    }
+    if (["agent", "sub_agent"].includes(role) && String(user?.approval_status || "").toLowerCase() === "approved") {
+      router.replace("/agent" as never);
+      return;
+    }
+    router.replace("/profile");
+  }, [isAuthed, router, user]);
 
   useEffect(() => {
     if (!isLocalhostWeb || !useFirebaseTestPhoneAuth) return;
@@ -216,7 +230,7 @@ export default function LoginScreen() {
       const { getIdToken } = await getFirebasePhoneAuthHelpers();
       const idToken = await getIdToken(credential.user, true);
       const session = await api.firebaseAuth(idToken, `+91${phoneDigits}`, phoneName.trim() || undefined);
-      await signIn(session.access_token, session.user);
+      await signIn(session.access_token, session.user, session.refresh_token);
       router.replace("/profile");
     } catch (error: any) {
       showFormError(formatPhoneOtpError(error, isLocalhostWeb, useFirebaseTestPhoneAuth, setOtpCooldownSeconds));
@@ -238,12 +252,11 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <AuthSplitShell
         eyebrow="Rivan Customer Access"
-        title="Sign in and get back to browsing fast."
-        body="Save properties, raise enquiries, and continue exactly where you left off."
+        title="Customer access"
+        body="Sign in with your mobile number to continue with saved actions and property enquiries."
         points={[
-          { icon: "map-pin", text: "Browse projects first, unlock details only when needed" },
-          { icon: "shield", text: "Secure OTP access from the same simple screen" },
-          { icon: "bookmark", text: "Continue straight into saved actions after authentication" },
+          { icon: "map-pin", text: "Continue with your saved discovery flow" },
+          { icon: "shield", text: "Secure OTP verification for your account" },
         ]}
         formEyebrow="Customer login"
         formTitle="Customer login"

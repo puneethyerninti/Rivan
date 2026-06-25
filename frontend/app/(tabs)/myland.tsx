@@ -20,66 +20,6 @@ const SERVICE_ICONS: Record<string, any> = {
   "Legal Documentation": "file-text",
 };
 
-// Demo data shown when user has no booked properties yet
-const DEMO_PURCHASED = {
-  id: "demo-purchased",
-  unit_type: "villa",
-  plot_number: "V-03",
-  size: "3200 sq ft",
-  facing: "East",
-  survey_number: "SY-No 89/2",
-  price: 19331200,
-  payment_progress: 1.0,
-  paid_amount: 19331200,
-  balance_amount: 0,
-  purchase_complete: true,
-  status: "sold",
-  property_id: "prop-2",
-  property: {
-    id: "prop-2",
-    name: "Rivan Heritage Villas",
-    location: "Kompally, Hyderabad",
-    image: "https://images.pexels.com/photos/29334668/pexels-photo-29334668.png",
-  },
-};
-
-const DEMO_ONGOING = {
-  id: "demo-ongoing",
-  unit_type: "plot",
-  plot_number: "P-005",
-  size: "300 sq yards",
-  facing: "East",
-  survey_number: "SY-No 234/3",
-  price: 2775000,
-  payment_progress: 0.25,
-  paid_amount: 693750,
-  balance_amount: 2081250,
-  purchase_complete: false,
-  status: "booked",
-  property_id: "prop-1",
-  property: {
-    id: "prop-1",
-    name: "Rivan Greens",
-    location: "Shadnagar, Hyderabad",
-    image: "https://images.unsplash.com/photo-1677137263546-8695fb895a9d",
-  },
-  next_due: {
-    id: "demo-next",
-    installment_number: 4,
-    amount: 231250,
-    due_date: "2026-04-15",
-    status: "upcoming",
-  },
-  registration_timeline: [
-    { step: "Booking Confirmed", done: true },
-    { step: "Token Paid", done: true },
-    { step: "Agreement Signed", done: true },
-    { step: "Installments Complete", done: false },
-    { step: "Registration Done", done: false },
-    { step: "Possession Handed Over", done: false },
-  ],
-};
-
 export default function MyLandScreen() {
   const router = useRouter();
   const [lands, setLands] = useState<any[]>([]);
@@ -141,42 +81,15 @@ export default function MyLandScreen() {
         ) : null}
 
         {!loading && lands.length === 0 ? (
-          <>
-            {/* Preview banner */}
-            <View style={styles.previewBanner} testID="myland-preview-banner">
-              <View style={styles.previewIcon}><Feather name="eye" size={16} color={colors.white} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.previewTitle}>Preview: My Land Experience</Text>
-                <Text style={styles.previewSub}>Once you book a property, this is how your dashboard will look</Text>
-              </View>
-            </View>
-            <View style={styles.list}>
-              <PurchasedCard
-                land={DEMO_PURCHASED}
-                services={services}
-                notifications={notifications}
-                router={router}
-                isDemo
-              />
-              <OngoingCard
-                land={DEMO_ONGOING}
-                router={router}
-                onPay={() => Alert.alert("Demo Preview", "Book a real property to start paying installments.")}
-                paying={null}
-                notifications={notifications}
-                isDemo
-              />
-            </View>
-            <View style={styles.empty}>
-              <Feather name="map" size={48} color={colors.stone300} />
-              <Text style={styles.emptyTitle}>Start your Rivan journey</Text>
-              <Text style={styles.emptyText}>Book your first plot, villa or flat to unlock your real My Land dashboard.</Text>
-              <TouchableOpacity testID="myland-browse-button" style={styles.exploreBtn} onPress={() => router.push("/")}>
-                <Text style={styles.exploreBtnText}>Explore Properties</Text>
-                <Feather name="arrow-right" size={16} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-          </>
+          <View style={styles.empty}>
+            <Feather name="map" size={48} color={colors.stone300} />
+            <Text style={styles.emptyTitle}>No properties mapped yet</Text>
+            <Text style={styles.emptyText}>Your real booked and under-process properties will appear here once they are linked to this account.</Text>
+            <TouchableOpacity testID="myland-browse-button" style={styles.exploreBtn} onPress={() => router.push("/")}>
+              <Text style={styles.exploreBtnText}>Browse live inventory</Text>
+              <Feather name="arrow-right" size={16} color={colors.white} />
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={styles.list}>
             {lands.map((land) =>

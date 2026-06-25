@@ -12,6 +12,7 @@ function normalizePublicEnv(value?: string) {
 const ENV_BACKEND_URL = normalizePublicEnv(process.env.EXPO_PUBLIC_BACKEND_URL);
 const HOSTED_PRODUCTION_BACKEND_URL = "https://rivan.onrender.com";
 const TOKEN_KEY = "rivan_token";
+const REFRESH_TOKEN_KEY = "rivan_refresh_token";
 const GET_CACHE_TTL_MS = 120000;
 const REQUEST_TIMEOUT_MS = 20000;
 const BACKEND_WAKE_TIMEOUT_MS = 45000;
@@ -20,12 +21,14 @@ const PERSISTED_CACHE_PREFIX = "rivan_get_cache:";
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const warmedBaseUrls = new Set<string>();
 const backendWarmupPromises = new Map<string, Promise<void>>();
+let refreshPromise: Promise<string | null> | null = null;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: any;
   auth?: boolean;
   query?: Record<string, string | number | undefined | null>;
+  allowRefresh?: boolean;
 };
 
 function parseHost(value?: string | null) {
@@ -243,12 +246,53 @@ export async function setToken(token: string) {
   await storage.secureSet(TOKEN_KEY, token);
 }
 
+export async function getRefreshToken(): Promise<string | null> {
+  const token = await storage.secureGet(REFRESH_TOKEN_KEY, "");
+  return token && typeof token === "string" ? token : null;
+}
+
+export async function setRefreshToken(token: string) {
+  await storage.secureSet(REFRESH_TOKEN_KEY, token);
+}
+
 export async function clearToken() {
   await storage.secureRemove(TOKEN_KEY);
+  await storage.secureRemove(REFRESH_TOKEN_KEY);
+}
+
+async function refreshAuthSession(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = await getRefreshToken();
+    if (!refreshToken) return null;
+
+    const response = await apiRequest<{ access_token: string; refresh_token: string; user: any }>(
+      "/auth/refresh",
+      {
+        method: "POST",
+        body: { refresh_token: refreshToken },
+        auth: false,
+        allowRefresh: false,
+      }
+    );
+    await setToken(response.access_token);
+    await setRefreshToken(response.refresh_token);
+    return response.access_token;
+  })()
+    .catch(async () => {
+      await clearToken();
+      return null;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
 }
 
 export async function apiRequest<T = any>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, auth = true, query } = opts;
+  const { method = "GET", body, auth = true, query, allowRefresh = true } = opts;
 
   if (!BASE_URL_CANDIDATES.length) {
     throw new Error(
@@ -311,6 +355,13 @@ export async function apiRequest<T = any>(path: string, opts: RequestOptions = {
         if (timeout) clearTimeout(timeout);
 
         if (!res.ok) {
+          if (res.status === 401 && auth && allowRefresh && path !== "/auth/refresh") {
+            const refreshedToken = await refreshAuthSession();
+            if (refreshedToken) {
+              return await apiRequest<T>(path, { ...opts, allowRefresh: false });
+            }
+          }
+
           if ([502, 503, 504, 522, 524].includes(res.status)) {
             throw new Error(`temporary_backend_unavailable:${res.status}`);
           }
@@ -368,7 +419,7 @@ export const api = {
   health: () => apiRequest("/health", { auth: false }),
 
   login: (email: string, password: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
   adminAccessStatus: (phone: string) =>
     apiRequest<{ phone: string; exists: boolean; can_login: boolean; message: string }>("/auth/admin/status", {
       method: "POST",
@@ -376,17 +427,17 @@ export const api = {
       auth: false,
     }),
   adminFirebaseAuth: (id_token: string, phone: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/admin/firebase", {
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/admin/firebase", {
       method: "POST",
       body: { id_token, phone },
       auth: false,
     }),
   googleAuth: (id_token: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/google", { method: "POST", body: { id_token }, auth: false }),
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/google", { method: "POST", body: { id_token }, auth: false }),
   firebaseAuth: (id_token: string, phone: string, name?: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/firebase", { method: "POST", body: { id_token, phone, name }, auth: false }),
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/firebase", { method: "POST", body: { id_token, phone, name }, auth: false }),
   agentFirebaseAuth: (id_token: string, phone: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/agent/firebase", { method: "POST", body: { id_token, phone }, auth: false }),
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/agent/firebase", { method: "POST", body: { id_token, phone }, auth: false }),
   agentApply: (body: any) =>
     apiRequest<{ success: boolean; already_approved?: boolean; message: string; agent: any }>("/auth/agent/apply", {
       method: "POST",
@@ -406,7 +457,21 @@ export const api = {
   sendOtp: (phone: string) =>
     apiRequest<{ success: boolean; phone: string; message: string }>("/auth/send-otp", { method: "POST", body: { phone }, auth: false }),
   verifyOtp: (phone: string, otp: string, name?: string) =>
-    apiRequest<{ access_token: string; user: any }>("/auth/verify-otp", { method: "POST", body: { phone, otp, name }, auth: false }),
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/verify-otp", { method: "POST", body: { phone, otp, name }, auth: false }),
+  refreshAuth: (refresh_token: string) =>
+    apiRequest<{ access_token: string; refresh_token: string; expires_in_seconds: number; user: any }>("/auth/refresh", {
+      method: "POST",
+      body: { refresh_token },
+      auth: false,
+      allowRefresh: false,
+    }),
+  logoutAuth: (refresh_token: string) =>
+    apiRequest<{ success: boolean }>("/auth/logout", {
+      method: "POST",
+      body: { refresh_token },
+      auth: false,
+      allowRefresh: false,
+    }),
   me: () => apiRequest("/auth/me"),
   protected: () => apiRequest("/auth/protected"),
   customerRelationship: () => apiRequest("/crm/customer-relationship"),

@@ -24,7 +24,7 @@ function normalizePublicEnv(value?: string) {
 
 export default function AdminLoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { isAuthed, signIn, user } = useAuth();
   const isLocalhostWeb =
     Platform.OS === "web" &&
     typeof window !== "undefined" &&
@@ -54,6 +54,15 @@ export default function AdminLoginScreen() {
   useEffect(() => {
     warmBackendReady();
   }, []);
+
+  useEffect(() => {
+    const role = String(user?.role || "").toLowerCase();
+    const hasAdminAccess =
+      isAuthed && (Boolean(user?.is_admin) || ["admin", "manager", "super_admin"].includes(role));
+    if (hasAdminAccess) {
+      router.replace("/admin");
+    }
+  }, [isAuthed, router, user]);
 
   useEffect(() => {
     if (otpCooldownSeconds <= 0) return;
@@ -197,7 +206,7 @@ export default function AdminLoginScreen() {
       if (!session.user?.is_admin && !["admin", "manager", "super_admin"].includes(role)) {
         throw new Error("This account does not have admin access.");
       }
-      await signIn(session.access_token, session.user);
+      await signIn(session.access_token, session.user, session.refresh_token);
       router.replace("/admin");
     } catch (error: any) {
       showFormError(formatAdminOtpError(error, setOtpCooldownSeconds));
@@ -219,11 +228,10 @@ export default function AdminLoginScreen() {
     <SafeAreaView style={styles.safe}>
       <AuthSplitShell
         eyebrow="Rivan Admin"
-        title="Private access for property operations."
+        title="Admin access"
         body="Sign in with the mobile number registered to your manager or admin account."
         points={[
-          { icon: "shield", text: "OTP verification for authorized accounts" },
-          { icon: "check-square", text: "Review agent applications and approvals" },
+          { icon: "shield", text: "OTP verification for authorized accounts only" },
         ]}
         formEyebrow="Admin access"
         formTitle="Sign in"

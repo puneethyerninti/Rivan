@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import re
 import ssl
 from typing import Any, Dict, Optional, Sequence
+import uuid
 
 import bcrypt
 import jwt as pyjwt
@@ -48,13 +49,50 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def create_access_token(subject: str, secret: str, expires_minutes: int) -> str:
+def create_token(
+    subject: str,
+    secret: str,
+    expires_minutes: int,
+    *,
+    token_type: str = "access",
+    session_id: Optional[str] = None,
+    token_id: Optional[str] = None,
+) -> str:
     payload = {
         "sub": subject,
+        "type": token_type,
         "iat": now_utc(),
         "exp": now_utc() + timedelta(minutes=expires_minutes),
     }
+    if session_id:
+        payload["sid"] = session_id
+    if token_id:
+        payload["jti"] = token_id
     return pyjwt.encode(payload, secret, algorithm=JWT_ALGORITHM)
+
+
+def create_access_token(subject: str, secret: str, expires_minutes: int, *, session_id: Optional[str] = None) -> str:
+    return create_token(subject, secret, expires_minutes, token_type="access", session_id=session_id)
+
+
+def create_refresh_token(
+    subject: str,
+    secret: str,
+    expires_minutes: int,
+    *,
+    session_id: str,
+    token_id: Optional[str] = None,
+) -> tuple[str, str]:
+    refresh_token_id = token_id or str(uuid.uuid4())
+    token = create_token(
+        subject,
+        secret,
+        expires_minutes,
+        token_type="refresh",
+        session_id=session_id,
+        token_id=refresh_token_id,
+    )
+    return token, refresh_token_id
 
 
 def decode_token(token: str, secret: str) -> Dict[str, Any]:

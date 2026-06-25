@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { api, clearToken, getToken, setToken, warmBackendReady } from "@/src/api";
+import { api, clearToken, getRefreshToken, getToken, setRefreshToken, setToken, warmBackendReady } from "@/src/api";
 import { storage } from "@/src/utils/storage";
 
 type User = {
@@ -35,13 +35,25 @@ type AuthContextValue = {
   isLoading: boolean;
   isSessionRefreshing: boolean;
   isAuthed: boolean;
-  signIn: (token: string, user: User) => Promise<void>;
+  signIn: (token: string, user: User, refreshToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const USER_CACHE_KEY = "rivan_user_cache";
+const AGENT_DASHBOARD_CACHE_KEY = "rivan_agent_dashboard_cache";
+
+function userHasApprovedAgentAccess(user: User | null | undefined) {
+  const role = String(user?.role || "").toLowerCase();
+  return ["agent", "sub_agent"].includes(role) && String(user?.approval_status || "").toLowerCase() === "approved";
+}
+
+async function clearRoleScopedCaches(user: User | null | undefined) {
+  if (!userHasApprovedAgentAccess(user)) {
+    await storage.removeItem(AGENT_DASHBOARD_CACHE_KEY);
+  }
+}
 
 function isTemporaryBackendError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error || "").toLowerCase();
@@ -65,6 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       warmBackendReady();
       const token = await getToken();
       if (!token) {
+        await storage.secureRemove(USER_CACHE_KEY);
+        await clearRoleScopedCaches(null);
         setUser(null);
         setIsSessionRefreshing(false);
         return;
@@ -83,12 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await api.me();
       setUser(u as User);
       await storage.secureSet(USER_CACHE_KEY, JSON.stringify(u));
+      await clearRoleScopedCaches(u as User);
     } catch (error) {
       if (usedCachedUser && isTemporaryBackendError(error)) {
         return;
       }
       await clearToken();
       await storage.secureRemove(USER_CACHE_KEY);
+      await clearRoleScopedCaches(null);
       setUser(null);
     } finally {
       setIsSessionRefreshing(false);
@@ -118,17 +134,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signIn(token: string, u: User) {
+  async function signIn(token: string, u: User, refreshToken?: string) {
     await setToken(token);
+    if (refreshToken) {
+      await setRefreshToken(refreshToken);
+    }
     await storage.secureSet(USER_CACHE_KEY, JSON.stringify(u));
+    await clearRoleScopedCaches(u);
     setUser(u);
     setIsSessionRefreshing(false);
     setIsLoading(false);
   }
 
   async function signOut() {
+    const refreshToken = await getRefreshToken();
+    if (refreshToken) {
+      try {
+        await api.logoutAuth(refreshToken);
+      } catch {
+        // best-effort session revoke
+      }
+    }
     await clearToken();
     await storage.secureRemove(USER_CACHE_KEY);
+    await clearRoleScopedCaches(null);
     setUser(null);
     setIsSessionRefreshing(false);
   }

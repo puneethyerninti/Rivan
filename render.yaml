@@ -21,10 +21,14 @@ services:
         value: rivaan
       - key: JWT_EXPIRE_MINUTES
         value: "10080"
+      - key: REFRESH_TOKEN_EXPIRE_MINUTES
+        value: "43200"
       - key: ALLOW_DEV_OTP
         value: "false"
       - key: ALLOW_LOCAL_AUTH_FALLBACK
-        value: "true"
+        value: "false"
+      - key: ENABLE_DEMO_DATA
+        value: "false"
       - key: MONGO_SERVER_SELECTION_TIMEOUT_MS
         value: "15000"
       - key: MONGO_CONNECT_TIMEOUT_MS
@@ -40,6 +44,6 @@ services:
       - key: CORS_ORIGINS
         value: http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006,https://rivan-auth-live.web.app,https://rivan-auth-live.firebaseapp.com,https://rivan.onrender.com
       - key: CORS_ORIGIN_REGEX
-        value: ^https://.*$
+        value: ""
       - key: FIREBASE_PROJECT_ID
         value: rivan-auth-live

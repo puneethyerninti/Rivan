@@ -4,7 +4,8 @@ FastAPI + MongoDB customer platform with production auth flows.
 """
 import asyncio
 import base64
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query
+from collections import defaultdict, deque
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,6 +19,7 @@ import uuid
 import logging
 import time
 import json
+import hashlib
 import requests
 from pymongo.errors import OperationFailure
 
@@ -25,6 +27,7 @@ from auth_service import (
     JWT_ALGORITHM,
     auth_methods_union,
     create_access_token,
+    create_refresh_token,
     decode_token,
     hash_password,
     normalize_email,
@@ -70,7 +73,9 @@ MONGO_URL = require_env("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME", "rivaan")
 JWT_SECRET = require_env("JWT_SECRET")
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
+REFRESH_TOKEN_EXPIRES_MIN = int(os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 30)))
 ALLOW_LOCAL_AUTH_FALLBACK = get_env_bool("ALLOW_LOCAL_AUTH_FALLBACK", False)
+ENABLE_DEMO_DATA = get_env_bool("ENABLE_DEMO_DATA", False)
 MONGO_SERVER_SELECTION_TIMEOUT_MS = int(os.environ.get("MONGO_SERVER_SELECTION_TIMEOUT_MS", "15000"))
 MONGO_CONNECT_TIMEOUT_MS = int(os.environ.get("MONGO_CONNECT_TIMEOUT_MS", "15000"))
 MONGO_SOCKET_TIMEOUT_MS = int(os.environ.get("MONGO_SOCKET_TIMEOUT_MS", "20000"))
@@ -165,10 +170,34 @@ DB_AVAILABILITY_TIMEOUT_SECONDS = float(
     )
 )
 _db_availability_cache: Dict[str, Any] = {"value": None, "checked_at": 0.0}
+_rate_limit_store: Dict[str, deque[float]] = defaultdict(deque)
 
 
 def iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt else None
+
+
+def is_production_runtime() -> bool:
+    return not ALLOW_LOCAL_AUTH_FALLBACK
+
+
+def rate_limit_key(request: Request, scope: str, identity: Optional[str] = None) -> str:
+    client_ip = request.client.host if request.client else "unknown"
+    identity_value = (identity or "").strip().lower() or "anonymous"
+    return f"{scope}:{client_ip}:{identity_value}"
+
+
+def enforce_rate_limit(key: str, *, limit: int, window_seconds: int) -> None:
+    now_ts = time.time()
+    bucket = _rate_limit_store[key]
+    while bucket and now_ts - bucket[0] > window_seconds:
+        bucket.popleft()
+    if len(bucket) >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please wait and try again.",
+        )
+    bucket.append(now_ts)
 
 
 def load_local_store() -> Dict[str, Any]:
@@ -184,6 +213,7 @@ def load_local_store() -> Dict[str, Any]:
             "tasks": [],
             "activities": [],
             "customer_agent_links": [],
+            "sessions": [],
         }
 
     try:
@@ -195,6 +225,7 @@ def load_local_store() -> Dict[str, Any]:
         store.setdefault("tasks", [])
         store.setdefault("activities", [])
         store.setdefault("customer_agent_links", [])
+        store.setdefault("sessions", [])
         return store
     except (json.JSONDecodeError, OSError):
         return {
@@ -208,6 +239,7 @@ def load_local_store() -> Dict[str, Any]:
             "tasks": [],
             "activities": [],
             "customer_agent_links": [],
+            "sessions": [],
         }
 
 
@@ -428,7 +460,7 @@ def ensure_local_demo_users() -> None:
 
 
 async def sync_demo_auth_users_to_db() -> None:
-    if not await is_database_available():
+    if not ENABLE_DEMO_DATA or not await is_database_available():
         return
 
     timestamp = now_utc().isoformat()
@@ -856,9 +888,22 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(token, JWT_SECRET)
+    if payload.get("type") not in {None, "access"}:
+        raise HTTPException(status_code=401, detail="Invalid access token")
     user_id = payload.get("sub")
+    session_id = payload.get("sid")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token subject")
+    if session_id:
+        session = await get_user_session(str(session_id))
+        if not session or session.get("revoked_at"):
+            raise HTTPException(status_code=401, detail="Session expired")
+        if session.get("refresh_expires_at"):
+            try:
+                if datetime.fromisoformat(str(session["refresh_expires_at"])) <= now_utc():
+                    raise HTTPException(status_code=401, detail="Session expired")
+            except ValueError:
+                raise HTTPException(status_code=401, detail="Session expired")
     if await is_database_available():
         user = await db.users.find_one({"id": user_id}, {"_id": 0})
     elif ALLOW_LOCAL_AUTH_FALLBACK:
@@ -957,7 +1002,12 @@ class GoogleAuthReq(BaseModel):
 
 class TokenResp(BaseModel):
     access_token: str
+    refresh_token: str
+    expires_in_seconds: int
     user: Dict[str, Any]
+
+class RefreshTokenReq(BaseModel):
+    refresh_token: str = Field(min_length=20)
 
 class UpdateProfileReq(BaseModel):
     name: Optional[str] = None
@@ -2225,9 +2275,89 @@ async def upsert_user_identity(
     return clean_user(user)
 
 
-async def issue_token_response(user: Dict[str, Any]) -> TokenResp:
-    token = create_access_token(user["id"], JWT_SECRET, JWT_EXPIRES_MIN)
-    return TokenResp(access_token=token, user=clean_user(user))
+def hash_refresh_token_value(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def build_session_metadata(request: Optional[Request]) -> Dict[str, Optional[str]]:
+    return {
+        "ip_address": request.client.host if request and request.client else None,
+        "user_agent": request.headers.get("user-agent") if request else None,
+    }
+
+
+async def persist_user_session(session_record: Dict[str, Any]) -> None:
+    if await is_database_available():
+        await db.user_sessions.update_one(
+            {"id": session_record["id"]},
+            {"$set": session_record},
+            upsert=True,
+        )
+        return
+    if not ALLOW_LOCAL_AUTH_FALLBACK:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+    local_upsert_collection_item("sessions", session_record)
+
+
+async def get_user_session(session_id: str) -> Optional[Dict[str, Any]]:
+    if await is_database_available():
+        return await db.user_sessions.find_one({"id": session_id}, {"_id": 0})
+    if not ALLOW_LOCAL_AUTH_FALLBACK:
+        return None
+    for session in local_list_collection("sessions"):
+        if session.get("id") == session_id:
+            return dict(session)
+    return None
+
+
+async def revoke_user_session(session_id: str) -> None:
+    revoked_at = now_utc().isoformat()
+    if await is_database_available():
+        await db.user_sessions.update_one(
+            {"id": session_id},
+            {"$set": {"revoked_at": revoked_at, "updated_at": revoked_at}},
+        )
+        return
+    if ALLOW_LOCAL_AUTH_FALLBACK:
+        session = await get_user_session(session_id)
+        if session:
+            session["revoked_at"] = revoked_at
+            session["updated_at"] = revoked_at
+            local_upsert_collection_item("sessions", session)
+
+
+async def issue_token_response(user: Dict[str, Any], request: Optional[Request] = None, session_id: Optional[str] = None) -> TokenResp:
+    clean = clean_user(user)
+    current_session_id = session_id or str(uuid.uuid4())
+    refresh_token, refresh_token_id = create_refresh_token(
+        clean["id"],
+        JWT_SECRET,
+        REFRESH_TOKEN_EXPIRES_MIN,
+        session_id=current_session_id,
+    )
+    access_token = create_access_token(clean["id"], JWT_SECRET, JWT_EXPIRES_MIN, session_id=current_session_id)
+    timestamp = now_utc().isoformat()
+    metadata = build_session_metadata(request)
+    await persist_user_session(
+        {
+            "id": current_session_id,
+            "user_id": clean["id"],
+            "refresh_token_hash": hash_refresh_token_value(refresh_token),
+            "refresh_token_id": refresh_token_id,
+            "refresh_expires_at": (now_utc() + timedelta(minutes=REFRESH_TOKEN_EXPIRES_MIN)).isoformat(),
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "last_seen_at": timestamp,
+            "revoked_at": None,
+            **metadata,
+        }
+    )
+    return TokenResp(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in_seconds=JWT_EXPIRES_MIN * 60,
+        user=clean,
+    )
 
 
 def require_supabase_phone_auth() -> None:
@@ -2369,7 +2499,8 @@ async def ensure_indexes() -> None:
         await db.users.update_many({"phone": "9900001111"}, {"$set": {"phone": "+919900001111"}})
         await db.users.update_many({"phone": "6303210224"}, {"$set": {"phone": "+916303210224"}})
         await db.users.update_many({"phone": "9911112222"}, {"$set": {"phone": "+919911112222"}})
-        await sync_demo_auth_users_to_db()
+        if ENABLE_DEMO_DATA:
+            await sync_demo_auth_users_to_db()
 
         for index_name in ("email_1", "phone_1", "google_sub_1"):
             try:
@@ -2381,6 +2512,9 @@ async def ensure_indexes() -> None:
         await db.users.create_index("email", unique=True, sparse=True)
         await db.users.create_index("phone", unique=True, sparse=True)
         await db.users.create_index("google_sub", unique=True, sparse=True)
+        await db.user_sessions.create_index("id", unique=True)
+        await db.user_sessions.create_index([("user_id", 1), ("revoked_at", 1)])
+        await db.user_sessions.create_index("refresh_token_id", sparse=True)
         await db.leads.create_index("id", unique=True)
         await db.leads.create_index("normalized_email", sparse=True)
         await db.leads.create_index("normalized_phone", sparse=True)
@@ -2402,8 +2536,9 @@ async def ensure_indexes() -> None:
 
 # ---------- Auth Routes ----------
 @api_router.post("/auth/register", response_model=TokenResp)
-async def register(req: RegisterReq):
+async def register(req: RegisterReq, request: Request):
     email = normalize_email(req.email)
+    enforce_rate_limit(rate_limit_key(request, "auth_register", email), limit=5, window_seconds=300)
     validate_password_strength(req.password)
     if await is_database_available():
         existing = await db.users.find_one({"email": email})
@@ -2420,12 +2555,13 @@ async def register(req: RegisterReq):
         password_hash=hash_password(req.password),
         auth_method="email",
     )
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/login", response_model=TokenResp)
-async def login(req: LoginReq):
+async def login(req: LoginReq, request: Request):
     email = normalize_email(req.email)
+    enforce_rate_limit(rate_limit_key(request, "auth_login", email), limit=8, window_seconds=300)
     if await is_database_available():
         user = await db.users.find_one({"email": email})
     elif ALLOW_LOCAL_AUTH_FALLBACK:
@@ -2446,18 +2582,19 @@ async def login(req: LoginReq):
             {"$set": {"updated_at": now_utc().isoformat(), "last_login_at": now_utc().isoformat()}},
         )
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
-        return await issue_token_response(refreshed)
+        return await issue_token_response(refreshed, request)
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["updated_at"] = now_utc().isoformat()
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/admin/status")
-async def admin_access_status(req: AgentAccessStatusReq):
+async def admin_access_status(req: AgentAccessStatusReq, request: Request):
     phone = normalize_phone(req.phone)
+    enforce_rate_limit(rate_limit_key(request, "auth_admin_status", phone), limit=20, window_seconds=300)
     if not await is_database_available():
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
@@ -2479,8 +2616,9 @@ async def admin_access_status(req: AgentAccessStatusReq):
 
 
 @api_router.post("/auth/send-otp")
-async def send_otp(req: SendOtpReq):
+async def send_otp(req: SendOtpReq, request: Request):
     phone = normalize_phone(req.phone)
+    enforce_rate_limit(rate_limit_key(request, "auth_send_otp", phone), limit=5, window_seconds=300)
     await supabase_send_phone_otp(phone)
     return {
         "success": True,
@@ -2490,8 +2628,9 @@ async def send_otp(req: SendOtpReq):
 
 
 @api_router.post("/auth/verify-otp", response_model=TokenResp)
-async def verify_otp(req: VerifyOtpReq):
+async def verify_otp(req: VerifyOtpReq, request: Request):
     phone = normalize_phone(req.phone)
+    enforce_rate_limit(rate_limit_key(request, "auth_verify_otp", phone), limit=10, window_seconds=300)
     otp_value = (req.otp or "").strip()
     await supabase_verify_phone_otp(phone, otp_value)
     user = await upsert_user_identity(
@@ -2499,12 +2638,13 @@ async def verify_otp(req: VerifyOtpReq):
         phone=phone,
         auth_method="phone",
     )
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/agent/apply")
-async def apply_agent_access(req: AgentApplicationReq):
+async def apply_agent_access(req: AgentApplicationReq, request: Request):
     phone = normalize_phone(req.phone)
+    enforce_rate_limit(rate_limit_key(request, "auth_agent_apply", phone), limit=6, window_seconds=3600)
     email = normalize_email(req.email) if req.email else ""
     now_iso = now_utc().isoformat()
     application_updates = {
@@ -2611,8 +2751,9 @@ async def apply_agent_access(req: AgentApplicationReq):
 
 
 @api_router.post("/auth/agent/status")
-async def agent_access_status(req: AgentAccessStatusReq):
+async def agent_access_status(req: AgentAccessStatusReq, request: Request):
     phone = normalize_phone(req.phone)
+    enforce_rate_limit(rate_limit_key(request, "auth_agent_status", phone), limit=20, window_seconds=300)
 
     if await is_database_available():
         user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
@@ -2659,7 +2800,8 @@ async def agent_access_status(req: AgentAccessStatusReq):
 
 
 @api_router.post("/auth/google", response_model=TokenResp)
-async def google_auth(req: GoogleAuthReq):
+async def google_auth(req: GoogleAuthReq, request: Request):
+    enforce_rate_limit(rate_limit_key(request, "auth_google"), limit=10, window_seconds=300)
     google_client_ids = get_google_client_ids()
     firebase_project_id = get_firebase_project_id()
 
@@ -2723,11 +2865,13 @@ async def google_auth(req: GoogleAuthReq):
         google_sub=payload["sub"],
         auth_method="google",
     )
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/firebase", response_model=TokenResp)
-async def firebase_auth(req: FirebaseAuthReq):
+async def firebase_auth(req: FirebaseAuthReq, request: Request):
+    normalized_phone = normalize_phone(req.phone) if req.phone else None
+    enforce_rate_limit(rate_limit_key(request, "auth_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
     if not project_id:
         logger.error("Firebase auth failed: FIREBASE project id is not configured")
@@ -2739,7 +2883,7 @@ async def firebase_auth(req: FirebaseAuthReq):
         logger.warning("Firebase auth token verification failed: %s", exc.detail)
         raise
 
-    phone = normalize_phone(req.phone or payload.get("phone_number") or "")
+    phone = normalized_phone or normalize_phone(payload.get("phone_number") or "")
     token_phone = normalize_phone(payload.get("phone_number") or "")
     if not phone:
         logger.warning("Firebase auth failed: token did not include a phone number")
@@ -2760,7 +2904,7 @@ async def firebase_auth(req: FirebaseAuthReq):
         )
         refreshed = await db.users.find_one({"id": user["id"]}, {"_id": 0})
         logger.info("Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed)
+        return await issue_token_response(refreshed, request)
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["firebase_uid"] = payload.get("user_id") or payload.get("sub")
@@ -2768,11 +2912,13 @@ async def firebase_auth(req: FirebaseAuthReq):
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
     logger.info("Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/agent/firebase", response_model=TokenResp)
-async def agent_firebase_auth(req: AgentFirebaseAuthReq):
+async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request):
+    normalized_phone = normalize_phone(req.phone) if req.phone else None
+    enforce_rate_limit(rate_limit_key(request, "auth_agent_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
     if not project_id:
         logger.error("Agent Firebase auth failed: FIREBASE project id is not configured")
@@ -2784,7 +2930,7 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq):
         logger.warning("Agent Firebase auth token verification failed: %s", exc.detail)
         raise
 
-    phone = normalize_phone(req.phone or payload.get("phone_number") or "")
+    phone = normalized_phone or normalize_phone(payload.get("phone_number") or "")
     token_phone = normalize_phone(payload.get("phone_number") or "")
     if not phone:
         raise HTTPException(status_code=400, detail="Firebase phone number is missing")
@@ -2820,16 +2966,18 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq):
         await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
         logger.info("Agent Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed)
+        return await issue_token_response(refreshed, request)
 
     user.update(updates)
     local_save_user(user)
     logger.info("Agent Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user)
+    return await issue_token_response(user, request)
 
 
 @api_router.post("/auth/admin/firebase", response_model=TokenResp)
-async def admin_firebase_auth(req: AdminFirebaseAuthReq):
+async def admin_firebase_auth(req: AdminFirebaseAuthReq, request: Request):
+    normalized_phone = normalize_phone(req.phone) if req.phone else None
+    enforce_rate_limit(rate_limit_key(request, "auth_admin_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
     if not project_id:
         logger.error("Admin Firebase auth failed: Firebase project id is not configured")
@@ -2841,7 +2989,7 @@ async def admin_firebase_auth(req: AdminFirebaseAuthReq):
         logger.warning("Admin Firebase auth token verification failed: %s", exc.detail)
         raise
 
-    phone = normalize_phone(req.phone or payload.get("phone_number") or "")
+    phone = normalized_phone or normalize_phone(payload.get("phone_number") or "")
     token_phone = normalize_phone(payload.get("phone_number") or "")
     if not phone or not token_phone:
         raise HTTPException(status_code=400, detail="Firebase phone number is missing")
@@ -2869,7 +3017,58 @@ async def admin_firebase_auth(req: AdminFirebaseAuthReq):
     await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
     refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
     logger.info("Admin Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-    return await issue_token_response(refreshed or {**user, **updates})
+    return await issue_token_response(refreshed or {**user, **updates}, request)
+
+
+@api_router.post("/auth/refresh", response_model=TokenResp)
+async def refresh_auth_session(req: RefreshTokenReq, request: Request):
+    enforce_rate_limit(rate_limit_key(request, "auth_refresh"), limit=12, window_seconds=300)
+    payload = decode_token(req.refresh_token, JWT_SECRET)
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    session_id = str(payload.get("sid") or "").strip()
+    refresh_token_id = str(payload.get("jti") or "").strip()
+    user_id = str(payload.get("sub") or "").strip()
+    if not session_id or not refresh_token_id or not user_id:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    session = await get_user_session(session_id)
+    if not session or session.get("revoked_at"):
+        raise HTTPException(status_code=401, detail="Session expired")
+    if session.get("user_id") != user_id:
+        raise HTTPException(status_code=401, detail="Session expired")
+    if session.get("refresh_token_id") != refresh_token_id:
+        raise HTTPException(status_code=401, detail="Session expired")
+    if session.get("refresh_token_hash") != hash_refresh_token_value(req.refresh_token):
+        raise HTTPException(status_code=401, detail="Session expired")
+    if session.get("refresh_expires_at"):
+        try:
+            if datetime.fromisoformat(str(session["refresh_expires_at"])) <= now_utc():
+                raise HTTPException(status_code=401, detail="Session expired")
+        except ValueError:
+            raise HTTPException(status_code=401, detail="Session expired")
+
+    if await is_database_available():
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        user = local_find_user(user_id=user_id)
+    else:
+        raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return await issue_token_response(user, request, session_id=session_id)
+
+
+@api_router.post("/auth/logout")
+async def logout_auth_session(req: RefreshTokenReq, request: Request):
+    enforce_rate_limit(rate_limit_key(request, "auth_logout"), limit=20, window_seconds=300)
+    payload = decode_token(req.refresh_token, JWT_SECRET)
+    session_id = str(payload.get("sid") or "").strip()
+    if session_id:
+        await revoke_user_session(session_id)
+    return {"success": True}
 
 
 @api_router.get("/auth/me")
@@ -5094,111 +5293,113 @@ async def seed_data():
     ]
     await db.centres.insert_many([c.copy() for c in centres])
 
-    # ---- Demo user with land + installments + documents ----
-    demo_user_id = "demo-user-001"
-    await db.users.insert_one({
-        "id": demo_user_id,
-        "phone": "+919999900001",
-        "name": "Rajesh Kumar",
-        "email": "rajesh.demo@rivanreality.com",
-        "address": "Plot 22, Jubilee Hills, Hyderabad",
-        "kyc_status": "verified",
-        "is_admin": False,
-        "role": "customer",
-        "created_at": now_utc().isoformat(),
-    })
-
-    # Assign a plot to demo user
-    demo_plot_id = "plot-1-5"
-    await db.plots.update_one(
-        {"id": demo_plot_id},
-        {"$set": {"status": "booked", "owner_id": demo_user_id}}
-    )
-
-    # Assign a SECOND plot to demo user — fully purchased (for "Purchase Completed" demo state)
-    completed_plot_id = "villa-2-03"
-    await db.plots.update_one(
-        {"id": completed_plot_id},
-        {"$set": {"status": "sold", "owner_id": demo_user_id}}
-    )
-
-    # Installments for demo
-    total_property = 2775000  # 300 sqy * 9250
-    installment_amount = total_property / 12
-    base_date = now_utc().date()
-    installments = []
-    for i in range(1, 13):
-        due = base_date + timedelta(days=30 * (i - 4))  # 3 past, 9 future
-        status_val = "paid" if i <= 3 else "upcoming"
-        installments.append({
-            "id": f"inst-demo-{i}",
-            "user_id": demo_user_id,
-            "property_id": "prop-1",
-            "plot_id": demo_plot_id,
-            "installment_number": i,
-            "amount": installment_amount,
-            "due_date": due.isoformat(),
-            "status": status_val,
-            "paid_at": (now_utc() - timedelta(days=30 * (4 - i))).isoformat() if i <= 3 else None,
-            "receipt_id": f"RCPT-DEMO{i:03d}" if i <= 3 else None,
-            "created_at": now_utc().isoformat(),
-        })
-    await db.installments.insert_many([i.copy() for i in installments])
-
-    # Past payments for demo
-    for i in range(1, 4):
-        await db.payments.insert_one({
-            "id": f"pay-demo-{i}",
-            "user_id": demo_user_id,
-            "installment_id": f"inst-demo-{i}",
-            "amount": installment_amount,
-            "receipt_id": f"RCPT-DEMO{i:03d}",
-            "method": "Online (UPI)",
-            "paid_at": (now_utc() - timedelta(days=30 * (4 - i))).isoformat(),
-            "installment_number": i,
-            "property_id": "prop-1",
-        })
-
-    # Documents for demo
-    demo_docs = [
-        {"name": "Sale Agreement", "type": "Agreement", "size": "1.2 MB"},
-        {"name": "Plot Allocation Letter", "type": "Letter", "size": "320 KB"},
-        {"name": "Payment Receipt #1", "type": "Receipt", "size": "180 KB"},
-        {"name": "Payment Receipt #2", "type": "Receipt", "size": "180 KB"},
-        {"name": "Payment Receipt #3", "type": "Receipt", "size": "180 KB"},
-        {"name": "KYC - PAN Card", "type": "KYC", "size": "220 KB"},
-        {"name": "KYC - Aadhaar", "type": "KYC", "size": "340 KB"},
-        {"name": "HMDA Approval Copy", "type": "Approval", "size": "2.1 MB"},
-        {"name": "Sale Deed Draft", "type": "Deed", "size": "850 KB"},
-    ]
-    for d in demo_docs:
-        await db.documents.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": demo_user_id,
-            "name": d["name"],
-            "type": d["type"],
-            "size": d["size"],
-            "url": "https://www.africau.edu/images/default/sample.pdf",
+    if ENABLE_DEMO_DATA:
+        # ---- Demo user with land + installments + documents ----
+        demo_user_id = "demo-user-001"
+        await db.users.insert_one({
+            "id": demo_user_id,
+            "phone": "+919999900001",
+            "name": "Rajesh Kumar",
+            "email": "rajesh.demo@rivanreality.com",
+            "address": "Plot 22, Jubilee Hills, Hyderabad",
+            "kyc_status": "verified",
+            "is_admin": False,
+            "role": "customer",
             "created_at": now_utc().isoformat(),
         })
 
-    # Notifications for demo
-    demo_notifs = [
-        ("Welcome to Rivan Reality", "Legacy of trust, legacy of wealth.", "welcome"),
-        ("Installment Due Reminder", f"Your next installment of ₹{installment_amount:,.0f} is due soon.", "payment"),
-        ("New Layout Launched", "Rivan Lakeside Layout — bookings open now!", "project"),
-        ("Document Uploaded", "Your sale deed draft has been uploaded to the document locker.", "document"),
-    ]
-    for title, body, ntype in demo_notifs:
-        await db.notifications.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": demo_user_id,
-            "title": title,
-            "body": body,
-            "type": ntype,
-            "read": False,
-            "created_at": now_utc().isoformat(),
-        })
+        # Assign a plot to demo user
+        demo_plot_id = "plot-1-5"
+        await db.plots.update_one(
+            {"id": demo_plot_id},
+            {"$set": {"status": "booked", "owner_id": demo_user_id}}
+        )
+
+        # Assign a SECOND plot to demo user — fully purchased (for "Purchase Completed" demo state)
+        completed_plot_id = "villa-2-03"
+        await db.plots.update_one(
+            {"id": completed_plot_id},
+            {"$set": {"status": "sold", "owner_id": demo_user_id}}
+        )
+
+        # Installments for demo
+        total_property = 2775000  # 300 sqy * 9250
+        installment_amount = total_property / 12
+        base_date = now_utc().date()
+        installments = []
+        for i in range(1, 13):
+            due = base_date + timedelta(days=30 * (i - 4))  # 3 past, 9 future
+            status_val = "paid" if i <= 3 else "upcoming"
+            installments.append({
+                "id": f"inst-demo-{i}",
+                "user_id": demo_user_id,
+                "property_id": "prop-1",
+                "plot_id": demo_plot_id,
+                "installment_number": i,
+                "amount": installment_amount,
+                "due_date": due.isoformat(),
+                "status": status_val,
+                "paid_at": (now_utc() - timedelta(days=30 * (4 - i))).isoformat() if i <= 3 else None,
+                "receipt_id": f"RCPT-DEMO{i:03d}" if i <= 3 else None,
+                "created_at": now_utc().isoformat(),
+            })
+        await db.installments.insert_many([i.copy() for i in installments])
+
+        # Past payments for demo
+        for i in range(1, 4):
+            await db.payments.insert_one({
+                "id": f"pay-demo-{i}",
+                "user_id": demo_user_id,
+                "installment_id": f"inst-demo-{i}",
+                "amount": installment_amount,
+                "receipt_id": f"RCPT-DEMO{i:03d}",
+                "method": "Online (UPI)",
+                "paid_at": (now_utc() - timedelta(days=30 * (4 - i))).isoformat(),
+                "installment_number": i,
+                "property_id": "prop-1",
+            })
+
+        # Documents for demo
+        demo_docs = [
+            {"name": "Sale Agreement", "type": "Agreement", "size": "1.2 MB"},
+            {"name": "Plot Allocation Letter", "type": "Letter", "size": "320 KB"},
+            {"name": "Payment Receipt #1", "type": "Receipt", "size": "180 KB"},
+            {"name": "Payment Receipt #2", "type": "Receipt", "size": "180 KB"},
+            {"name": "Payment Receipt #3", "type": "Receipt", "size": "180 KB"},
+            {"name": "KYC - PAN Card", "type": "KYC", "size": "220 KB"},
+            {"name": "KYC - Aadhaar", "type": "KYC", "size": "340 KB"},
+            {"name": "HMDA Approval Copy", "type": "Approval", "size": "2.1 MB"},
+            {"name": "Sale Deed Draft", "type": "Deed", "size": "850 KB"},
+        ]
+        for d in demo_docs:
+            await db.documents.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": demo_user_id,
+                "name": d["name"],
+                "type": d["type"],
+                "size": d["size"],
+                "url": "https://www.africau.edu/images/default/sample.pdf",
+                "created_at": now_utc().isoformat(),
+            })
+
+        # Notifications for demo
+        demo_notifs = [
+            ("Welcome to Rivan Reality", "Legacy of trust, legacy of wealth.", "welcome"),
+            ("Installment Due Reminder", f"Your next installment of ₹{installment_amount:,.0f} is due soon.", "payment"),
+            ("New Layout Launched", "Rivan Lakeside Layout — bookings open now!", "project"),
+            ("Document Uploaded", "Your sale deed draft has been uploaded to the document locker.", "document"),
+        ]
+        for title, body, ntype in demo_notifs:
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": demo_user_id,
+                "title": title,
+                "body": body,
+                "type": ntype,
+                "read": False,
+                "created_at": now_utc().isoformat(),
+            })
+
 
     # ---- Admin user ----
     await db.users.insert_one({
@@ -5340,3 +5541,4 @@ async def on_startup():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+

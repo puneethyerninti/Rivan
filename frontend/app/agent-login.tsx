@@ -25,7 +25,7 @@ function normalizePublicEnv(value?: string) {
 export default function AgentLoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ phone?: string; application?: string }>();
-  const { signIn } = useAuth();
+  const { isAuthed, signIn, user } = useAuth();
 
   const isLocalhostWeb =
     Platform.OS === "web" &&
@@ -69,6 +69,17 @@ export default function AgentLoginScreen() {
   useEffect(() => {
     warmBackendReady();
   }, []);
+
+  useEffect(() => {
+    const role = String(user?.role || "").toLowerCase();
+    const approvedAgent =
+      isAuthed &&
+      ["agent", "sub_agent"].includes(role) &&
+      String(user?.approval_status || "").toLowerCase() === "approved";
+    if (approvedAgent) {
+      router.replace("/agent" as never);
+    }
+  }, [isAuthed, router, user]);
 
   useEffect(() => {
     if (otpCooldownSeconds <= 0) return;
@@ -255,7 +266,7 @@ export default function AgentLoginScreen() {
       if (session.user?.role !== "agent" && session.user?.role !== "sub_agent") {
         throw new Error("This phone number is not approved for the agent dashboard.");
       }
-      await signIn(session.access_token, session.user);
+      await signIn(session.access_token, session.user, session.refresh_token);
       router.replace("/agent" as never);
     } catch (error: any) {
       const message = String(error?.message || "");
@@ -284,12 +295,11 @@ export default function AgentLoginScreen() {
     <SafeAreaView style={styles.safe}>
       <AuthSplitShell
         eyebrow="Rivan Agent Access"
-        title="Approved agents can enter directly through secure OTP."
-        body="Use the same phone number that was approved for your agent account. If the number is not registered yet, complete the application first."
+        title="Agent access"
+        body="Use the same approved mobile number for OTP sign-in. If the number is not registered yet, complete the application first."
         points={[
-          { icon: "briefcase", text: "Real-time access linked to approved agent records only" },
-          { icon: "check-circle", text: "Agent approvals continue to be controlled by the current admin workflow" },
-          { icon: "arrow-right-circle", text: "Move into the live agent dashboard after OTP verification" },
+          { icon: "briefcase", text: "Access is linked to approved agent records only" },
+          { icon: "check-circle", text: "Manager approval is required before entry" },
         ]}
         formEyebrow="Agent login"
         formTitle="Agent login"

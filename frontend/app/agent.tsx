@@ -24,7 +24,6 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { Button } from "@/src/components/Button";
 import { PropertyMedia } from "@/src/components/PropertyMedia";
-import { mockProperties } from "@/src/mock-data";
 import { colors, formatINRFull, radii, shadow, spacing } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 
@@ -90,154 +89,7 @@ const CRM_PIPELINE_STAGES = [
   "closed_lost",
 ];
 
-const demoCustomers = [
-  { id: "CUST-1021", name: "Ramesh Kumar", phone: "+91 98765 43210", email: "ramesh.kumar@email.com" },
-  { id: "CUST-1056", name: "Suresh Reddy", phone: "+91 91234 56789", email: "suresh.reddy@email.com" },
-  { id: "CUST-1103", name: "Anita Sharma", phone: "+91 88990 11223", email: "anita.sharma@email.com" },
-];
-
-const TEMP_PUBLIC_AGENT_PREVIEW =
-  Platform.OS === "web" && normalizeFlag(process.env.EXPO_PUBLIC_ENABLE_AGENT_PREVIEW) === "true";
-
-const previewAgentUser = {
-  id: "agent-preview-001",
-  name: "Rivan Preview Agent",
-  email: "agent-preview@rivanreality.com",
-  phone: "9876543210",
-  role: "agent",
-  approval_status: "approved",
-  agent_brand_name: "Rivan Crest Partners",
-};
-
-function createPreviewAgentDashboard(): AgentDashboardData {
-  const assets = mockProperties.map((property, index) => ({
-    id: `asset-preview-${index + 1}`,
-    property_id: property.id,
-    property_name: property.name,
-    property_location: property.location,
-    property_image: property.image,
-    property_video_url: property.videoUrl,
-    plot_number: property.plot_number || `P-${index + 1}`,
-    survey_number: property.survey_number,
-    facing: property.facing,
-    road_width: property.road_width,
-    availability: property.availability,
-    starting_price: property.starting_price,
-    size: property.size,
-    category: property.category,
-    agent_name: previewAgentUser.name,
-  }));
-
-  return {
-    profile: previewAgentUser,
-    sub_agents: [
-      { id: "sub-preview-001", name: "Preview Sub-Agent", phone: "9123456789", email: "subagent@rivanreality.com", status: "active" },
-    ],
-    assets,
-    bookings: [
-      {
-        id: "booking-preview-001",
-        property_id: mockProperties[0]?.id,
-        property_name: mockProperties[0]?.name || "Rivan Greens",
-        plot_number: mockProperties[0]?.plot_number || "P-005",
-        status: "pending",
-        name: demoCustomers[0].name,
-        mobile: demoCustomers[0].phone,
-        created_at: new Date().toISOString(),
-        customer_id: demoCustomers[0].id,
-      },
-    ],
-    visits: [
-      {
-        id: "visit-preview-001",
-        property_id: mockProperties[1]?.id,
-        property_name: mockProperties[1]?.name || "Rivan Heritage Villas",
-        plot_number: mockProperties[1]?.plot_number || "V-03",
-        customer_id: demoCustomers[1].id,
-        customer_name: demoCustomers[1].name,
-        customer_phone: demoCustomers[1].phone,
-        visit_date: "2026-06-25",
-        visit_time: "10:30 AM",
-        status: "scheduled",
-        notes: "Hosted preview visit scheduled for demo purposes.",
-        created_at: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-function createPreviewCrmDashboard(): CrmDashboardData {
-  return {
-    leads: [
-      {
-        id: "lead-preview-001",
-        name: demoCustomers[0].name,
-        phone: demoCustomers[0].phone,
-        email: demoCustomers[0].email,
-        source: "website",
-        status: "qualified",
-        assigned_agent_id: previewAgentUser.id,
-        tags: ["High Intent", "Villa"],
-        customer_preferences: { budget: "1.2Cr - 1.5Cr", location: "Kokapet", unit_type: "Villa" },
-        notes_summary: "Requested walkthrough and brochure.",
-        next_follow_up_at: "2026-06-18T10:30:00.000Z",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ],
-    opportunities: [
-      {
-        id: "opp-preview-001",
-        lead_id: "lead-preview-001",
-        property_id: mockProperties[1]?.id,
-        property_name: mockProperties[1]?.name || "Rivan Heritage Villas",
-        assigned_agent_id: previewAgentUser.id,
-        stage: "site_visit_scheduled",
-        expected_value: mockProperties[1]?.starting_price || 14500000,
-        priority: "high",
-        visit_ids: ["visit-preview-001"],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ],
-    tasks: [
-      {
-        id: "task-preview-001",
-        lead_id: "lead-preview-001",
-        assigned_to_user_id: previewAgentUser.id,
-        task_type: "follow_up",
-        title: "Call customer after brochure share",
-        description: "Confirm site visit attendance and answer pricing questions.",
-        due_at: "2026-06-17T09:00:00.000Z",
-        priority: "high",
-        status: "pending",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ],
-    activities: [
-      {
-        id: "activity-preview-001",
-        lead_id: "lead-preview-001",
-        opportunity_id: "opp-preview-001",
-        actor_user_id: previewAgentUser.id,
-        activity_type: "note",
-        message: "Customer asked for villa-facing options and clubhouse details.",
-        created_at: new Date().toISOString(),
-      },
-    ],
-    metrics: {
-      leads: 1,
-      opportunities: 1,
-      overdue_tasks: 0,
-      due_today: 1,
-    },
-    stage_counts: {
-      site_visit_scheduled: 1,
-    },
-    lost_reasons: {},
-  };
-}
+const EMPTY_CUSTOMER = { id: "", name: "", phone: "", email: "" };
 
 const emptyAgentForm = {
   name: "",
@@ -274,8 +126,10 @@ export default function AgentDashboardScreen() {
   const isTablet = width >= 760;
   const isMobile = width < 760;
   const theme = useMemo(() => createTheme(isDark), [isDark]);
-  const previewMode = TEMP_PUBLIC_AGENT_PREVIEW && !user;
-  const effectiveUser = (previewMode ? previewAgentUser : user) as any;
+  const normalizedRole = String(user?.role || "").toLowerCase();
+  const hasApprovedAgentAccess =
+    ["agent", "sub_agent"].includes(normalizedRole) && String(user?.approval_status || "").toLowerCase() === "approved";
+  const effectiveUser = user as any;
 
   const [data, setData] = useState<AgentDashboardData | null>(null);
   const [crmData, setCrmData] = useState<CrmDashboardData | null>(null);
@@ -290,7 +144,7 @@ export default function AgentDashboardScreen() {
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [drawerMode, setDrawerMode] = useState<"property" | "plot" | "agent" | null>(null);
   const [bookingStep, setBookingStep] = useState<BookingStep>(1);
-  const [selectedCustomer, setSelectedCustomer] = useState(demoCustomers[0]);
+  const [selectedCustomer, setSelectedCustomer] = useState(EMPTY_CUSTOMER);
   const [savingBooking, setSavingBooking] = useState(false);
   const [agentEditorOpen, setAgentEditorOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
@@ -311,14 +165,6 @@ export default function AgentDashboardScreen() {
   const handledRouteActionRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
-    if (previewMode) {
-      setData(createPreviewAgentDashboard());
-      setCrmData(createPreviewCrmDashboard());
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
     try {
       const [response, visitResponse, crmResponse] = await Promise.all([
         api.agentDashboard(),
@@ -335,10 +181,18 @@ export default function AgentDashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [previewMode]);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !hasApprovedAgentAccess) {
+      void storage.removeItem(AGENT_DASHBOARD_CACHE_KEY);
+      router.replace("/agent-login");
+    }
+  }, [hasApprovedAgentAccess, router, user]);
 
   useEffect(() => {
     storage.getItem(AGENT_DASHBOARD_CACHE_KEY, "").then((raw) => {
+      if (!user || !hasApprovedAgentAccess) return;
       if (!raw || typeof raw !== "string") return;
       try {
         const parsed = JSON.parse(raw) as any;
@@ -349,19 +203,20 @@ export default function AgentDashboardScreen() {
         // ignore malformed cache
       }
     });
-  }, []);
+  }, [hasApprovedAgentAccess, user]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!user || !hasApprovedAgentAccess) return;
+    void load();
+  }, [hasApprovedAgentAccess, load, user]);
 
   useEffect(() => {
-    if (previewMode) return;
+    if (!user || !hasApprovedAgentAccess) return;
     const interval = setInterval(() => {
       void load();
     }, 15000);
     return () => clearInterval(interval);
-  }, [load, previewMode]);
+  }, [hasApprovedAgentAccess, load, user]);
 
   useEffect(() => {
     if (!actionPulse) return;
@@ -832,10 +687,10 @@ export default function AgentDashboardScreen() {
         status,
         agent_name: booking.agent_name || asset?.agent_name || profile?.name || "Agent",
         customer: {
-          id: booking.customer?.id || booking.customer_id || booking.user_id || `CUST-${1021 + index}`,
-          name: booking.customer?.name || booking.name || demoCustomers[index % demoCustomers.length].name,
-          phone: booking.customer?.phone || booking.mobile || demoCustomers[index % demoCustomers.length].phone,
-          email: booking.customer?.email || demoCustomers[index % demoCustomers.length].email,
+          id: String(booking.customer?.id || booking.customer_id || booking.user_id || booking.mobile || booking.id || ""),
+          name: booking.customer?.name || booking.name || "Customer",
+          phone: booking.customer?.phone || booking.mobile || "",
+          email: booking.customer?.email || "",
         },
       };
     });
@@ -867,22 +722,8 @@ export default function AgentDashboardScreen() {
         notes: visit.notes || "No notes added.",
       }));
     }
-    const source = assets.slice(0, 6);
-    return source.map((asset, index) => ({
-      id: `VIS-${3400 + index}`,
-      propertyId: asset.property_id,
-      plotId: asset.id,
-      property: asset.property_name || "Property",
-      plot: asset.plot_number || asset.id,
-      customer: demoCustomers[index % demoCustomers.length],
-      agent: asset.agent_name || profile?.name || "Agent",
-      date: index < 3 ? `2026-06-${12 + index}` : `2026-05-${20 + index}`,
-      time: index % 2 === 0 ? "10:30 AM" : "04:00 PM",
-      statusRaw: index < 3 ? "upcoming" : index === 3 ? "cancelled" : "completed",
-      status: index < 3 ? "Upcoming" : index === 3 ? "Cancelled" : "Completed",
-      notes: index % 2 === 0 ? "Customer requested compound wall estimate." : "Prefers weekend follow-up.",
-    }));
-  }, [assets, data?.visits, profile?.name, propertyGroups]);
+    return [];
+  }, [data?.visits, profile?.name, propertyGroups]);
 
   const notifications = useMemo(() => {
     return [
@@ -897,6 +738,39 @@ export default function AgentDashboardScreen() {
   const crmOpportunities = crmData?.opportunities || [];
   const crmTasks = crmData?.tasks || [];
   const crmActivities = crmData?.activities || [];
+  const knownCustomers = useMemo(() => {
+    const customers = new Map<string, { id: string; name: string; phone: string; email: string }>();
+
+    const addCustomer = (candidate: any) => {
+      const name = String(candidate?.name || "").trim();
+      const phone = String(candidate?.phone || candidate?.mobile || "").trim();
+      const email = String(candidate?.email || candidate?.customer_email || "").trim();
+      const id = String(candidate?.id || candidate?.customer_id || candidate?.user_id || phone || email || "").trim();
+      if (!id || !name) return;
+      customers.set(id, { id, name, phone, email });
+    };
+
+    bookings.forEach((booking) => addCustomer({
+      id: booking.customer?.id || booking.customer_id || booking.user_id,
+      name: booking.customer?.name || booking.name,
+      phone: booking.customer?.phone || booking.mobile,
+      email: booking.customer?.email,
+    }));
+    (data?.visits || []).forEach((visit: any) => addCustomer({
+      id: visit.customer_id,
+      name: visit.customer_name,
+      phone: visit.customer_phone,
+      email: visit.customer_email,
+    }));
+    crmLeads.forEach((lead: any) => addCustomer({
+      id: lead.customer_id || lead.id,
+      name: lead.name,
+      phone: lead.phone,
+      email: lead.email,
+    }));
+
+    return Array.from(customers.values());
+  }, [bookings, crmLeads, data?.visits]);
 
   const metrics = useMemo(() => {
     const pending = enrichedBookings.filter((booking) => booking.status === "pending").length;
@@ -945,7 +819,7 @@ export default function AgentDashboardScreen() {
     }
   }, [assets, data, params.action, params.assetId, params.propertyId, params.step]);
 
-  if (!isAgent) {
+  if (!isAgent || !hasApprovedAgentAccess) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
         <View style={styles.emptyState}>
@@ -1176,6 +1050,7 @@ export default function AgentDashboardScreen() {
         selectedAsset={selectedAsset || assets.find(isBookableAsset) || assets[0]}
         selectedProperty={selectedProperty}
         selectedCustomer={selectedCustomer}
+        knownCustomers={knownCustomers}
         bookingStep={bookingStep}
         maxBookingStepUnlocked={maxBookingStepUnlocked}
         loading={bookingFlowLoading || savingBooking}
@@ -1704,6 +1579,7 @@ function BookingFlowModal({
   selectedAsset,
   selectedProperty,
   selectedCustomer,
+  knownCustomers,
   bookingStep,
   maxBookingStepUnlocked,
   loading,
@@ -1801,6 +1677,7 @@ function BookingFlowModal({
                 step={bookingStep}
                 selectedAsset={selectedAsset}
                 selectedCustomer={selectedCustomer}
+                knownCustomers={knownCustomers}
                 onCustomer={onCustomer}
                 onStep={onStep}
               />
@@ -1979,7 +1856,7 @@ function VisitsPage({ theme, isTablet, visits, subAgents, selectedAsset, selecte
 }
 
 function AgentsPage({ theme, isTablet, subAgents, assets, bookings, onUpdateAgentStatus, onEditAgent, onAgent }: any) {
-  const agents = subAgents.length ? subAgents : [{ id: "agent-demo", name: "No sub-agent linked", phone: "-", email: "-", status: "Pending" }];
+  const agents = subAgents.length ? subAgents : [{ id: "agent-empty", name: "No sub-agent linked", phone: "-", email: "-", status: "Pending" }];
   return (
     <View style={styles.pageGap}>
       <Toolbar theme={theme}>
@@ -2163,7 +2040,7 @@ function PlotLayout({ theme, property, selectedAsset, onSelect }: any) {
   );
 }
 
-function BookingStepPanel({ theme, step, selectedAsset, selectedCustomer, onCustomer, onStep }: any) {
+function BookingStepPanel({ theme, step, selectedAsset, selectedCustomer, knownCustomers, onCustomer, onStep }: any) {
   if (step === 1) {
     return (
       <View style={[styles.workflowPanel, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -2213,18 +2090,24 @@ function BookingStepPanel({ theme, step, selectedAsset, selectedCustomer, onCust
             keyboardType="email-address"
           />
         </View>
-        <Text style={[styles.cardMeta, { color: theme.subtle }]}>Quick select existing customer</Text>
-        {demoCustomers.map((customer) => (
-          <TouchableOpacity key={customer.id} style={[styles.customerRow, { borderColor: theme.border }]} onPress={() => onCustomer(customer)}>
-            <View style={[styles.radio, { borderColor: selectedCustomer?.id === customer.id ? theme.brand : theme.border }]}>
-              {selectedCustomer?.id === customer.id ? <View style={[styles.radioDot, { backgroundColor: theme.brand }]} /> : null}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{customer.name}</Text>
-              <Text style={[styles.cardMeta, { color: theme.subtle }]}>{customer.id} - {customer.phone}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {knownCustomers.length ? (
+          <>
+            <Text style={[styles.cardMeta, { color: theme.subtle }]}>Quick select existing customer</Text>
+            {knownCustomers.map((customer: any) => (
+              <TouchableOpacity key={customer.id} style={[styles.customerRow, { borderColor: theme.border }]} onPress={() => onCustomer(customer)}>
+                <View style={[styles.radio, { borderColor: selectedCustomer?.id === customer.id ? theme.brand : theme.border }]}>
+                  {selectedCustomer?.id === customer.id ? <View style={[styles.radioDot, { backgroundColor: theme.brand }]} /> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, { color: theme.text }]}>{customer.name}</Text>
+                  <Text style={[styles.cardMeta, { color: theme.subtle }]}>{customer.id} {customer.phone ? `- ${customer.phone}` : ""}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
+        ) : (
+          <Text style={[styles.cardMeta, { color: theme.subtle }]}>No existing customer records are available yet. Enter the customer details manually.</Text>
+        )}
       </View>
     );
   }
@@ -2742,7 +2625,6 @@ function isDueDateToday(value?: string) {
 function formatOwnerName(value?: string) {
   if (!value) return "Unassigned";
   const normalized = String(value).replace(/[_-]+/g, " ").trim();
-  if (normalized.toLowerCase().includes("preview")) return "Preview Team";
   return titleCase(normalized);
 }
 
