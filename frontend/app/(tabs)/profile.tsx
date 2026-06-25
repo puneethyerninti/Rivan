@@ -112,97 +112,107 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={[styles.content, isPhone && styles.contentPhone]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>Account</Text>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Text style={styles.headerBody}>A cleaner hub for account details, saved actions, and customer support.</Text>
-        </View>
-
-        <View style={[styles.heroCard, isPhone && styles.heroCardPhone]}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroName}>{user?.name || "Rivan user"}</Text>
-            <Text style={styles.heroMeta}>{user?.phone ? `+91 ${user.phone}` : "Phone not available"}</Text>
-            <Text style={styles.heroMeta}>{user?.email || "Email not added yet"}</Text>
-            <View style={styles.badgeRow}>
-              <View style={[styles.statusBadge, user?.kyc_status === "verified" ? styles.statusBadgeSuccess : styles.statusBadgePending]}>
-                <Text style={[styles.statusBadgeText, user?.kyc_status === "verified" ? styles.statusBadgeTextSuccess : styles.statusBadgeTextPending]}>
-                  KYC {user?.kyc_status === "verified" ? "Verified" : "Pending"}
-                </Text>
-              </View>
-              {isApprovedAgent || isApprovedAdmin ? (
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleBadgeText}>{String(user?.role || "").replace(/_/g, " ")}</Text>
-                </View>
-              ) : null}
+      <View style={styles.drawerBackdrop}>
+        <TouchableOpacity style={styles.backdropPressable} activeOpacity={1} onPress={() => router.back()} />
+        <View style={[styles.drawerShell, isPhone ? styles.drawerShellPhone : styles.drawerShellDesktop]}>
+          <View style={styles.drawerHeader}>
+            <View style={styles.drawerHeaderCopy}>
+              <Text style={styles.headerEyebrow}>Account</Text>
+              <Text style={styles.headerTitle}>Profile</Text>
+              <Text style={styles.headerBody}>A cleaner hub for account details, saved actions, and customer support.</Text>
             </View>
+            <TouchableOpacity style={styles.closeButton} onPress={() => router.back()} testID="profile-close-button">
+              <Feather name="x" size={18} color={colors.primaryDeepest} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[styles.editButton, isPhone && styles.editButtonPhone]} onPress={() => setEditing(true)} testID="profile-edit-button">
-            <Feather name="edit-2" size={16} color={colors.primaryDeepest} />
-          </TouchableOpacity>
-        </View>
 
-        {(relationship?.assigned_agent || relationship?.assigned_sub_agent || relationship?.primary_link) && (
-          <View style={styles.surfaceCard}>
-            <Text style={styles.sectionEyebrow}>Relationship owner</Text>
-            <Text style={styles.sectionTitle}>
-              {relationship?.assigned_sub_agent?.name || relationship?.assigned_agent?.name || "Rivan advisor"}
-            </Text>
-            <Text style={styles.sectionBody}>
-              {relationship?.assigned_sub_agent ? "Sub-agent support" : "Primary relationship support"}
-            </Text>
-            {relationship?.open_tasks?.[0]?.title ? (
-              <View style={styles.inlineNotice}>
-                <Feather name="clock" size={14} color={colors.primary} />
-                <Text style={styles.inlineNoticeText}>Next step: {relationship.open_tasks[0].title}</Text>
+          <ScrollView contentContainerStyle={[styles.content, isPhone && styles.contentPhone]} showsVerticalScrollIndicator={false}>
+            <View style={[styles.heroCard, isPhone && styles.heroCardPhone]}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
               </View>
-            ) : null}
-          </View>
-        )}
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroName}>{user?.name || "Rivan user"}</Text>
+                <Text style={styles.heroMeta}>{user?.phone ? `+91 ${user.phone}` : "Phone not available"}</Text>
+                <Text style={styles.heroMeta}>{user?.email || "Email not added yet"}</Text>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.statusBadge, user?.kyc_status === "verified" ? styles.statusBadgeSuccess : styles.statusBadgePending]}>
+                    <Text style={[styles.statusBadgeText, user?.kyc_status === "verified" ? styles.statusBadgeTextSuccess : styles.statusBadgeTextPending]}>
+                      KYC {user?.kyc_status === "verified" ? "Verified" : "Pending"}
+                    </Text>
+                  </View>
+                  {isApprovedAgent || isApprovedAdmin ? (
+                    <View style={styles.roleBadge}>
+                      <Text style={styles.roleBadgeText}>{String(user?.role || "").replace(/_/g, " ")}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+              <TouchableOpacity style={[styles.editButton, isPhone && styles.editButtonPhone]} onPress={() => setEditing(true)} testID="profile-edit-button">
+                <Feather name="edit-2" size={16} color={colors.primaryDeepest} />
+              </TouchableOpacity>
+            </View>
 
-        <View style={styles.surfaceCard}>
-          <Text style={styles.sectionEyebrow}>Shortcuts</Text>
-          <Text style={styles.sectionTitle}>Everything important, grouped clearly</Text>
-          <View style={styles.menuGroup}>
-            <ActionRow icon="heart" label="Saved Properties" onPress={() => router.push("/wishlist")} />
-            <ActionRow icon="file-text" label="Document Locker" onPress={() => router.push("/documents")} />
-            <ActionRow icon="tool" label="Property Services" onPress={() => router.push("/services")} />
-            <ActionRow icon="bell" label="Notifications" onPress={() => router.push("/notifications")} />
-          </View>
-        </View>
-
-        <View style={styles.surfaceCard}>
-          <Text style={styles.sectionEyebrow}>Account actions</Text>
-          <Text style={styles.sectionTitle}>Manage your account</Text>
-          <View style={styles.menuGroup}>
-            <ActionRow icon="user" label="Personal Information" onPress={() => setEditing(true)} />
-            <ActionRow icon="shield" label="KYC Verification" onPress={() => Alert.alert("KYC", "KYC documents can be managed from the Document Locker.")} />
-            <ActionRow icon="settings" label="Notification Settings" onPress={() => Alert.alert("Settings", "Notification preferences are currently enabled by default.")} />
-            {isApprovedAgent && (
-              <ActionRow icon="briefcase" label="Agent Dashboard" onPress={() => router.push("/agent" as never)} accent />
+            {(relationship?.assigned_agent || relationship?.assigned_sub_agent || relationship?.primary_link) && (
+              <View style={styles.surfaceCard}>
+                <Text style={styles.sectionEyebrow}>Relationship owner</Text>
+                <Text style={styles.sectionTitle}>
+                  {relationship?.assigned_sub_agent?.name || relationship?.assigned_agent?.name || "Rivan advisor"}
+                </Text>
+                <Text style={styles.sectionBody}>
+                  {relationship?.assigned_sub_agent ? "Sub-agent support" : "Primary relationship support"}
+                </Text>
+                {relationship?.open_tasks?.[0]?.title ? (
+                  <View style={styles.inlineNotice}>
+                    <Feather name="clock" size={14} color={colors.primary} />
+                    <Text style={styles.inlineNoticeText}>Next step: {relationship.open_tasks[0].title}</Text>
+                  </View>
+                ) : null}
+              </View>
             )}
-            {isApprovedAdmin && <ActionRow icon="grid" label="Admin Dashboard" onPress={() => router.push("/admin")} accent />}
-          </View>
-        </View>
 
-        <View style={styles.surfaceCard}>
-          <Text style={styles.sectionEyebrow}>Support</Text>
-          <Text style={styles.sectionTitle}>Rivan account help</Text>
-          <View style={styles.menuGroup}>
-            <ActionRow icon="info" label="About Rivan Reality" onPress={() => Alert.alert("Rivan Reality LLP", "Legacy of trust, legacy of wealth.")} />
-            <ActionRow icon="message-square" label="Customer Support" onPress={() => Alert.alert("Support", "Call: +91 9876543210\nEmail: support@rivanreality.com")} />
-            <ActionRow icon="award" label="Testimonials" onPress={() => Alert.alert("Customer Love", "Rated highly by property buyers across premium Rivan projects.")} />
-          </View>
-        </View>
+            <View style={styles.surfaceCard}>
+              <Text style={styles.sectionEyebrow}>Shortcuts</Text>
+              <Text style={styles.sectionTitle}>Everything important, grouped clearly</Text>
+              <View style={styles.menuGroup}>
+                <ActionRow icon="heart" label="Saved Properties" onPress={() => router.push("/wishlist")} />
+                <ActionRow icon="file-text" label="Document Locker" onPress={() => router.push("/documents")} />
+                <ActionRow icon="tool" label="Property Services" onPress={() => router.push("/services")} />
+                <ActionRow icon="bell" label="Notifications" onPress={() => router.push("/notifications")} />
+              </View>
+            </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} testID="profile-logout-button">
-          <Feather name="log-out" size={16} color={colors.danger} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </ScrollView>
+            <View style={styles.surfaceCard}>
+              <Text style={styles.sectionEyebrow}>Account actions</Text>
+              <Text style={styles.sectionTitle}>Manage your account</Text>
+              <View style={styles.menuGroup}>
+                <ActionRow icon="user" label="Personal Information" onPress={() => setEditing(true)} />
+                <ActionRow icon="shield" label="KYC Verification" onPress={() => Alert.alert("KYC", "KYC documents can be managed from the Document Locker.")} />
+                <ActionRow icon="settings" label="Notification Settings" onPress={() => Alert.alert("Settings", "Notification preferences are currently enabled by default.")} />
+                {isApprovedAgent ? (
+                  <ActionRow icon="briefcase" label="Agent Dashboard" onPress={() => router.push("/agent" as never)} accent />
+                ) : null}
+                {isApprovedAdmin ? <ActionRow icon="grid" label="Admin Dashboard" onPress={() => router.push("/admin")} accent /> : null}
+              </View>
+            </View>
+
+            <View style={styles.surfaceCard}>
+              <Text style={styles.sectionEyebrow}>Support</Text>
+              <Text style={styles.sectionTitle}>Rivan account help</Text>
+              <View style={styles.menuGroup}>
+                <ActionRow icon="info" label="About Rivan Reality" onPress={() => Alert.alert("Rivan Reality LLP", "Legacy of trust, legacy of wealth.")} />
+                <ActionRow icon="message-square" label="Customer Support" onPress={() => Alert.alert("Support", "Call: +91 9876543210\nEmail: support@rivanreality.com")} />
+                <ActionRow icon="award" label="Testimonials" onPress={() => Alert.alert("Customer Love", "Rated highly by property buyers across premium Rivan projects.")} />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} testID="profile-logout-button">
+              <Feather name="log-out" size={16} color={colors.danger} />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
 
       <Modal visible={editing} animationType="slide" transparent onRequestClose={() => setEditing(false)}>
         <View style={styles.modalBackdrop}>
@@ -261,9 +271,48 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
-  content: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
-  contentPhone: { padding: spacing.md, paddingBottom: spacing.xxl },
-  header: { gap: spacing.sm },
+  drawerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(6,15,11,0.18)",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  backdropPressable: { flex: 1 },
+  drawerShell: {
+    backgroundColor: colors.offWhite,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.borderSoft,
+    ...shadow.lg,
+  },
+  drawerShellDesktop: {
+    width: "100%",
+    maxWidth: 760,
+  },
+  drawerShellPhone: {
+    width: "100%",
+  },
+  drawerHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  drawerHeaderCopy: { flex: 1, gap: spacing.sm },
+  closeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  contentPhone: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
   headerEyebrow: { ...typography.label, color: colors.primary },
   headerTitle: { ...typography.h1, color: colors.primaryDeepest },
   headerBody: { ...typography.body, color: colors.stone500, maxWidth: 620 },

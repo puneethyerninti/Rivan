@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,6 +17,9 @@ export default function CentreVisitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const isPhone = width < 520;
+  const isTablet = width >= 760;
 
   const idStr = id as string;
   const isSiteVisit = idStr?.startsWith("site-");
@@ -30,6 +33,7 @@ export default function CentreVisitScreen() {
   const [name, setName] = useState(user?.name || "");
   const [mobile, setMobile] = useState(user?.phone || "");
   const [submitting, setSubmitting] = useState(false);
+  const [visitSuccess, setVisitSuccess] = useState<null | { date: string; time?: string; status: string }>(null);
 
   useEffect(() => {
     (async () => {
@@ -72,9 +76,11 @@ export default function CentreVisitScreen() {
           mobile,
         });
       }
-      Alert.alert("Visit Confirmed!", `Your ${isSiteVisit ? "site" : "centre"} visit on ${date}${!isSiteVisit ? ` at ${time}` : ""} has been scheduled.`, [
-        { text: "OK", onPress: () => router.replace("/(tabs)/visits") },
-      ]);
+      setVisitSuccess({
+        date,
+        time: !isSiteVisit ? time : undefined,
+        status: isSiteVisit ? "Confirmed" : "Confirmed",
+      });
     } catch (e: any) {
       Alert.alert("Error", e.message);
     } finally {
@@ -99,7 +105,7 @@ export default function CentreVisitScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={[styles.scroll, isPhone && styles.scrollPhone]} showsVerticalScrollIndicator={false}>
           {image ? <Image source={{ uri: image }} style={styles.image} /> : null}
 
           <View style={styles.infoCard}>
@@ -116,58 +122,94 @@ export default function CentreVisitScreen() {
             ) : null}
           </View>
 
-          <Text style={styles.sectionTitle}>Schedule Details</Text>
-
-          <View style={styles.inputBlock}>
-            <Text style={styles.label}>Visit Date *</Text>
-            <TextInput
-              testID="centre-date-input"
-              style={styles.input}
-              value={date}
-              onChangeText={setDate}
-              placeholder="e.g. 28 March 2026"
-              placeholderTextColor={colors.stone400}
-            />
-          </View>
-
-          {!isSiteVisit ? (
-            <View style={styles.inputBlock}>
-              <Text style={styles.label}>Preferred Time</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeRow}>
-                {TIME_SLOTS.map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    testID={`centre-time-${t}`}
-                    style={[styles.timeChip, time === t && styles.timeChipActive]}
-                    onPress={() => setTime(t)}
-                  >
-                    <Text style={[styles.timeChipText, time === t && styles.timeChipTextActive]}>{t}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+          {visitSuccess ? (
+            <View style={[styles.successCard, isPhone && styles.successCardPhone]}>
+              <View style={styles.successBadge}>
+                <Text style={styles.successBadgeText}>{visitSuccess.status}</Text>
+              </View>
+              <Text style={styles.successTitle}>Visit scheduled successfully</Text>
+              <Text style={styles.successBody}>
+                Your {isSiteVisit ? "site" : "centre"} visit for {title} is confirmed for {visitSuccess.date}
+                {visitSuccess.time ? ` at ${visitSuccess.time}` : ""}. You can now track the booking flow and next updates from Visits.
+              </Text>
+              <View style={[styles.successActions, isPhone && styles.successActionsPhone]}>
+                <Button title="View visit status" onPress={() => router.replace("/(tabs)/visits")} fullWidth={false} style={{ flex: 1 }} />
+                <Button
+                  title={isSiteVisit ? "Continue to booking" : "Back to visits"}
+                  variant="secondary"
+                  onPress={() =>
+                    isSiteVisit && property?.id ? router.replace(`/layout/${property.id}`) : router.replace("/(tabs)/visits")
+                  }
+                  fullWidth={false}
+                  style={{ flex: 1 }}
+                />
+              </View>
             </View>
-          ) : null}
+          ) : (
+            <>
+              <Text style={styles.sectionTitle}>Schedule Details</Text>
 
-          <View style={styles.inputBlock}>
-            <Text style={styles.label}>Your Name *</Text>
-            <TextInput testID="centre-name-input" style={styles.input} value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={colors.stone400} />
-          </View>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusPill, styles.statusPillMuted]}>
+                  <Text style={styles.statusPillMutedText}>Pending confirmation</Text>
+                </View>
+                <Text style={styles.statusHint}>Once submitted, the visit moves into your booking workflow and appears in Visit Status.</Text>
+              </View>
 
-          <View style={styles.inputBlock}>
-            <Text style={styles.label}>Mobile Number *</Text>
-            <TextInput
-              testID="centre-mobile-input"
-              style={styles.input}
-              value={mobile}
-              onChangeText={(t) => setMobile(t.replace(/\D/g, "").slice(0, 10))}
-              placeholder="10-digit number"
-              placeholderTextColor={colors.stone400}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
+              <View style={styles.inputBlock}>
+                <Text style={styles.label}>Visit Date *</Text>
+                <TextInput
+                  testID="centre-date-input"
+                  style={styles.input}
+                  value={date}
+                  onChangeText={setDate}
+                  placeholder="e.g. 28 March 2026"
+                  placeholderTextColor={colors.stone400}
+                />
+              </View>
 
-          <Button title="Confirm Visit" onPress={handleBook} loading={submitting} testID="centre-confirm-button" style={{ marginTop: spacing.md }} />
+              {!isSiteVisit ? (
+                <View style={styles.inputBlock}>
+                  <Text style={styles.label}>Preferred Time</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeRow}>
+                    {TIME_SLOTS.map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        testID={`centre-time-${t}`}
+                        style={[styles.timeChip, time === t && styles.timeChipActive]}
+                        onPress={() => setTime(t)}
+                      >
+                        <Text style={[styles.timeChipText, time === t && styles.timeChipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              <View style={[styles.formGrid, isTablet && styles.formGridTablet]}>
+                <View style={[styles.inputBlock, isTablet && styles.formGridItem]}>
+                  <Text style={styles.label}>Your Name *</Text>
+                  <TextInput testID="centre-name-input" style={styles.input} value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={colors.stone400} />
+                </View>
+
+                <View style={[styles.inputBlock, isTablet && styles.formGridItem]}>
+                  <Text style={styles.label}>Mobile Number *</Text>
+                  <TextInput
+                    testID="centre-mobile-input"
+                    style={styles.input}
+                    value={mobile}
+                    onChangeText={(t) => setMobile(t.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="10-digit number"
+                    placeholderTextColor={colors.stone400}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
+
+              <Button title="Confirm Visit" onPress={handleBook} loading={submitting} testID="centre-confirm-button" style={{ marginTop: spacing.md }} />
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -181,13 +223,22 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.offWhite, alignItems: "center", justifyContent: "center" },
   headerTitle: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
+  scrollPhone: { padding: spacing.md, paddingBottom: spacing.xxl },
   image: { width: "100%", height: 160, borderRadius: radii.md },
   infoCard: { padding: spacing.md, backgroundColor: colors.offWhite, borderRadius: radii.md, gap: 6, borderWidth: 1, borderColor: colors.stone100 },
   title: { ...typography.h3, color: colors.primaryDeepest, fontWeight: "700" },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   meta: { ...typography.small, color: colors.stone600, flex: 1 },
   sectionTitle: { ...typography.h4, color: colors.primaryDeepest, fontWeight: "700", marginTop: spacing.md },
+  statusRow: { gap: spacing.sm, marginTop: spacing.xs },
+  statusPill: { alignSelf: "flex-start", paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radii.pill },
+  statusPillMuted: { backgroundColor: colors.pendingBg },
+  statusPillMutedText: { ...typography.small, color: colors.pendingText, fontWeight: "700" },
+  statusHint: { ...typography.small, color: colors.stone500 },
   inputBlock: { gap: 6 },
+  formGrid: { gap: spacing.md },
+  formGridTablet: { flexDirection: "row" },
+  formGridItem: { flex: 1 },
   label: { ...typography.small, color: colors.stone600, fontWeight: "600" },
   input: { backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.stone200, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 12, fontSize: 15, color: colors.stone900 },
   timeRow: { gap: 8 },
@@ -195,4 +246,20 @@ const styles = StyleSheet.create({
   timeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   timeChipText: { ...typography.small, color: colors.stone700, fontWeight: "600" },
   timeChipTextActive: { color: colors.white },
+  successCard: {
+    padding: spacing.xl,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    gap: spacing.md,
+    ...shadow.sm,
+  },
+  successCardPhone: { padding: spacing.lg },
+  successBadge: { alignSelf: "flex-start", paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radii.pill, backgroundColor: colors.approvedBg },
+  successBadgeText: { ...typography.small, color: colors.approvedText, fontWeight: "800" },
+  successTitle: { ...typography.h4, color: colors.primaryDeepest },
+  successBody: { ...typography.body, color: colors.stone500 },
+  successActions: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
+  successActionsPhone: { flexDirection: "column" },
 });

@@ -223,7 +223,7 @@ export default function LayoutScreen() {
         <View style={[styles.heroCard, isDesktop && styles.heroCardDesktop, isPhone && styles.heroCardPhone]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>Interactive availability</Text>
-            <Text style={styles.heroTitle}>Siripuram Gardens plot map with accurate square-box layout blocks.</Text>
+            <Text style={styles.heroTitle}>Siripuram Gardens layout explorer with live square-box availability.</Text>
             <Text style={styles.heroBody}>
               Browse the plotted estate through the real Siripuram square-grid structure while keeping the same visit scheduling and booking flow already used across the platform.
             </Text>
@@ -382,7 +382,7 @@ function InfoTile({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.offWhite },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
-  content: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
   contentPhone: { padding: spacing.md, paddingBottom: spacing.xxl },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   headerButton: {
@@ -399,31 +399,31 @@ const styles = StyleSheet.create({
   headerTitle: { ...typography.h3, color: colors.primaryDeepest },
   headerBody: { ...typography.small, color: colors.stone500, marginTop: 2 },
   heroCard: {
-    borderRadius: 28,
+    borderRadius: 22,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    padding: spacing.xxl,
-    gap: spacing.xl,
+    padding: spacing.xl,
+    gap: spacing.lg,
     ...shadow.md,
   },
   heroCardPhone: {
-    borderRadius: 22,
+    borderRadius: 18,
     padding: spacing.lg,
   },
   heroCardDesktop: { flexDirection: "row", alignItems: "stretch" },
   heroCopy: { flex: 1, gap: spacing.sm },
   heroEyebrow: { ...typography.label, color: colors.primary },
-  heroTitle: { ...typography.h2, color: colors.primaryDeepest },
+  heroTitle: { ...typography.h3, color: colors.primaryDeepest },
   heroBody: { ...typography.body, color: colors.stone500 },
   heroStats: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, flex: 0.92 },
   heroStatsPhone: { gap: spacing.sm },
   heroStatCard: {
     flex: 1,
     minWidth: 120,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceMuted,
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   heroStatValue: { ...typography.h3, color: colors.primaryDeepest },
   heroStatLabel: { ...typography.small, color: colors.stone500, marginTop: spacing.xs },
@@ -444,32 +444,32 @@ const styles = StyleSheet.create({
   statusChipText: { ...typography.small, fontWeight: "700", color: colors.primaryDeepest },
   statusChipTextActive: { color: colors.white },
   mapShell: {
-    borderRadius: 28,
+    borderRadius: 22,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    padding: spacing.xl,
+    padding: spacing.lg,
     gap: spacing.md,
     ...shadow.sm,
   },
   mapShellPhone: {
-    borderRadius: 22,
-    padding: spacing.lg,
+    borderRadius: 18,
+    padding: spacing.md,
   },
   mapTitle: { ...typography.h4, color: colors.primaryDeepest },
   mapBody: { ...typography.body, color: colors.stone500, maxWidth: 760 },
   mapCanvas: {
     position: "relative",
     width: "100%",
-    minHeight: 780,
-    borderRadius: 24,
+    minHeight: 700,
+    borderRadius: 20,
     backgroundColor: "#FBF8F2",
     borderWidth: 1,
     borderColor: colors.borderSoft,
     overflow: "hidden",
   },
   mapCanvasPhone: {
-    minHeight: 520,
+    minHeight: 460,
   },
   mapPlot: {
     position: "absolute",
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   unitGridDesktop: { flexDirection: "row", flexWrap: "wrap" },
   unitCard: {
     width: "100%",
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   unitStatusBar: { height: 6, width: "100%" },
-  unitCardBody: { padding: spacing.xl },
+  unitCardBody: { padding: spacing.lg },
   unitTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
   unitNumber: { ...typography.h4, color: colors.primaryDeepest },
   unitStatusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.pill },
@@ -513,15 +513,15 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: 480,
-    borderRadius: 28,
+    borderRadius: 22,
     backgroundColor: colors.surface,
-    padding: spacing.xl,
+    padding: spacing.lg,
     gap: spacing.lg,
     ...shadow.lg,
   },
   modalCardPhone: {
-    borderRadius: 22,
-    padding: spacing.lg,
+    borderRadius: 18,
+    padding: spacing.md,
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.md },
   modalHeaderCopy: { flex: 1 },

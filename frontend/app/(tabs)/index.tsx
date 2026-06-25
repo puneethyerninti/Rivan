@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { api, warmBackendReady } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
@@ -57,6 +57,7 @@ function getUserRoleLabel(user?: { role?: string; is_admin?: boolean } | null) {
 
 export function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ section?: string }>();
   const { isAuthed, signOut, user } = useAuth();
   const { width } = useWindowDimensions();
 
@@ -187,6 +188,23 @@ export function HomeScreen() {
     }
   }, []);
 
+  const openProperties = useCallback(() => {
+    blurActiveWebElement();
+    if (typeof document !== "undefined" && document.getElementById("featured")) {
+      scrollToSection("featured");
+      setMenuOpen(false);
+      return;
+    }
+    router.push({ pathname: "/", params: { section: "featured" } });
+    setMenuOpen(false);
+  }, [router, scrollToSection]);
+
+  useEffect(() => {
+    if (params.section !== "featured") return;
+    const timer = setTimeout(() => scrollToSection("featured"), 120);
+    return () => clearTimeout(timer);
+  }, [params.section, scrollToSection]);
+
   const navContent = (
     <>
       <TouchableOpacity style={styles.logoWrap} onPress={() => scrollToSection("top")}>
@@ -199,7 +217,7 @@ export function HomeScreen() {
 
       <View style={styles.navLinks}>
         {NAV_ITEMS.map((item) => (
-          <TouchableOpacity key={item.key} style={styles.navLinkChip} onPress={() => scrollToSection(item.key)}>
+          <TouchableOpacity key={item.key} style={styles.navLinkChip} onPress={openProperties}>
             <Text style={styles.navLink}>{item.label}</Text>
           </TouchableOpacity>
         ))}
@@ -256,7 +274,7 @@ export function HomeScreen() {
 
   const mobileMenuContent = (
     <View style={styles.mobileMenuStack}>
-      <TouchableOpacity style={styles.mobileMenuLink} onPress={() => scrollToSection("featured")}>
+      <TouchableOpacity style={styles.mobileMenuLink} onPress={openProperties}>
         <Text style={styles.mobileMenuLinkText}>Properties</Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -427,7 +445,7 @@ export function HomeScreen() {
                   <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={[styles.btnSearchWide, isPhone && styles.btnSearchWidePhone]} onPress={() => scrollToSection("featured")}>
+              <TouchableOpacity style={[styles.btnSearchWide, isPhone && styles.btnSearchWidePhone]} onPress={openProperties}>
                 <Feather name="search" size={18} color={colors.white} />
                 <Text style={styles.btnSearchWideText}>Show properties</Text>
               </TouchableOpacity>

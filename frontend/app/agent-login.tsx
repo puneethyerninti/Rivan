@@ -44,6 +44,7 @@ export default function AgentLoginScreen() {
   const [recaptchaSolved, setRecaptchaSolved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [helperMessage, setHelperMessage] = useState("");
+  const [applicationAction, setApplicationAction] = useState<null | { label: string; phone: string }>(null);
 
   const otpRefs = useRef<(TextInput | null)[]>([]);
   const confirmationResultRef = useRef<any>(null);
@@ -64,6 +65,7 @@ export default function AgentLoginScreen() {
     } else if (params.application === "approved") {
       setHelperMessage("This number is already approved. Continue with OTP to sign in.");
     }
+    setApplicationAction(null);
   }, [params.application, params.phone]);
 
   useEffect(() => {
@@ -199,6 +201,7 @@ export default function AgentLoginScreen() {
   async function handleSendOtp() {
     setErrorMessage("");
     setHelperMessage("");
+    setApplicationAction(null);
     if (!hasFirebaseConfig) return showFormError(firebaseConfigError || "Firebase web configuration is missing.");
     if (phoneDigits.length !== 10) return showFormError("Please enter a valid 10-digit agent mobile number.");
     if (otpCooldownSeconds > 0) return showFormError(`Please wait ${otpCooldownSeconds}s before requesting another OTP.`);
@@ -210,14 +213,12 @@ export default function AgentLoginScreen() {
         const approvalState = String(access.approval_status || "").toLowerCase();
         if (!access.exists || !access.role || !["agent", "sub_agent"].includes(String(access.role))) {
           setHelperMessage("This number is not yet registered as an approved agent account. Complete the application to send it for admin approval.");
-          blurActiveWebElement();
-          router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+          setApplicationAction({ label: "Open application form", phone: `+91${phoneDigits}` });
         } else if (approvalState === "pending") {
           setHelperMessage("This phone number already has an agent application, but approval is still pending.");
         } else if (approvalState === "rejected") {
           setHelperMessage("This application was rejected. Update the details and submit a fresh request for review.");
-          blurActiveWebElement();
-          router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+          setApplicationAction({ label: "Update agent application", phone: `+91${phoneDigits}` });
         } else if (approvalState === "suspended") {
           setHelperMessage("This account is suspended. Please contact the admin.");
         } else {
@@ -344,6 +345,7 @@ export default function AgentLoginScreen() {
                   setPhone(text.replace(/\D/g, ""));
                   setErrorMessage("");
                   setHelperMessage("");
+                  setApplicationAction(null);
                   resetOtpSession();
                 }}
                 placeholder="Enter 10-digit mobile number"
@@ -353,31 +355,15 @@ export default function AgentLoginScreen() {
             </View>
           </View>
 
-          {!otpSent ? (
-            <View style={styles.applyCard}>
-              <Text style={styles.applyTitle}>New agent?</Text>
-              <Text style={styles.applyText}>If this number is not approved yet, open the application form and submit your details for admin review.</Text>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => {
-                  blurActiveWebElement();
-                  router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
-                }}
-              >
-                <Text style={styles.secondaryButtonText}>Open application form</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {!otpSent && helperMessage ? (
+          {!otpSent && applicationAction ? (
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={() => {
                 blurActiveWebElement();
-                router.push({ pathname: "/agent-apply", params: { phone: `+91${phoneDigits}` } });
+                router.push({ pathname: "/agent-apply", params: { phone: applicationAction.phone } });
               }}
             >
-              <Text style={styles.secondaryButtonText}>Complete agent application</Text>
+              <Text style={styles.secondaryButtonText}>{applicationAction.label}</Text>
             </TouchableOpacity>
           ) : null}
 
