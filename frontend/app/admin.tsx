@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -52,6 +51,8 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activePanel, setActivePanel] = useState<AdminPanel>("visit_queue");
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const agents = useMemo(() => (Array.isArray(overview?.agents) ? overview.agents : []), [overview]);
   const visits = useMemo(() => (Array.isArray(overview?.visits) ? overview.visits : []), [overview]);
@@ -75,6 +76,7 @@ export default function AdminScreen() {
 
   const load = useCallback(async () => {
     try {
+      setErrorMessage("");
       const [overviewPayload, bookingPayload, statsPayload] = await Promise.all([
         api.adminOverview(),
         api.adminBookings().catch(() => []),
@@ -84,7 +86,7 @@ export default function AdminScreen() {
       setBookings(Array.isArray(bookingPayload) ? bookingPayload : []);
       setStats(statsPayload);
     } catch (error: any) {
-      Alert.alert("Admin console", error?.message || "Unable to load the admin console right now.");
+      setErrorMessage(error?.message || "Unable to load the admin console right now.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -98,44 +100,56 @@ export default function AdminScreen() {
 
   async function handleVisitStatus(visitId: string, status: "confirmed" | "completed" | "cancelled") {
     try {
+      setErrorMessage("");
+      setStatusMessage("");
       setBusyKey(`visit:${visitId}:${status}`);
       await api.adminUpdateVisitStatus(visitId, status);
+      setStatusMessage(`Visit ${status} successfully.`);
       await load();
     } catch (error: any) {
-      Alert.alert("Visit update failed", error?.message || "Unable to update visit status.");
+      setErrorMessage(error?.message || "Unable to update visit status.");
       setBusyKey(null);
     }
   }
 
   async function handleApproveAgent(agentId: string) {
     try {
+      setErrorMessage("");
+      setStatusMessage("");
       setBusyKey(`agent:${agentId}:approve`);
       await api.adminApproveAgent(agentId);
+      setStatusMessage("Agent approved successfully.");
       await load();
     } catch (error: any) {
-      Alert.alert("Approval failed", error?.message || "Unable to approve this agent.");
+      setErrorMessage(error?.message || "Unable to approve this agent.");
       setBusyKey(null);
     }
   }
 
   async function handleRejectAgent(agentId: string) {
     try {
+      setErrorMessage("");
+      setStatusMessage("");
       setBusyKey(`agent:${agentId}:reject`);
       await api.adminUpdateAgentStatus(agentId, "rejected");
+      setStatusMessage("Agent application rejected.");
       await load();
     } catch (error: any) {
-      Alert.alert("Update failed", error?.message || "Unable to reject this application.");
+      setErrorMessage(error?.message || "Unable to reject this application.");
       setBusyKey(null);
     }
   }
 
   async function handleConfirmBooking(bookingId: string) {
     try {
+      setErrorMessage("");
+      setStatusMessage("");
       setBusyKey(`booking:${bookingId}:confirm`);
       await api.adminConfirmBooking(bookingId);
+      setStatusMessage("Booking confirmed successfully.");
       await load();
     } catch (error: any) {
-      Alert.alert("Booking update failed", error?.message || "Unable to confirm the booking.");
+      setErrorMessage(error?.message || "Unable to confirm the booking.");
       setBusyKey(null);
     }
   }
@@ -206,6 +220,20 @@ export default function AdminScreen() {
           <MetricCard label="Agent approvals" value={String(pendingAgents.length)} note="Pending onboarding queue" />
           <MetricCard label="Open bookings" value={String(openBookings.length)} note="Bookings still in progress" />
         </View>
+
+        {statusMessage ? (
+          <View style={styles.successBanner}>
+            <Feather name="check-circle" size={16} color={colors.approvedText} />
+            <Text style={styles.successBannerText}>{statusMessage}</Text>
+          </View>
+        ) : null}
+
+        {errorMessage ? (
+          <View style={styles.errorBanner}>
+            <Feather name="alert-circle" size={16} color={colors.rejectedText} />
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         {reminders.length ? (
           <View style={[styles.remindersGrid, isPhone && styles.remindersGridPhone]}>
@@ -482,6 +510,30 @@ const styles = StyleSheet.create({
   signOutText: { ...typography.small, color: colors.primaryDeepest, fontWeight: "800" },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   metricGridPhone: { flexDirection: "column" },
+  successBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 18,
+    backgroundColor: colors.approvedBg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  successBannerText: { flex: 1, ...typography.small, color: colors.approvedText, fontWeight: "700" },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 18,
+    backgroundColor: colors.rejectedBg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  errorBannerText: { flex: 1, ...typography.small, color: colors.rejectedText, fontWeight: "700" },
   metricCard: {
     flex: 1,
     minWidth: 180,
