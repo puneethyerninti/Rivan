@@ -74,7 +74,7 @@ const NAV_ITEMS: { key: PageKey; label: string; icon: any }[] = [
 ];
 
 const BOOKING_STEPS = ["Property", "Customer", "Confirmation", "Updated"];
-const BOOKING_TABS = ["pending", "approval requested", "approved", "confirmed", "ongoing", "site visit scheduled", "completed", "cancelled", "closed"];
+const BOOKING_TABS = ["pending", "agent_approved", "reserved", "completed", "rejected", "cancelled"];
 const AGENT_DASHBOARD_CACHE_KEY = "rivan_agent_dashboard_cache";
 const CRM_PIPELINE_STAGES = [
   "new",
@@ -244,7 +244,7 @@ export default function AgentDashboardScreen() {
   async function closeBooking(bookingId: string) {
     setData((current) => current ? {
       ...current,
-      bookings: (current.bookings || []).map((booking: any) => booking.id === bookingId ? { ...booking, status: "closed", closed_at: new Date().toISOString() } : booking),
+      bookings: (current.bookings || []).map((booking: any) => booking.id === bookingId ? { ...booking, status: "completed", closed_at: new Date().toISOString() } : booking),
     } : current);
     pulse("Booking closed");
     try {
@@ -432,7 +432,7 @@ export default function AgentDashboardScreen() {
         name: selectedCustomer.name.trim(),
         mobile: selectedCustomer.phone.trim(),
         customer_email: selectedCustomer.email?.trim() || undefined,
-        status: "approval requested",
+        status: "agent_approved",
         created_at: new Date().toISOString(),
         customer: {
           id: selectedCustomer.id,
@@ -680,7 +680,7 @@ export default function AgentDashboardScreen() {
   const enrichedBookings = useMemo(() => {
     return bookings.map((booking, index) => {
       const asset = assets.find((item) => item.id === booking.plot_id || item.id === booking.asset_id || item.property_id === booking.property_id);
-      const status = String(booking.status || (index % 3 === 0 ? "confirmed" : "pending")).toLowerCase();
+      const status = String(booking.status || "pending").toLowerCase();
       return {
         ...booking,
         asset,
@@ -718,7 +718,7 @@ export default function AgentDashboardScreen() {
         date: visit.visit_date,
         time: visit.visit_time,
         statusRaw: String(visit.status || "upcoming").toLowerCase(),
-        status: titleCase(visit.status || "upcoming"),
+        status: titleCase(String(visit.status || "pending_agent_approval").replace(/[_-]+/g, " ")),
         notes: visit.notes || "No notes added.",
       }));
     }
@@ -1837,14 +1837,23 @@ function VisitsPage({ theme, isTablet, visits, subAgents, selectedAsset, selecte
                 <InfoLine theme={theme} label="Feedback" value={visit.status === "Completed" ? "High-intent customer, schedule next sales call." : "Pending visit feedback."} />
               </View>
               <ContactActions theme={theme} phone={visit.customer?.phone} email={visit.customer?.email} />
-              <Timeline theme={theme} steps={["Requested", "Owner selected", "Visit scheduled", visit.status]} />
+              <Timeline theme={theme} steps={["Requested", "Agent review", "Admin review", visit.status]} />
               <View style={styles.actionRow}>
+                {String(visit.statusRaw || "").toLowerCase() === "pending_agent_approval" ? (
+                  <Button title="Accept" size="sm" variant="ghost" fullWidth={false} onPress={() => onUpdateVisitStatus(visit.id, "agent_approved")} />
+                ) : null}
                 <Button title="Reschedule" size="sm" variant="secondary" fullWidth={false} onPress={() => onPrepareReschedule(visit)} />
-                {String(visit.status).toLowerCase() !== "completed" ? (
+                {String(visit.statusRaw || visit.status).toLowerCase() !== "completed" ? (
                   <Button title="Mark Completed" size="sm" variant="ghost" fullWidth={false} onPress={() => onUpdateVisitStatus(visit.id, "completed")} />
                 ) : null}
-                {String(visit.status).toLowerCase() !== "cancelled" ? (
-                  <Button title="Cancel" size="sm" variant="danger" fullWidth={false} onPress={() => onUpdateVisitStatus(visit.id, "cancelled")} />
+                {!["cancelled", "rejected"].includes(String(visit.statusRaw || visit.status).toLowerCase()) ? (
+                  <Button
+                    title={String(visit.statusRaw || "").toLowerCase() === "pending_agent_approval" ? "Reject" : "Cancel"}
+                    size="sm"
+                    variant="danger"
+                    fullWidth={false}
+                    onPress={() => onUpdateVisitStatus(visit.id, String(visit.statusRaw || "").toLowerCase() === "pending_agent_approval" ? "rejected" : "cancelled")}
+                  />
                 ) : null}
               </View>
             </View>
@@ -2552,8 +2561,8 @@ function createTheme(isDark: boolean) {
 }
 
 function getVisitBucket(status?: string) {
-  const raw = String(status || "upcoming").toLowerCase();
-  if (raw.includes("cancel")) return "cancelled";
+  const raw = String(status || "pending_agent_approval").toLowerCase();
+  if (raw.includes("cancel") || raw.includes("reject")) return "cancelled";
   if (raw.includes("complete")) return "completed";
   return "upcoming";
 }
@@ -2565,11 +2574,8 @@ function isBookableAsset(asset?: any) {
 
 function getNextBookingAction(status?: string) {
   const raw = String(status || "pending").toLowerCase();
-  if (raw === "pending") return { label: "Request Approval", next: "approval requested" };
-  if (raw === "approval requested") return { label: "Approve", next: "approved" };
-  if (raw === "approved") return { label: "Confirm", next: "confirmed" };
-  if (raw === "confirmed" || raw === "ongoing" || raw === "site visit scheduled") return { label: "Complete", next: "completed" };
-  if (raw === "completed") return { label: "Close", next: "closed" };
+  if (raw === "pending") return { label: "Approve", next: "agent_approved" };
+  if (raw === "reserved" || raw === "admin_approved") return { label: "Complete", next: "completed" };
   return null;
 }
 
@@ -2647,6 +2653,7 @@ function initials(name: string) {
 
 function titleCase(value: string) {
   return String(value || "")
+    .replace(/[_-]+/g, " ")
     .split(" ")
     .map((word) => word ? word[0].toUpperCase() + word.slice(1) : "")
     .join(" ");

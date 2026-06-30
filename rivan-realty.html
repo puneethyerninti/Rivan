@@ -1,0 +1,3562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rivan Realty — Premium Real Estate in Hyderabad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
+:root {
+  --green-900: #0d1f16;
+  --green-800: #152b1e;
+  --green-700: #1c3a28;
+  --green-600: #245233;
+  --green-500: #2e6b42;
+  --green-400: #3d8a57;
+  --green-100: #e8f0ea;
+
+  --ivory: #f8f5ef;
+  --ivory-dark: #f0ebe0;
+  --ivory-mid: #e9e3d6;
+
+  --gold-500: #b89a5a;
+  --gold-400: #c9ad72;
+  --gold-300: #d9c28e;
+  --gold-200: #e8d9b4;
+
+  --grey-900: #1a1a1a;
+  --grey-700: #3d3d3d;
+  --grey-500: #6b6b6b;
+  --grey-400: #8a8a8a;
+  --grey-200: #d4d4d4;
+  --grey-100: #f0f0f0;
+
+  --white: #ffffff;
+
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-accent: 'Playfair Display', Georgia, serif;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-card: 0 2px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-hover: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-modal: 0 24px 80px rgba(0,0,0,0.2);
+
+  --transition: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--ivory);
+  color: var(--grey-700);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { display: block; max-width: 100%; }
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+ul { list-style: none; }
+input, select, textarea { font-family: inherit; }
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.section-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.5vw, 44px);
+  font-weight: 400;
+  color: var(--green-900);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.section-title em {
+  font-style: italic;
+  color: var(--green-600);
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--grey-500);
+  line-height: 1.7;
+  max-width: 500px;
+  margin-top: 10px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--green-700);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 13px 28px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.btn-primary:hover {
+  background: var(--green-800);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(13,31,22,0.25);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--green-700);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 12px 24px;
+  border: 1.5px solid var(--green-700);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.btn-secondary:hover {
+  background: var(--green-700);
+  color: var(--white);
+}
+
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gold-500);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 13px 28px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.btn-gold:hover {
+  background: var(--gold-400);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(184,154,90,0.3);
+}
+
+.divider-line {
+  width: 40px;
+  height: 1.5px;
+  background: var(--gold-500);
+  margin: 16px 0;
+}
+
+/* ============================================
+   NAVBAR
+   ============================================ */
+#navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(248,245,239,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(184,154,90,0.15);
+  transition: all var(--transition);
+}
+#navbar.scrolled {
+  box-shadow: 0 2px 24px rgba(0,0,0,0.08);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+
+/* Logo */
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.nav-logo-mark {
+  width: 34px;
+  height: 34px;
+  background: var(--green-700);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.nav-logo-mark::after {
+  content: 'R';
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gold-400);
+  letter-spacing: -0.02em;
+}
+.nav-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nav-logo-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--green-900);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+.nav-logo-tagline {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--gold-500);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Nav links */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-links a {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--grey-700);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+  letter-spacing: 0.01em;
+}
+.nav-links a:hover { color: var(--green-700); background: var(--green-100); }
+.nav-links .nav-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--grey-200);
+  margin: 0 8px;
+}
+
+/* Nav actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.nav-btn-ghost {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--grey-700);
+  padding: 7px 14px;
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+}
+.nav-btn-ghost:hover {
+  border-color: var(--green-500);
+  color: var(--green-700);
+  background: var(--green-100);
+}
+.nav-btn-fill {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--white);
+  background: var(--green-700);
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+}
+.nav-btn-fill:hover { background: var(--green-800); }
+
+.nav-access-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--grey-200);
+}
+.nav-access-btn {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--grey-500);
+  padding: 5px 10px;
+  border: 1px solid var(--grey-200);
+  border-radius: 3px;
+  transition: all var(--transition);
+  letter-spacing: 0.04em;
+}
+.nav-access-btn:hover {
+  color: var(--gold-500);
+  border-color: var(--gold-400);
+  background: rgba(184,154,90,0.06);
+}
+
+/* Hamburger */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  cursor: pointer;
+}
+.nav-hamburger span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--green-900);
+  transition: all var(--transition);
+  transform-origin: center;
+}
+.nav-hamburger.active span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.nav-hamburger.active span:nth-child(2) { opacity: 0; }
+.nav-hamburger.active span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+/* Mobile nav */
+#mobile-nav {
+  position: fixed;
+  top: 68px; left: 0; right: 0; bottom: 0;
+  background: var(--ivory);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px;
+  gap: 6px;
+  transform: translateX(100%);
+  transition: transform var(--transition-slow);
+  overflow-y: auto;
+}
+#mobile-nav.open { transform: translateX(0); }
+
+.mobile-nav-link {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--green-900);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ivory-mid);
+  transition: color var(--transition);
+  letter-spacing: -0.01em;
+}
+.mobile-nav-link:hover { color: var(--green-600); }
+
+.mobile-nav-actions {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mobile-nav-divider {
+  margin: 12px 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--grey-400);
+}
+.mobile-access-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+#hero {
+  min-height: 100vh;
+  padding-top: 68px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  background: var(--ivory);
+  overflow: hidden;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 72px 64px 72px 0;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.hero-eyebrow-line {
+  width: 32px;
+  height: 1px;
+  background: var(--gold-500);
+}
+.hero-eyebrow-text {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+}
+
+.hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4.5vw, 62px);
+  font-weight: 300;
+  color: var(--green-900);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+}
+.hero-headline strong {
+  font-weight: 500;
+  display: block;
+}
+.hero-headline em {
+  font-style: italic;
+  color: var(--green-600);
+}
+
+.hero-body {
+  font-size: 14.5px;
+  color: var(--grey-500);
+  line-height: 1.75;
+  max-width: 420px;
+  margin-bottom: 40px;
+}
+
+.hero-cta-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 56px;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 0;
+  width: fit-content;
+}
+.hero-stat {
+  padding-right: 32px;
+  margin-right: 32px;
+  border-right: 1px solid var(--ivory-mid);
+}
+.hero-stat:last-child { border-right: none; padding-right: 0; margin-right: 0; }
+.hero-stat-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--green-800);
+  line-height: 1;
+}
+.hero-stat-label {
+  font-size: 11px;
+  color: var(--grey-400);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+
+/* Hero visual */
+.hero-visual {
+  position: relative;
+  overflow: hidden;
+  background: var(--green-800);
+}
+
+.hero-img-grid {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  height: 100%;
+  gap: 3px;
+}
+.hero-img-top {
+  background: linear-gradient(160deg, #1c3a28 0%, #0d2c1a 100%);
+  position: relative;
+  overflow: hidden;
+}
+.hero-img-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+.hero-img-b1 {
+  background: linear-gradient(160deg, #245233 0%, #1a3d27 100%);
+  position: relative;
+  overflow: hidden;
+}
+.hero-img-b2 {
+  background: linear-gradient(160deg, #152b1e 0%, #0d1f16 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* SVG placeholder art for hero panels */
+.hero-panel-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.08;
+}
+
+.hero-tag {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(248,245,239,0.95);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  min-width: 160px;
+}
+.hero-tag-loc {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 3px;
+}
+.hero-tag-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--green-900);
+  line-height: 1.2;
+}
+.hero-tag-price {
+  font-size: 11px;
+  color: var(--grey-500);
+  margin-top: 3px;
+}
+
+.hero-scroll-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--grey-400);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: scrollPulse 2.5s ease infinite;
+}
+.scroll-arrow {
+  width: 18px;
+  height: 18px;
+  border-right: 1.5px solid var(--grey-400);
+  border-bottom: 1.5px solid var(--grey-400);
+  transform: rotate(45deg);
+  animation: arrowBounce 1.8s ease infinite;
+}
+@keyframes scrollPulse { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
+@keyframes arrowBounce { 0%,100%{transform:rotate(45deg) translateY(0);} 50%{transform:rotate(45deg) translateY(4px);} }
+
+/* ============================================
+   SEARCH BAR
+   ============================================ */
+#search-bar {
+  background: var(--white);
+  padding: 0 0 56px;
+  position: relative;
+  z-index: 10;
+}
+
+.search-container {
+  background: var(--white);
+  border: 1px solid var(--ivory-mid);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-hover);
+  overflow: hidden;
+}
+
+.search-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ivory-mid);
+  padding: 0 24px;
+  gap: 0;
+}
+.search-tab {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--grey-400);
+  padding: 14px 18px;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.search-tab:hover { color: var(--green-700); }
+.search-tab.active {
+  color: var(--green-700);
+  border-bottom-color: var(--green-700);
+  font-weight: 500;
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: 0;
+}
+
+.search-field {
+  padding: 20px 24px;
+  border-right: 1px solid var(--ivory-mid);
+  position: relative;
+}
+.search-field:last-child { border-right: none; }
+
+.search-field-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 5px;
+}
+
+.search-field input,
+.search-field select {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--green-900);
+  font-weight: 400;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.search-field select { cursor: pointer; }
+.search-field input::placeholder { color: var(--grey-400); }
+
+.search-btn {
+  margin: 12px 16px;
+  background: var(--green-700);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.search-btn:hover { background: var(--green-800); }
+
+/* ============================================
+   FEATURED PROPERTIES
+   ============================================ */
+#properties {
+  background: var(--ivory);
+  padding: 80px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.properties-filter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+.filter-chip {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--grey-500);
+  padding: 7px 16px;
+  border: 1px solid var(--grey-200);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+  background: transparent;
+}
+.filter-chip:hover, .filter-chip.active {
+  background: var(--green-700);
+  color: var(--white);
+  border-color: var(--green-700);
+}
+
+.properties-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Property Card */
+.property-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.property-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.card-img {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+.card-img-bg {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.6s ease;
+}
+.property-card:hover .card-img-bg { transform: scale(1.04); }
+
+/* Color blocks simulating property images */
+.prop-img-1 { background: linear-gradient(135deg, #245233 0%, #1a3d27 40%, #0d2c1a 100%); }
+.prop-img-2 { background: linear-gradient(135deg, #1c3a28 0%, #2e6b42 60%, #1a3d27 100%); }
+.prop-img-3 { background: linear-gradient(135deg, #0d1f16 0%, #245233 50%, #1c3a28 100%); }
+.prop-img-4 { background: linear-gradient(135deg, #152b1e 0%, #1c3a28 40%, #3d8a57 100%); }
+.prop-img-5 { background: linear-gradient(135deg, #1a3d27 0%, #0d2c1a 50%, #245233 100%); }
+.prop-img-6 { background: linear-gradient(135deg, #2e6b42 0%, #1c3a28 40%, #0d1f16 100%); }
+
+.card-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(13,31,22,0.5) 0%, transparent 50%);
+}
+
+/* SVG architectural illustration overlay */
+.card-img-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0;
+  opacity: 0.18;
+}
+
+.card-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: var(--gold-500);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+.card-badge.new { background: var(--green-600); }
+.card-badge.limited { background: #8B4513; }
+
+.card-wishlist {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(248,245,239,0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: all var(--transition);
+  cursor: pointer;
+  border: 1px solid rgba(184,154,90,0.2);
+}
+.card-wishlist:hover { background: var(--white); transform: scale(1.1); }
+
+.card-price-tag {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  background: rgba(248,245,239,0.95);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+}
+.card-price-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--green-800);
+  line-height: 1;
+}
+.card-price-unit {
+  font-size: 10px;
+  color: var(--grey-400);
+  margin-top: 1px;
+  letter-spacing: 0.04em;
+}
+
+.card-body {
+  padding: 18px 20px 20px;
+}
+.card-location {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 6px;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--green-900);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.card-desc {
+  font-size: 13px;
+  color: var(--grey-500);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.card-specs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--grey-100);
+}
+.card-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.card-spec-val {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--green-800);
+}
+.card-spec-key {
+  font-size: 10px;
+  color: var(--grey-400);
+  letter-spacing: 0.06em;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-link {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--green-700);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: gap var(--transition);
+}
+.card-link:hover { gap: 9px; }
+.card-status {
+  font-size: 10.5px;
+  color: var(--grey-400);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF50;
+}
+.status-dot.limited { background: var(--gold-500); }
+
+/* ============================================
+   FEATURED PROJECT
+   ============================================ */
+#featured-project {
+  background: var(--green-900);
+  padding: 100px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.featured-project-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.featured-project-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.fp-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 14px;
+  display: block;
+}
+.fp-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-weight: 300;
+  color: var(--white);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+}
+.fp-title strong { font-weight: 500; display: block; }
+.fp-body {
+  font-size: 14px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.8;
+  margin-bottom: 32px;
+}
+
+.fp-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.fp-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.fp-highlight-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold-400);
+  margin-top: 7px;
+  flex-shrink: 0;
+}
+.fp-highlight-text {
+  font-size: 13.5px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.5;
+}
+
+.fp-cta-group { display: flex; gap: 14px; }
+
+/* Project visual */
+.fp-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fp-main-img {
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #1c3a28 0%, #245233 60%, #1a3d27 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.fp-img-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.15;
+}
+
+.fp-data-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.fp-data-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.fp-data-val {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--gold-400);
+  line-height: 1;
+}
+.fp-data-key {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4px;
+  letter-spacing: 0.06em;
+}
+
+/* Layout Explorer */
+.fp-layout-preview {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: rgba(248,245,239,0.96);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.fp-lp-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green-800);
+  margin-bottom: 10px;
+}
+.fp-lp-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.fp-lp-plot {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  border: 1px solid var(--ivory-mid);
+  background: var(--green-100);
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.fp-lp-plot:hover { background: var(--green-500); }
+.fp-lp-plot.sold { background: var(--grey-200); cursor: default; }
+.fp-lp-plot.corner { background: var(--gold-200); }
+.fp-lp-plot.reserved { background: rgba(184,154,90,0.25); }
+
+/* ============================================
+   WHY CHOOSE US
+   ============================================ */
+#why-us {
+  background: var(--white);
+  padding: 96px 0;
+}
+
+.why-us-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.trust-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 48px;
+}
+.trust-card {
+  background: var(--ivory);
+  border-radius: var(--radius-md);
+  padding: 24px 22px;
+  border: 1px solid var(--ivory-mid);
+  transition: all var(--transition);
+}
+.trust-card:hover {
+  border-color: var(--green-200, #b8d4c0);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-2px);
+}
+.trust-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--green-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+.trust-card-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--green-900);
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+.trust-card-body {
+  font-size: 12.5px;
+  color: var(--grey-500);
+  line-height: 1.65;
+}
+
+/* Testimonial */
+.why-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.testimonial-block {
+  background: var(--green-900);
+  border-radius: var(--radius-md);
+  padding: 32px 28px;
+  position: relative;
+}
+.testimonial-quote {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 300;
+  font-style: italic;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.testimonial-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--green-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gold-300);
+}
+.testimonial-info-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--white);
+}
+.testimonial-info-role {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
+}
+.testimonial-gold-bar {
+  position: absolute;
+  top: 0; left: 28px;
+  width: 32px;
+  height: 3px;
+  background: var(--gold-500);
+  border-radius: 0 0 2px 2px;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.stat-box {
+  background: var(--ivory);
+  border: 1px solid var(--ivory-mid);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  text-align: center;
+}
+.stat-box-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--green-800);
+  line-height: 1;
+}
+.stat-box-label {
+  font-size: 11px;
+  color: var(--grey-400);
+  margin-top: 5px;
+  letter-spacing: 0.04em;
+}
+
+/* ============================================
+   SITE VISIT / CTA
+   ============================================ */
+#site-visit {
+  background: linear-gradient(135deg, var(--ivory) 0%, var(--ivory-dark) 100%);
+  padding: 96px 0;
+  position: relative;
+  overflow: hidden;
+}
+.site-visit-bg-accent {
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184,154,90,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.site-visit-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.visit-form-wrap {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--ivory-mid);
+}
+.visit-form-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--green-900);
+  margin-bottom: 6px;
+}
+.visit-form-subtitle {
+  font-size: 13px;
+  color: var(--grey-500);
+  margin-bottom: 28px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-group:last-child { margin-bottom: 0; }
+.form-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+}
+.form-input {
+  padding: 11px 14px;
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--green-900);
+  background: var(--ivory);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.form-input:focus {
+  border-color: var(--green-600);
+  background: var(--white);
+}
+.form-input::placeholder { color: var(--grey-400); }
+
+select.form-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b6b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+.form-submit-btn {
+  width: 100%;
+  background: var(--green-700);
+  color: var(--white);
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  transition: all var(--transition);
+  margin-top: 20px;
+}
+.form-submit-btn:hover { background: var(--green-800); }
+
+.visit-info-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 40px;
+}
+.visit-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid var(--ivory-mid);
+  border-radius: var(--radius-md);
+}
+.visit-info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.visit-info-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--green-900);
+  margin-bottom: 3px;
+}
+.visit-info-text {
+  font-size: 12.5px;
+  color: var(--grey-500);
+  line-height: 1.55;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+#footer {
+  background: var(--green-900);
+  color: var(--white);
+  padding: 72px 0 32px;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 48px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-logo-mark {
+  width: 34px;
+  height: 34px;
+  background: var(--green-600);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gold-400);
+}
+.footer-logo-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 0.03em;
+}
+.footer-brand-text {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  line-height: 1.7;
+  max-width: 300px;
+}
+.footer-contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.footer-contact-item {
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.footer-contact-item a { color: rgba(255,255,255,0.6); transition: color var(--transition); }
+.footer-contact-item a:hover { color: var(--gold-400); }
+
+.footer-col-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  margin-bottom: 18px;
+}
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.footer-links a {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  transition: color var(--transition);
+}
+.footer-links a:hover { color: var(--white); }
+
+.footer-bottom {
+  padding-top: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-copyright {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+}
+.footer-bottom-links {
+  display: flex;
+  gap: 20px;
+}
+.footer-bottom-links a {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  transition: color var(--transition);
+}
+.footer-bottom-links a:hover { color: rgba(255,255,255,0.7); }
+
+.footer-rera {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  margin-top: 16px;
+  width: fit-content;
+}
+.footer-rera-text {
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.04em;
+}
+.footer-rera-num {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--gold-300);
+}
+
+/* ============================================
+   MODALS
+   ============================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,31,22,0.65);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-box {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-modal);
+  transform: translateY(20px);
+  transition: transform var(--transition);
+  overflow: hidden;
+}
+.modal-overlay.open .modal-box {
+  transform: translateY(0);
+}
+
+.modal-header {
+  padding: 28px 32px 24px;
+  border-bottom: 1px solid var(--ivory-mid);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.modal-header-left {}
+.modal-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-500);
+  margin-bottom: 6px;
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--green-900);
+  line-height: 1.1;
+}
+.modal-subtitle {
+  font-size: 12.5px;
+  color: var(--grey-500);
+  margin-top: 4px;
+}
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--grey-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--grey-500);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all var(--transition);
+  line-height: 1;
+}
+.modal-close:hover { background: var(--grey-200); color: var(--grey-900); }
+
+.modal-body { padding: 28px 32px 32px; }
+
+.modal-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.modal-tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--grey-500);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+.modal-tab.active {
+  background: var(--green-700);
+  color: var(--white);
+}
+
+.modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.modal-form-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--grey-500);
+}
+.modal-form-input {
+  padding: 11px 14px;
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--green-900);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.modal-form-input:focus { border-color: var(--green-600); }
+.modal-form-input::placeholder { color: var(--grey-400); }
+
+.modal-btn {
+  width: 100%;
+  background: var(--green-700);
+  color: var(--white);
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: all var(--transition);
+  margin-top: 20px;
+}
+.modal-btn:hover { background: var(--green-800); }
+
+.modal-btn-gold {
+  background: var(--gold-500);
+}
+.modal-btn-gold:hover { background: var(--gold-400); }
+
+.modal-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+.modal-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--grey-200);
+}
+.modal-divider-text {
+  font-size: 11px;
+  color: var(--grey-400);
+  letter-spacing: 0.06em;
+}
+
+.modal-footer-note {
+  font-size: 12px;
+  color: var(--grey-400);
+  text-align: center;
+  margin-top: 16px;
+}
+.modal-footer-note a {
+  color: var(--green-600);
+  font-weight: 500;
+}
+.modal-footer-note a:hover { text-decoration: underline; }
+
+/* Agent application form specific */
+.modal-box.wide { max-width: 560px; }
+.form-row-modal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Admin modal specific */
+.admin-modal-header {
+  background: var(--green-900);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-modal-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--white);
+}
+.admin-modal-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+  display: block;
+  margin-bottom: 4px;
+}
+.admin-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.admin-close:hover { background: rgba(255,255,255,0.2); color: white; }
+
+/* ============================================
+   PROFILE DRAWER
+   ============================================ */
+#profile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--white);
+  z-index: 3000;
+  box-shadow: -8px 0 48px rgba(0,0,0,0.12);
+  transform: translateX(100%);
+  transition: transform var(--transition-slow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#profile-drawer.open { transform: translateX(0); }
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,31,22,0.4);
+  z-index: 2999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+.drawer-header {
+  background: var(--green-900);
+  padding: 28px 24px;
+  flex-shrink: 0;
+}
+.drawer-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.drawer-close:hover { background: rgba(255,255,255,0.2); color: white; }
+
+.drawer-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--green-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--gold-300);
+  margin-bottom: 12px;
+  border: 2px solid rgba(184,154,90,0.3);
+}
+.drawer-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--white);
+}
+.drawer-email {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 3px;
+}
+.drawer-member-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(184,154,90,0.15);
+  border: 1px solid rgba(184,154,90,0.3);
+  border-radius: 100px;
+  padding: 3px 10px;
+  font-size: 10px;
+  color: var(--gold-300);
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.drawer-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--grey-400);
+  margin: 16px 0 8px;
+}
+.drawer-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--grey-700);
+  font-size: 14px;
+}
+.drawer-menu-item:hover {
+  background: var(--ivory);
+  color: var(--green-700);
+}
+.drawer-menu-icon { font-size: 16px; width: 20px; text-align: center; }
+.drawer-menu-badge {
+  margin-left: auto;
+  background: var(--green-600);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+
+.drawer-property-saved {
+  background: var(--ivory);
+  border: 1px solid var(--ivory-mid);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.drawer-property-saved:hover { border-color: var(--green-400); }
+.drawer-prop-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--green-900);
+  margin-bottom: 3px;
+}
+.drawer-prop-loc {
+  font-size: 11.5px;
+  color: var(--grey-500);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.drawer-prop-price {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gold-500);
+  margin-top: 5px;
+}
+
+.drawer-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--grey-100);
+}
+.drawer-logout-btn {
+  width: 100%;
+  padding: 11px;
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--grey-600, #555);
+  text-align: center;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.drawer-logout-btn:hover {
+  border-color: #c0392b;
+  color: #c0392b;
+  background: rgba(192,57,43,0.04);
+}
+
+/* ============================================
+   ADMIN PREVIEW SECTION (on homepage as a teaser)
+   ============================================ */
+.admin-preview-modal .modal-body {
+  padding: 0;
+  background: #f4f6f8;
+}
+.admin-dash-preview {
+  font-family: var(--font-body);
+}
+.admin-dash-top {
+  background: var(--green-900);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-dash-top-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--white);
+}
+.admin-dash-top-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
+}
+.admin-dash-nav {
+  display: flex;
+  gap: 4px;
+}
+.admin-dash-nav-item {
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.admin-dash-nav-item.active {
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+}
+.admin-dash-content {
+  padding: 20px;
+}
+.admin-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.admin-kpi {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 14px 12px;
+  border: 1px solid #e0e0e0;
+}
+.admin-kpi-val {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--green-800);
+  line-height: 1;
+  font-family: var(--font-display);
+}
+.admin-kpi-label {
+  font-size: 10px;
+  color: #888;
+  margin-top: 4px;
+  letter-spacing: 0.06em;
+}
+.admin-kpi-trend {
+  font-size: 10px;
+  color: #4caf50;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.admin-table {
+  background: var(--white);
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+.admin-table-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding: 10px 16px;
+  background: #f8f8f8;
+  border-bottom: 1px solid #ebebeb;
+}
+.admin-th {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+}
+.admin-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+}
+.admin-table-row:last-child { border-bottom: none; }
+.admin-td { font-size: 12.5px; color: #333; }
+.admin-td-sub { font-size: 10.5px; color: #888; margin-top: 1px; }
+.admin-badge-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.admin-badge-pill.active { background: #e8f5e9; color: #2e7d32; }
+.admin-badge-pill.pending { background: #fff8e1; color: #f57f17; }
+.admin-badge-pill.new { background: #e3f2fd; color: #1565c0; }
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.animate-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1024px) {
+  .container { padding: 0 24px; }
+  .properties-grid { grid-template-columns: repeat(2, 1fr); }
+  .footer-top { grid-template-columns: 1fr 1fr; gap: 36px; }
+}
+
+@media (max-width: 768px) {
+  .nav-links, .nav-access-group { display: none; }
+  .nav-actions { display: none; }
+  .nav-hamburger { display: flex; }
+
+  #hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .hero-content {
+    padding: 48px 0 40px;
+    order: 2;
+  }
+  .hero-visual {
+    order: 1;
+    height: 300px;
+  }
+  .hero-img-grid { height: 300px; }
+  .hero-stats { grid-template-columns: repeat(3,1fr); }
+  .hero-stat { padding-right: 16px; margin-right: 16px; }
+  .hero-stat-num { font-size: 22px; }
+
+  .search-form { grid-template-columns: 1fr; }
+  .search-field { border-right: none; border-bottom: 1px solid var(--ivory-mid); }
+  .search-field:last-child { border-bottom: none; }
+  .search-btn { margin: 12px 16px 16px; width: calc(100% - 32px); justify-content: center; }
+
+  .properties-grid { grid-template-columns: 1fr; }
+  .section-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .properties-filter { flex-wrap: wrap; }
+
+  .featured-project-inner { grid-template-columns: 1fr; gap: 48px; }
+
+  .why-us-inner { grid-template-columns: 1fr; gap: 48px; }
+  .trust-cards { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+
+  .site-visit-inner { grid-template-columns: 1fr; gap: 40px; }
+
+  .footer-top { grid-template-columns: 1fr; gap: 32px; }
+  .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+
+  .modal-box { max-width: 100%; margin: 0 8px; border-radius: var(--radius-md); }
+  .modal-header { padding: 22px 24px 20px; }
+  .modal-body { padding: 22px 24px 26px; }
+  .form-row-modal { grid-template-columns: 1fr; }
+
+  #profile-drawer { width: 100%; }
+
+  .admin-kpi-row { grid-template-columns: repeat(2,1fr); }
+  .admin-table-header, .admin-table-row { grid-template-columns: 2fr 1fr 1fr; }
+  .admin-table-header .admin-th:last-child,
+  .admin-table-row .admin-td:last-child { display: none; }
+
+  .form-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .hero-cta-group { flex-direction: column; align-items: flex-start; }
+  .hero-stats { gap: 0; }
+  .hero-stat { padding-right: 12px; margin-right: 12px; }
+  .hero-stat-num { font-size: 20px; }
+  .fp-data-strip { grid-template-columns: 1fr 1fr; }
+  .modal-box.wide { max-width: 100%; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================
+     NAVBAR
+============================= -->
+<nav id="navbar" role="navigation" aria-label="Main navigation">
+  <div class="container">
+    <div class="nav-inner">
+
+      <a href="#" class="nav-logo" aria-label="Rivan Realty Home">
+        <div class="nav-logo-mark" aria-hidden="true"></div>
+        <div class="nav-logo-text">
+          <span class="nav-logo-name">Rivan Realty</span>
+          <span class="nav-logo-tagline">Hyderabad · Premium Plots</span>
+        </div>
+      </a>
+
+      <ul class="nav-links" role="list">
+        <li><a href="#properties">Properties</a></li>
+        <li><a href="#featured-project">Projects</a></li>
+        <li><a href="#why-us">About</a></li>
+        <li><a href="#site-visit">Site Visits</a></li>
+        <li><a href="#footer">Contact</a></li>
+        <div class="nav-divider" role="separator"></div>
+        <li><a href="#" onclick="openModal('agent-modal'); return false;" style="color:var(--grey-500); font-size:12px;">Agents</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button class="nav-btn-ghost" onclick="openModal('customer-modal')" aria-label="Sign in">Sign In</button>
+        <button class="nav-btn-fill" onclick="openModal('customer-modal')" aria-label="Sign up">Get Started</button>
+        <div class="nav-access-group" aria-label="Professional access">
+          <button class="nav-access-btn" onclick="openModal('agent-modal')" aria-label="Agent login">Agent</button>
+          <button class="nav-access-btn" onclick="openModal('admin-modal')" aria-label="Admin login">Admin</button>
+        </div>
+      </div>
+
+      <button class="nav-hamburger" id="hamburger-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
+        <span></span><span></span><span></span>
+      </button>
+
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Nav -->
+<nav id="mobile-nav" aria-label="Mobile navigation" aria-hidden="true">
+  <a class="mobile-nav-link" href="#properties" onclick="closeMobileNav()">Properties</a>
+  <a class="mobile-nav-link" href="#featured-project" onclick="closeMobileNav()">Projects</a>
+  <a class="mobile-nav-link" href="#why-us" onclick="closeMobileNav()">About Us</a>
+  <a class="mobile-nav-link" href="#site-visit" onclick="closeMobileNav()">Site Visits</a>
+  <a class="mobile-nav-link" href="#footer" onclick="closeMobileNav()">Contact</a>
+
+  <div class="mobile-nav-actions">
+    <button class="btn-primary" onclick="closeMobileNav(); openModal('customer-modal')" style="width:100%; justify-content:center;">Sign In / Register</button>
+    <p class="mobile-nav-divider">Professional Access</p>
+    <div class="mobile-access-btns">
+      <button class="nav-access-btn" onclick="closeMobileNav(); openModal('agent-modal')">Agent Login</button>
+      <button class="nav-access-btn" onclick="closeMobileNav(); openModal('admin-modal')">Admin Login</button>
+      <button class="nav-access-btn" onclick="closeMobileNav(); openModal('apply-agent-modal')">Join as Agent</button>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ============================
+     HERO
+============================= -->
+<main>
+<section id="hero" aria-label="Hero">
+  <div class="container" style="display:contents;">
+    <div class="hero-content container" style="padding-left:max(32px, calc((100vw - 1240px)/2 + 32px)); padding-right:64px; max-width:none; width:50%;">
+
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-line" aria-hidden="true"></span>
+        <span class="hero-eyebrow-text">RERA Approved · Hyderabad</span>
+      </div>
+
+      <h1 class="hero-headline">
+        Own Land<br>
+        <em>Worth Holding</em>
+        <strong>in Hyderabad's</strong>
+        Growth Belt
+      </h1>
+
+      <p class="hero-body">
+        Premium approved plots, gated villa communities, and investment-grade layouts in Siripuram, Tukkuguda, and the expanding south Hyderabad corridor. Trusted by 1,400+ families since 2014.
+      </p>
+
+      <div class="hero-cta-group">
+        <button class="btn-primary" onclick="document.getElementById('properties').scrollIntoView({behavior:'smooth'})">
+          Explore Properties
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn-secondary" onclick="document.getElementById('site-visit').scrollIntoView({behavior:'smooth'})">
+          Book a Site Visit
+        </button>
+      </div>
+
+      <div class="hero-stats" role="list" aria-label="Key statistics">
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num">₹42Cr+</div>
+          <div class="hero-stat-label">Plots Sold</div>
+        </div>
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num">1,400+</div>
+          <div class="hero-stat-label">Happy Families</div>
+        </div>
+        <div class="hero-stat" role="listitem">
+          <div class="hero-stat-num">12 Yrs</div>
+          <div class="hero-stat-label">In Hyderabad</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-img-grid">
+        <div class="hero-img-top">
+          <div style="position:absolute;inset:0;background:linear-gradient(135deg,#1c3a28 0%,#245233 40%,#0d2c1a 100%);"></div>
+          <div class="hero-panel-art">
+            <svg width="240" height="200" viewBox="0 0 240 200"><rect x="20" y="100" width="60" height="90" fill="white"/><rect x="90" y="70" width="60" height="120" fill="white"/><rect x="160" y="50" width="60" height="140" fill="white"/><rect x="20" y="90" width="200" height="5" fill="white" opacity="0.3"/></svg>
+          </div>
+          <div class="hero-tag">
+            <div class="hero-tag-loc">📍 Siripuram</div>
+            <div class="hero-tag-name">Rivan Greens Phase 3</div>
+            <div class="hero-tag-price">From ₹22L · 120–200 sq yds</div>
+          </div>
+        </div>
+        <div class="hero-img-bottom">
+          <div class="hero-img-b1">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,#245233 0%,#1a3d27 100%);"></div>
+            <div class="card-img-overlay"></div>
+            <div style="position:absolute;bottom:12px;left:12px;">
+              <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold-300);margin-bottom:2px;">Tukkuguda</div>
+              <div style="font-family:var(--font-display);font-size:13px;color:white;font-weight:400;">Villa Enclave</div>
+            </div>
+          </div>
+          <div class="hero-img-b2">
+            <div style="position:absolute;inset:0;background:linear-gradient(135deg,#152b1e 0%,#0d1f16 100%);"></div>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <div style="text-align:center;">
+                <div style="font-family:var(--font-display);font-size:28px;color:var(--gold-400);font-weight:400;line-height:1;">₹38L</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;letter-spacing:0.08em;">avg. plot value</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="hero-scroll-hint" onclick="document.getElementById('search-bar').scrollIntoView({behavior:'smooth'})" aria-label="Scroll down">
+    <span>scroll</span>
+    <div class="scroll-arrow" aria-hidden="true"></div>
+  </button>
+</section>
+
+
+<!-- ============================
+     SEARCH BAR
+============================= -->
+<section id="search-bar" aria-label="Property search">
+  <div class="container" style="padding-top:0; padding-bottom:0; transform:translateY(-28px);">
+    <div class="search-container" role="search">
+      <div class="search-tabs" role="tablist" aria-label="Property type">
+        <button class="search-tab active" role="tab" aria-selected="true" onclick="setTab(this)">Buy Plots</button>
+        <button class="search-tab" role="tab" aria-selected="false" onclick="setTab(this)">Villas</button>
+        <button class="search-tab" role="tab" aria-selected="false" onclick="setTab(this)">Layouts</button>
+        <button class="search-tab" role="tab" aria-selected="false" onclick="setTab(this)">Site Visits</button>
+      </div>
+      <div class="search-form">
+        <div class="search-field">
+          <div class="search-field-label">Location</div>
+          <input type="text" placeholder="Siripuram, Tukkuguda, Hyderabad…" aria-label="Search location" />
+        </div>
+        <div class="search-field">
+          <div class="search-field-label">Budget</div>
+          <select aria-label="Budget range">
+            <option value="">Any Budget</option>
+            <option>₹10L – ₹25L</option>
+            <option>₹25L – ₹50L</option>
+            <option>₹50L – ₹1Cr</option>
+            <option>Above ₹1Cr</option>
+          </select>
+        </div>
+        <div class="search-field">
+          <div class="search-field-label">Plot Size</div>
+          <select aria-label="Plot size">
+            <option value="">Any Size</option>
+            <option>100–150 Sq Yds</option>
+            <option>150–200 Sq Yds</option>
+            <option>200–300 Sq Yds</option>
+            <option>300+ Sq Yds</option>
+          </select>
+        </div>
+        <div class="search-field">
+          <div class="search-field-label">Approval</div>
+          <select aria-label="Approval status">
+            <option value="">All Types</option>
+            <option>DTCP Approved</option>
+            <option>HMDA Approved</option>
+            <option>Panchayat</option>
+            <option>RERA Registered</option>
+          </select>
+        </div>
+        <button class="search-btn" aria-label="Search properties">
+          Search
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================
+     FEATURED PROPERTIES
+============================= -->
+<section id="properties" aria-label="Featured properties" style="padding-top:40px;">
+  <div class="container">
+    <div class="section-header animate-in">
+      <div>
+        <span class="section-label">Premium Listings</span>
+        <h2 class="section-title">Curated <em>Properties</em></h2>
+        <p class="section-subtitle">Hand-picked plots, villas, and layouts across Hyderabad's most promising growth corridors.</p>
+      </div>
+      <div class="section-header-right">
+        <button class="btn-secondary" style="padding:9px 18px; font-size:12.5px;">View All Properties →</button>
+      </div>
+    </div>
+
+    <div class="properties-filter" role="group" aria-label="Filter by type">
+      <button class="filter-chip active" onclick="filterChip(this)">All</button>
+      <button class="filter-chip" onclick="filterChip(this)">Residential Plots</button>
+      <button class="filter-chip" onclick="filterChip(this)">Villas</button>
+      <button class="filter-chip" onclick="filterChip(this)">Gated Layouts</button>
+      <button class="filter-chip" onclick="filterChip(this)">Commercial</button>
+    </div>
+
+    <div class="properties-grid">
+
+      <!-- Card 1 -->
+      <article class="property-card animate-in" aria-label="Rivan Greens Phase 3">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-1"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <div class="card-img-art" aria-hidden="true">
+            <svg width="240" height="150" viewBox="0 0 240 150"><polygon points="0,150 120,20 240,150" fill="white"/><rect x="80" y="80" width="80" height="70" fill="white"/><rect x="95" y="100" width="20" height="50" fill="#1c3a28"/><rect x="125" y="100" width="20" height="50" fill="#1c3a28"/></svg>
+          </div>
+          <span class="card-badge new">New Launch</span>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹22L</div>
+            <div class="card-price-unit">onwards</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 Siripuram, South Hyderabad</div>
+          <h3 class="card-title">Rivan Greens Phase 3</h3>
+          <p class="card-desc">HMDA approved residential plots with wide BT roads, underground drainage, and avenue trees. Corner plots available.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">120–200</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">48</div>
+              <div class="card-spec-key">Plots</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">HMDA</div>
+              <div class="card-spec-key">Approval</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">24×7</div>
+              <div class="card-spec-key">Security</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot"></span> 12 plots left</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="property-card animate-in" aria-label="Silver Oak Villas">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-2"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <div class="card-img-art" aria-hidden="true">
+            <svg width="240" height="150" viewBox="0 0 240 150"><rect x="30" y="50" width="80" height="100" fill="white"/><polygon points="30,50 70,10 110,50" fill="white"/><rect x="130" y="70" width="80" height="80" fill="white"/><polygon points="130,70 170,30 210,70" fill="white"/></svg>
+          </div>
+          <span class="card-badge">Premium Villa</span>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹1.2Cr</div>
+            <div class="card-price-unit">per villa</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 Tukkuguda, Hyderabad</div>
+          <h3 class="card-title">Silver Oak Villas</h3>
+          <p class="card-desc">3 BHK independent villas in a fully gated community. Modular kitchens, landscaped gardens, clubhouse access included.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">240</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">3 BHK</div>
+              <div class="card-spec-key">Config</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">RERA</div>
+              <div class="card-spec-key">Registered</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">Dec '25</div>
+              <div class="card-spec-key">Possession</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot limited"></span> 4 units left</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="property-card animate-in" aria-label="Rivan Meadows Layout">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-3"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <div class="card-img-art" aria-hidden="true">
+            <svg width="240" height="150" viewBox="0 0 240 150"><rect x="10" y="10" width="50" height="35" fill="white" opacity="0.8"/><rect x="70" y="10" width="50" height="35" fill="white" opacity="0.8"/><rect x="130" y="10" width="50" height="35" fill="white" opacity="0.8"/><rect x="180" y="10" width="50" height="35" fill="white" opacity="0.8"/><rect x="10" y="55" width="50" height="35" fill="white" opacity="0.8"/><rect x="70" y="55" width="50" height="35" fill="white" opacity="0.8"/><rect x="0" y="100" width="240" height="8" fill="white" opacity="0.5"/></svg>
+          </div>
+          <span class="card-badge limited">Limited Plots</span>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹18L</div>
+            <div class="card-price-unit">per plot</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 Siripuram Road, South Hyderabad</div>
+          <h3 class="card-title">Rivan Meadows Layout</h3>
+          <p class="card-desc">Open layout with 100% DTCP approval. 30-ft and 40-ft internal roads, water sump, electricity, and fencing on all sides.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">100–150</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">72</div>
+              <div class="card-spec-key">Plots</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">DTCP</div>
+              <div class="card-spec-key">Approved</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">Loan</div>
+              <div class="card-spec-key">Eligible</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot limited"></span> 8 plots left</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 4 -->
+      <article class="property-card animate-in" aria-label="Emerald Hills">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-4"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <span class="card-badge new">Just Listed</span>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹32L</div>
+            <div class="card-price-unit">per plot</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 Tukkuguda Ring Road Access</div>
+          <h3 class="card-title">Emerald Hills</h3>
+          <p class="card-desc">Elevated gated layout with valley views. Premium plots with compound wall, entry arch, and in-house gym facility.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">150–300</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">36</div>
+              <div class="card-spec-key">Plots</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">HMDA</div>
+              <div class="card-spec-key">Approved</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">6 km</div>
+              <div class="card-spec-key">ORR Access</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot"></span> Available</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 5 -->
+      <article class="property-card animate-in" aria-label="The Residency Plots">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-5"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹45L</div>
+            <div class="card-price-unit">per plot</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 PVNR Expressway, Hyderabad</div>
+          <h3 class="card-title">The Residency Plots</h3>
+          <p class="card-desc">Exclusive premium plot community with clubhouse, swimming pool, and landscaped parks. Children's play zone included.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">200–400</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">24</div>
+              <div class="card-spec-key">Plots</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">RERA</div>
+              <div class="card-spec-key">Registered</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">Bank</div>
+              <div class="card-spec-key">Loan Ready</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot limited"></span> 3 left</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 6 -->
+      <article class="property-card animate-in" aria-label="Harvest Fields">
+        <div class="card-img">
+          <div class="card-img-bg prop-img-6"></div>
+          <div class="card-img-overlay" aria-hidden="true"></div>
+          <span class="card-badge">Investment Grade</span>
+          <button class="card-wishlist" aria-label="Save to wishlist">♡</button>
+          <div class="card-price-tag">
+            <div class="card-price-val">₹14L</div>
+            <div class="card-price-unit">per plot</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-location">📍 Siripuram Main Road</div>
+          <h3 class="card-title">Harvest Fields</h3>
+          <p class="card-desc">Budget-friendly panchayat layout with wide access roads and clear title. Ideal for first-time plot buyers and NRI investors.</p>
+          <div class="card-specs">
+            <div class="card-spec">
+              <div class="card-spec-val">80–120</div>
+              <div class="card-spec-key">Sq Yds</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">90</div>
+              <div class="card-spec-key">Plots</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">Panchayat</div>
+              <div class="card-spec-key">Approved</div>
+            </div>
+            <div class="card-spec">
+              <div class="card-spec-val">Clear</div>
+              <div class="card-spec-key">Title</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <a href="#" class="card-link">View Details →</a>
+            <span class="card-status"><span class="status-dot"></span> Open Booking</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================
+     FEATURED PROJECT
+============================= -->
+<section id="featured-project" aria-label="Flagship project">
+  <div class="featured-project-bg" aria-hidden="true">
+    <svg width="100%" height="100%" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMid slice">
+      <circle cx="200" cy="100" r="300" fill="white"/>
+      <circle cx="1300" cy="500" r="200" fill="white"/>
+    </svg>
+  </div>
+  <div class="container">
+    <div class="featured-project-inner">
+
+      <div class="fp-left">
+        <span class="fp-label">Flagship Development · 2025–26</span>
+        <h2 class="fp-title">
+          Rivan Greens
+          <strong>Siripuram — Phase 4</strong>
+        </h2>
+        <p class="fp-body">
+          Our largest planned residential layout in South Hyderabad's most connected zone. Spanning 22 acres with 192 premium plots, Phase 4 is now open for pre-launch bookings at ground-floor prices. HMDA approved. Loan eligible from 8 major banks.
+        </p>
+
+        <div class="fp-highlights">
+          <div class="fp-highlight"><div class="fp-highlight-dot"></div><div class="fp-highlight-text">3 km from Siripuram Junction, direct NH-44 connectivity</div></div>
+          <div class="fp-highlight"><div class="fp-highlight-dot"></div><div class="fp-highlight-text">40-ft and 60-ft BT roads, underground drainage, LED street lights</div></div>
+          <div class="fp-highlight"><div class="fp-highlight-dot"></div><div class="fp-highlight-text">Children's park, senior citizen seating areas, and jogging track</div></div>
+          <div class="fp-highlight"><div class="fp-highlight-dot"></div><div class="fp-highlight-text">Pre-launch price: ₹24,000/sq yd — expected appreciation 28% in 18 months</div></div>
+        </div>
+
+        <div class="fp-cta-group">
+          <button class="btn-gold">Register Interest</button>
+          <button class="btn-secondary" style="color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.25);" onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='white';" onmouseout="this.style.background=''; this.style.color='rgba(255,255,255,0.7)';">
+            Download Brochure
+          </button>
+        </div>
+      </div>
+
+      <div class="fp-visual">
+        <div class="fp-main-img">
+          <div class="fp-img-art" aria-hidden="true">
+            <svg width="300" height="200" viewBox="0 0 300 200">
+              <rect x="0" y="120" width="300" height="80" fill="white"/>
+              <rect x="20" y="60" width="55" height="140" fill="white"/>
+              <rect x="85" y="40" width="55" height="160" fill="white"/>
+              <rect x="150" y="20" width="55" height="180" fill="white"/>
+              <rect x="215" y="50" width="65" height="150" fill="white"/>
+              <rect x="0" y="115" width="300" height="5" fill="white" opacity="0.5"/>
+            </svg>
+          </div>
+          <!-- Layout Explorer embedded -->
+          <div class="fp-layout-preview">
+            <div class="fp-lp-title">Layout Preview — Phase 4 · 192 Plots</div>
+            <div class="fp-lp-grid" id="layout-grid" role="grid" aria-label="Plot layout explorer"></div>
+          </div>
+        </div>
+        <div class="fp-data-strip">
+          <div class="fp-data-card">
+            <div class="fp-data-val">22</div>
+            <div class="fp-data-key">Acres Total</div>
+          </div>
+          <div class="fp-data-card">
+            <div class="fp-data-val">192</div>
+            <div class="fp-data-key">Total Plots</div>
+          </div>
+          <div class="fp-data-card">
+            <div class="fp-data-val">₹24K</div>
+            <div class="fp-data-key">Per Sq Yd</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================
+     WHY CHOOSE US
+============================= -->
+<section id="why-us" aria-label="Why choose Rivan Realty">
+  <div class="container">
+    <div class="why-us-inner">
+
+      <div>
+        <span class="section-label">Why Rivan Realty</span>
+        <h2 class="section-title">Built on <em>Trust</em>,<br>Sold on Results</h2>
+        <div class="divider-line"></div>
+        <p class="section-subtitle">We have been operating in Hyderabad's real estate market since 2013, and we believe the most premium thing we can offer is complete transparency.</p>
+
+        <div class="trust-cards">
+          <div class="trust-card animate-in">
+            <div class="trust-icon" aria-hidden="true">✅</div>
+            <div class="trust-card-title">100% Legal Clarity</div>
+            <div class="trust-card-body">Every plot we sell carries DTCP, HMDA, or RERA approvals. Encumbrance certificates and title deeds available before booking.</div>
+          </div>
+          <div class="trust-card animate-in">
+            <div class="trust-icon" aria-hidden="true">🏦</div>
+            <div class="trust-card-title">Bank Loan Tie-ups</div>
+            <div class="trust-card-body">Pre-approved partnerships with SBI, HDFC, Axis, and ICICI Bank for hassle-free plot loan processing.</div>
+          </div>
+          <div class="trust-card animate-in">
+            <div class="trust-icon" aria-hidden="true">📋</div>
+            <div class="trust-card-title">Transparent Pricing</div>
+            <div class="trust-card-body">No hidden charges. Our pricing sheets include all costs — registration, development charges, and maintenance — upfront.</div>
+          </div>
+          <div class="trust-card animate-in">
+            <div class="trust-icon" aria-hidden="true">🏆</div>
+            <div class="trust-card-title">Post-Sale Support</div>
+            <div class="trust-card-body">Dedicated relationship managers for registration, mutation, patta transfer, and construction guidance.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="why-visual animate-in">
+        <div class="testimonial-block">
+          <div class="testimonial-gold-bar" aria-hidden="true"></div>
+          <blockquote class="testimonial-quote">
+            "We were looking for a plot for 2 years. Rivan Realty showed us Siripuram and we bought within a week. The documentation process was faster than we expected, and the site is exactly as described."
+          </blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" aria-hidden="true">RK</div>
+            <div>
+              <div class="testimonial-info-name">Ramakrishna Rao</div>
+              <div class="testimonial-info-role">Software Engineer, Hyderabad · Rivan Greens Phase 2</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-box-num">1,400+</div>
+            <div class="stat-box-label">Plots Sold</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-num">12</div>
+            <div class="stat-box-label">Projects</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-num">4.8★</div>
+            <div class="stat-box-label">Customer Rating</div>
+          </div>
+        </div>
+
+        <div style="background:var(--ivory);border:1px solid var(--ivory-mid);border-radius:var(--radius-md);padding:20px 22px;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold-500);margin-bottom:10px;">Approvals & Certifications</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <span style="background:var(--white);border:1px solid var(--grey-200);border-radius:4px;padding:5px 12px;font-size:12px;color:var(--grey-700);">DTCP Approved</span>
+            <span style="background:var(--white);border:1px solid var(--grey-200);border-radius:4px;padding:5px 12px;font-size:12px;color:var(--grey-700);">HMDA Approved</span>
+            <span style="background:var(--white);border:1px solid var(--grey-200);border-radius:4px;padding:5px 12px;font-size:12px;color:var(--grey-700);">RERA Registered</span>
+            <span style="background:var(--white);border:1px solid var(--grey-200);border-radius:4px;padding:5px 12px;font-size:12px;color:var(--grey-700);">ISO 9001:2015</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================
+     SITE VISIT / CTA
+============================= -->
+<section id="site-visit" aria-label="Book a site visit">
+  <div class="site-visit-bg-accent" aria-hidden="true"></div>
+  <div class="container">
+    <div class="site-visit-inner">
+      <div>
+        <span class="section-label">Site Visits</span>
+        <h2 class="section-title">See It <em>Before</em><br>You Decide</h2>
+        <div class="divider-line"></div>
+        <p class="section-subtitle">We offer complimentary guided site visits every weekend. Our property consultants will walk you through the layout, approvals, and growth potential in person.</p>
+
+        <div class="visit-info-cards">
+          <div class="visit-info-card">
+            <div class="visit-info-icon">🗓️</div>
+            <div>
+              <div class="visit-info-title">Weekend Site Visits</div>
+              <div class="visit-info-text">Saturdays and Sundays, 8:00 AM – 5:00 PM. Batch visits and private visits both available.</div>
+            </div>
+          </div>
+          <div class="visit-info-card">
+            <div class="visit-info-icon">🚗</div>
+            <div>
+              <div class="visit-info-title">Free Pickup from Hyderabad</div>
+              <div class="visit-info-text">We arrange transport from Mehdipatnam, Koti, and LB Nagar for registered visitors.</div>
+            </div>
+          </div>
+          <div class="visit-info-card">
+            <div class="visit-info-icon">📄</div>
+            <div>
+              <div class="visit-info-title">On-Site Documentation Review</div>
+              <div class="visit-info-text">Bring your questions. Our legal team is present on site to verify approvals and title documents.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="visit-form-wrap animate-in">
+        <h3 class="visit-form-title">Book Your Visit</h3>
+        <p class="visit-form-subtitle">No commitment required. Slots fill fast on weekends.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="visit-fname">First Name</label>
+            <input class="form-input" type="text" id="visit-fname" placeholder="Suresh" autocomplete="given-name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="visit-lname">Last Name</label>
+            <input class="form-input" type="text" id="visit-lname" placeholder="Reddy" autocomplete="family-name" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="visit-phone">Mobile Number</label>
+          <input class="form-input" type="tel" id="visit-phone" placeholder="+91 98765 43210" autocomplete="tel" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="visit-property">Interested In</label>
+            <select class="form-input" id="visit-property">
+              <option value="">Select Property</option>
+              <option>Rivan Greens Phase 3</option>
+              <option>Rivan Greens Phase 4</option>
+              <option>Silver Oak Villas</option>
+              <option>Rivan Meadows Layout</option>
+              <option>Emerald Hills</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="visit-date">Preferred Date</label>
+            <input class="form-input" type="date" id="visit-date" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="visit-budget">Budget Range</label>
+          <select class="form-input" id="visit-budget">
+            <option value="">Select Budget</option>
+            <option>₹10L – ₹25L</option>
+            <option>₹25L – ₹50L</option>
+            <option>₹50L – ₹1Cr</option>
+            <option>₹1Cr+</option>
+          </select>
+        </div>
+
+        <button class="form-submit-btn" onclick="handleVisitBooking()" aria-label="Confirm site visit booking">
+          Confirm Visit Booking →
+        </button>
+        <p style="font-size:11.5px;color:var(--grey-400);margin-top:12px;text-align:center;">
+          Our team will call you within 2 hours to confirm the slot.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================
+     FOOTER
+============================= -->
+<footer id="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="footer-logo-mark" aria-hidden="true">R</div>
+          <span class="footer-logo-name">Rivan Realty</span>
+        </div>
+        <p class="footer-brand-text">
+          Premium residential plots, gated layouts, and villa communities across Hyderabad's most promising growth corridors. Trusted by 1,400+ families since 2013.
+        </p>
+        <div class="footer-contact-info">
+          <div class="footer-contact-item">📞 <a href="tel:+914023456789">+91 40 2345 6789</a></div>
+          <div class="footer-contact-item">✉️ <a href="mailto:info@rivanrealty.in">info@rivanrealty.in</a></div>
+          <div class="footer-contact-item">📍 Plot 12, Road 4, Siripuram, Hyderabad – 500 058</div>
+        </div>
+        <div class="footer-rera">
+          <span class="footer-rera-text">RERA Reg. No.</span>
+          <span class="footer-rera-num">P02400001234</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Properties</div>
+        <ul class="footer-links">
+          <li><a href="#">Residential Plots</a></li>
+          <li><a href="#">Villa Communities</a></li>
+          <li><a href="#">Gated Layouts</a></li>
+          <li><a href="#">Commercial Plots</a></li>
+          <li><a href="#">NRI Investment</a></li>
+          <li><a href="#">Featured Projects</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Quick Links</div>
+        <ul class="footer-links">
+          <li><a href="#">About Rivan Realty</a></li>
+          <li><a href="#">Book a Site Visit</a></li>
+          <li><a href="#">EMI Calculator</a></li>
+          <li><a href="#">Legal Approvals</a></li>
+          <li><a href="#">Customer Stories</a></li>
+          <li><a href="#" onclick="openModal('apply-agent-modal'); return false;">Join as Agent</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Locations</div>
+        <ul class="footer-links">
+          <li><a href="#">Siripuram Plots</a></li>
+          <li><a href="#">Tukkuguda Villas</a></li>
+          <li><a href="#">PVNR Expressway</a></li>
+          <li><a href="#">ORR Corridor</a></li>
+          <li><a href="#">Shamshabad Area</a></li>
+          <li><a href="#">Shadnagar</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copyright">© 2025 Rivan Realty Pvt. Ltd. All rights reserved.</p>
+      <div class="footer-bottom-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">Disclaimer</a>
+        <a href="#" onclick="openModal('admin-modal'); return false;">Admin</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</main>
+
+
+<!-- ============================
+     CUSTOMER MODAL
+============================= -->
+<div class="modal-overlay" id="customer-modal" role="dialog" aria-modal="true" aria-label="Customer login" onclick="closeModalOnOverlay(event, 'customer-modal')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-badge">Customer Access</div>
+        <h2 class="modal-title">Welcome Back</h2>
+        <p class="modal-subtitle">Sign in to your Rivan Realty account</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('customer-modal')" aria-label="Close modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs" role="tablist">
+        <button class="modal-tab active" role="tab" onclick="switchModalTab(this, 'signin')">Sign In</button>
+        <button class="modal-tab" role="tab" onclick="switchModalTab(this, 'register')">Register</button>
+      </div>
+
+      <div id="modal-signin">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="c-email">Email / Mobile</label>
+          <input class="modal-form-input" type="text" id="c-email" placeholder="yourname@email.com" autocomplete="email" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="c-password">Password</label>
+          <input class="modal-form-input" type="password" id="c-password" placeholder="Enter password" autocomplete="current-password" />
+        </div>
+        <div style="text-align:right; margin-top:-6px; margin-bottom:4px;">
+          <a href="#" style="font-size:12px; color:var(--green-600);">Forgot Password?</a>
+        </div>
+        <button class="modal-btn" onclick="openProfileDrawer()">Sign In →</button>
+        <div class="modal-divider">
+          <div class="modal-divider-line"></div>
+          <span class="modal-divider-text">or</span>
+          <div class="modal-divider-line"></div>
+        </div>
+        <button class="modal-btn" style="background:var(--ivory); color:var(--grey-700); border:1.5px solid var(--grey-200);">
+          Continue with Google
+        </button>
+        <p class="modal-footer-note">Don't have an account? <a href="#" onclick="switchToRegister()">Register free →</a></p>
+      </div>
+
+      <div id="modal-register" style="display:none;">
+        <div class="form-row-modal">
+          <div class="modal-form-group">
+            <label class="modal-form-label" for="r-fname">First Name</label>
+            <input class="modal-form-input" type="text" id="r-fname" placeholder="Suresh" autocomplete="given-name" />
+          </div>
+          <div class="modal-form-group">
+            <label class="modal-form-label" for="r-lname">Last Name</label>
+            <input class="modal-form-input" type="text" id="r-lname" placeholder="Reddy" autocomplete="family-name" />
+          </div>
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="r-email">Email</label>
+          <input class="modal-form-input" type="email" id="r-email" placeholder="yourname@email.com" autocomplete="email" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="r-phone">Mobile Number</label>
+          <input class="modal-form-input" type="tel" id="r-phone" placeholder="+91 98765 43210" autocomplete="tel" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="r-password">Password</label>
+          <input class="modal-form-input" type="password" id="r-password" placeholder="Create a strong password" autocomplete="new-password" />
+        </div>
+        <button class="modal-btn">Create Account →</button>
+        <p class="modal-footer-note" style="margin-top:12px;">By registering you agree to our <a href="#">Terms of Service</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================
+     AGENT MODAL
+============================= -->
+<div class="modal-overlay" id="agent-modal" role="dialog" aria-modal="true" aria-label="Agent login" onclick="closeModalOnOverlay(event, 'agent-modal')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-badge" style="color:var(--gold-500);">Agent Portal</div>
+        <h2 class="modal-title">Agent Access</h2>
+        <p class="modal-subtitle">Sign in to your agent dashboard</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('agent-modal')" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="a-id">Agent ID / Email</label>
+        <input class="modal-form-input" type="text" id="a-id" placeholder="RVA-00124 or email" autocomplete="username" />
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="a-password">Password</label>
+        <input class="modal-form-input" type="password" id="a-password" placeholder="Enter password" autocomplete="current-password" />
+      </div>
+      <button class="modal-btn modal-btn-gold">Sign In as Agent →</button>
+      <div class="modal-divider">
+        <div class="modal-divider-line"></div>
+        <span class="modal-divider-text">not an agent yet?</span>
+        <div class="modal-divider-line"></div>
+      </div>
+      <button class="modal-btn" style="background:var(--ivory);color:var(--green-800);border:1.5px solid var(--green-200, #b8d4c0);" onclick="closeModal('agent-modal'); openModal('apply-agent-modal')">
+        Apply to Join as Agent →
+      </button>
+      <p class="modal-footer-note">Agent support: <a href="mailto:agents@rivanrealty.in">agents@rivanrealty.in</a></p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================
+     ADMIN MODAL
+============================= -->
+<div class="modal-overlay" id="admin-modal" role="dialog" aria-modal="true" aria-label="Admin login" onclick="closeModalOnOverlay(event, 'admin-modal')">
+  <div class="modal-box">
+    <div class="admin-modal-header">
+      <div>
+        <span class="admin-modal-badge">System Access</span>
+        <h2 class="admin-modal-title">Admin Dashboard</h2>
+      </div>
+      <button class="admin-close" onclick="closeModal('admin-modal')" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" style="padding-top:28px;">
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="adm-id">Admin ID</label>
+        <input class="modal-form-input" type="text" id="adm-id" placeholder="admin@rivanrealty.in" autocomplete="username" />
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="adm-password">Password</label>
+        <input class="modal-form-input" type="password" id="adm-password" placeholder="Enter secure password" autocomplete="current-password" />
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="adm-2fa">2FA Code</label>
+        <input class="modal-form-input" type="text" id="adm-2fa" placeholder="6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+      </div>
+      <button class="modal-btn" style="background:var(--green-900);" onclick="openAdminPreview()">Access Dashboard →</button>
+      <p style="font-size:11.5px;color:var(--grey-400);text-align:center;margin-top:12px;">
+        Restricted access. All logins are logged and monitored.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================
+     APPLY AGENT MODAL
+============================= -->
+<div class="modal-overlay" id="apply-agent-modal" role="dialog" aria-modal="true" aria-label="Agent application" onclick="closeModalOnOverlay(event, 'apply-agent-modal')">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-badge">Career Opportunity</div>
+        <h2 class="modal-title">Join as a Rivan Agent</h2>
+        <p class="modal-subtitle">High commissions · Exclusive listings · Full training</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('apply-agent-modal')" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-modal">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-fname">First Name</label>
+          <input class="modal-form-input" type="text" id="ap-fname" placeholder="Full first name" autocomplete="given-name" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-lname">Last Name</label>
+          <input class="modal-form-input" type="text" id="ap-lname" placeholder="Last name" autocomplete="family-name" />
+        </div>
+      </div>
+      <div class="form-row-modal">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-phone">Mobile Number</label>
+          <input class="modal-form-input" type="tel" id="ap-phone" placeholder="+91 98765 43210" autocomplete="tel" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-email">Email Address</label>
+          <input class="modal-form-input" type="email" id="ap-email" placeholder="you@email.com" autocomplete="email" />
+        </div>
+      </div>
+      <div class="form-row-modal">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-exp">Years of Experience</label>
+          <select class="modal-form-input" id="ap-exp">
+            <option value="">Select</option>
+            <option>Fresher</option>
+            <option>1–2 years</option>
+            <option>3–5 years</option>
+            <option>5+ years</option>
+          </select>
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="ap-area">Coverage Area</label>
+          <select class="modal-form-input" id="ap-area">
+            <option value="">Select Area</option>
+            <option>Siripuram</option>
+            <option>Tukkuguda</option>
+            <option>Shadnagar</option>
+            <option>South Hyderabad</option>
+            <option>Full Hyderabad</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-form-label" for="ap-note">Why do you want to join Rivan Realty?</label>
+        <textarea class="modal-form-input" id="ap-note" rows="3" placeholder="Tell us about your experience and why you'd be a great fit…" style="resize:vertical; min-height:80px;"></textarea>
+      </div>
+      <button class="modal-btn">Submit Application →</button>
+      <p class="modal-footer-note">We review all applications within 3 business days. Our channel head will contact you.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================
+     ADMIN DASHBOARD PREVIEW MODAL
+============================= -->
+<div class="modal-overlay" id="admin-preview-modal" role="dialog" aria-modal="true" aria-label="Admin dashboard preview" onclick="closeModalOnOverlay(event, 'admin-preview-modal')">
+  <div class="modal-box admin-preview-modal" style="max-width:680px; overflow:hidden;">
+    <div class="admin-modal-header">
+      <div>
+        <span class="admin-modal-badge">Dashboard Preview</span>
+        <h2 class="admin-modal-title">Rivan Realty Admin</h2>
+      </div>
+      <button class="admin-close" onclick="closeModal('admin-preview-modal')" aria-label="Close">✕</button>
+    </div>
+    <div class="admin-dash-preview">
+      <div class="admin-dash-content">
+        <div class="admin-kpi-row">
+          <div class="admin-kpi">
+            <div class="admin-kpi-val">192</div>
+            <div class="admin-kpi-label">Total Plots</div>
+            <div class="admin-kpi-trend">↑ Phase 4 active</div>
+          </div>
+          <div class="admin-kpi">
+            <div class="admin-kpi-val">48</div>
+            <div class="admin-kpi-label">This Month Sales</div>
+            <div class="admin-kpi-trend">↑ +18% vs last month</div>
+          </div>
+          <div class="admin-kpi">
+            <div class="admin-kpi-val">₹4.2Cr</div>
+            <div class="admin-kpi-label">Revenue (MTD)</div>
+            <div class="admin-kpi-trend" style="color:var(--gold-500);">On target</div>
+          </div>
+          <div class="admin-kpi">
+            <div class="admin-kpi-val">34</div>
+            <div class="admin-kpi-label">Pending Visits</div>
+            <div class="admin-kpi-trend">↑ This weekend</div>
+          </div>
+        </div>
+
+        <div class="admin-table">
+          <div class="admin-table-header">
+            <div class="admin-th">Customer</div>
+            <div class="admin-th">Property</div>
+            <div class="admin-th">Status</div>
+            <div class="admin-th">Value</div>
+          </div>
+          <div class="admin-table-row">
+            <div class="admin-td">Ramakrishna Rao<div class="admin-td-sub">+91 98456 12345</div></div>
+            <div class="admin-td">Rivan Greens P3<div class="admin-td-sub">Plot 22 · 150 Sq Yd</div></div>
+            <div class="admin-td"><span class="admin-badge-pill active">Booked</span></div>
+            <div class="admin-td">₹32.5L</div>
+          </div>
+          <div class="admin-table-row">
+            <div class="admin-td">Priya Venkatesh<div class="admin-td-sub">+91 99887 22341</div></div>
+            <div class="admin-td">Silver Oak Villas<div class="admin-td-sub">Unit 7 · 3 BHK</div></div>
+            <div class="admin-td"><span class="admin-badge-pill pending">Visit Pending</span></div>
+            <div class="admin-td">₹1.2Cr</div>
+          </div>
+          <div class="admin-table-row">
+            <div class="admin-td">Srinivas Kumar<div class="admin-td-sub">+91 91234 56789</div></div>
+            <div class="admin-td">Emerald Hills<div class="admin-td-sub">Plot 8 · 200 Sq Yd</div></div>
+            <div class="admin-td"><span class="admin-badge-pill new">New Lead</span></div>
+            <div class="admin-td">₹48L</div>
+          </div>
+          <div class="admin-table-row">
+            <div class="admin-td">Meera Reddy<div class="admin-td-sub">+91 93456 78901</div></div>
+            <div class="admin-td">Harvest Fields<div class="admin-td-sub">Plot 14 · 100 Sq Yd</div></div>
+            <div class="admin-td"><span class="admin-badge-pill active">Registered</span></div>
+            <div class="admin-td">₹14L</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================
+     PROFILE DRAWER
+============================= -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeProfileDrawer()"></div>
+<aside id="profile-drawer" role="complementary" aria-label="Your profile" aria-hidden="true">
+  <div class="drawer-header" style="position:relative;">
+    <button class="drawer-close" onclick="closeProfileDrawer()" aria-label="Close drawer">✕</button>
+    <div class="drawer-avatar" aria-hidden="true">SR</div>
+    <div class="drawer-name">Suresh Reddy</div>
+    <div class="drawer-email">suresh.reddy@gmail.com</div>
+    <div class="drawer-member-badge">⭐ Premium Member</div>
+  </div>
+
+  <div class="drawer-body">
+    <div class="drawer-section-title">My Account</div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">🏠</span> My Properties
+      <span class="drawer-menu-badge">2</span>
+    </div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">📅</span> My Visits
+      <span class="drawer-menu-badge">1</span>
+    </div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">❤️</span> Saved Properties
+    </div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">📄</span> Documents
+    </div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">💬</span> Messages
+    </div>
+
+    <div class="drawer-section-title" style="margin-top:20px;">Saved Properties</div>
+    <div class="drawer-property-saved" role="button" tabindex="0" aria-label="View Rivan Greens Phase 3">
+      <div class="drawer-prop-name">Rivan Greens Phase 3</div>
+      <div class="drawer-prop-loc">📍 Siripuram, Hyderabad</div>
+      <div class="drawer-prop-price">₹22L onwards</div>
+    </div>
+    <div class="drawer-property-saved" role="button" tabindex="0" aria-label="View Emerald Hills">
+      <div class="drawer-prop-name">Emerald Hills</div>
+      <div class="drawer-prop-loc">📍 Tukkuguda Ring Road</div>
+      <div class="drawer-prop-price">₹32L onwards</div>
+    </div>
+
+    <div class="drawer-section-title" style="margin-top:20px;">Settings</div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">⚙️</span> Account Settings
+    </div>
+    <div class="drawer-menu-item" role="button" tabindex="0">
+      <span class="drawer-menu-icon">🔔</span> Notifications
+    </div>
+  </div>
+
+  <div class="drawer-footer">
+    <button class="drawer-logout-btn" onclick="closeProfileDrawer()">Sign Out</button>
+  </div>
+</aside>
+
+
+<!-- ============================
+     TOAST NOTIFICATION
+============================= -->
+<div id="toast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green-800);color:white;padding:12px 24px;border-radius:40px;font-size:13.5px;font-weight:500;z-index:9999;transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);box-shadow:0 8px 32px rgba(0,0,0,0.2);pointer-events:none;white-space:nowrap;" role="status" aria-live="polite"></div>
+
+
+<script>
+/* =============================================
+   NAVBAR SCROLL BEHAVIOR
+============================================= */
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  navbar.classList.toggle('scrolled', window.scrollY > 20);
+}, { passive: true });
+
+/* =============================================
+   MOBILE NAV
+============================================= */
+const hamburgerBtn = document.getElementById('hamburger-btn');
+const mobileNav = document.getElementById('mobile-nav');
+
+function toggleMobileNav() {
+  const open = hamburgerBtn.classList.toggle('active');
+  mobileNav.classList.toggle('open', open);
+  mobileNav.setAttribute('aria-hidden', String(!open));
+  hamburgerBtn.setAttribute('aria-expanded', String(open));
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeMobileNav() {
+  hamburgerBtn.classList.remove('active');
+  mobileNav.classList.remove('open');
+  mobileNav.setAttribute('aria-hidden', 'true');
+  hamburgerBtn.setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
+}
+
+hamburgerBtn.addEventListener('click', toggleMobileNav);
+
+/* =============================================
+   SEARCH TABS
+============================================= */
+function setTab(el) {
+  el.closest('.search-tabs').querySelectorAll('.search-tab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+  });
+  el.classList.add('active');
+  el.setAttribute('aria-selected', 'true');
+}
+
+/* =============================================
+   FILTER CHIPS
+============================================= */
+function filterChip(el) {
+  el.closest('.properties-filter').querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* =============================================
+   MODAL SYSTEM
+============================================= */
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  closeMobileNav();
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+
+  // Focus first input
+  setTimeout(() => {
+    const firstInput = modal.querySelector('input, button.modal-btn');
+    if (firstInput) firstInput.focus();
+  }, 200);
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function closeModalOnOverlay(e, id) {
+  if (e.target === document.getElementById(id)) closeModal(id);
+}
+
+// ESC key closes modals
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+      closeModal(m.id);
+    });
+    closeProfileDrawer();
+    closeMobileNav();
+  }
+});
+
+/* =============================================
+   CUSTOMER MODAL TABS
+============================================= */
+function switchModalTab(el, tab) {
+  el.closest('.modal-tabs').querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('modal-signin').style.display = tab === 'signin' ? '' : 'none';
+  document.getElementById('modal-register').style.display = tab === 'register' ? '' : 'none';
+}
+
+function switchToRegister() {
+  const tabs = document.querySelectorAll('#customer-modal .modal-tab');
+  switchModalTab(tabs[1], 'register');
+}
+
+/* =============================================
+   ADMIN PREVIEW
+============================================= */
+function openAdminPreview() {
+  closeModal('admin-modal');
+  setTimeout(() => openModal('admin-preview-modal'), 200);
+}
+
+/* =============================================
+   PROFILE DRAWER
+============================================= */
+function openProfileDrawer() {
+  closeModal('customer-modal');
+  setTimeout(() => {
+    const drawer = document.getElementById('profile-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }, 300);
+}
+
+function closeProfileDrawer() {
+  const drawer = document.getElementById('profile-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* =============================================
+   TOAST NOTIFICATION
+============================================= */
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => {
+    toast.style.transform = 'translateX(-50%) translateY(80px)';
+  }, 3200);
+}
+
+/* =============================================
+   SITE VISIT FORM
+============================================= */
+function handleVisitBooking() {
+  const phone = document.getElementById('visit-phone').value;
+  const property = document.getElementById('visit-property').value;
+  const fname = document.getElementById('visit-fname').value;
+  if (!fname || !phone) {
+    showToast('Please fill in your name and phone number');
+    return;
+  }
+  showToast('✅ Visit booked! We\'ll call you within 2 hours');
+}
+
+/* =============================================
+   LAYOUT GRID (FEATURED PROJECT)
+============================================= */
+function buildLayoutGrid() {
+  const grid = document.getElementById('layout-grid');
+  if (!grid) return;
+  const total = 36; // 6x6 display grid
+  const sold = [2, 5, 8, 11, 17, 22, 29];
+  const corner = [0, 5, 30, 35];
+  const reserved = [14, 19, 25, 27];
+
+  for (let i = 0; i < total; i++) {
+    const plot = document.createElement('div');
+    plot.className = 'fp-lp-plot';
+    if (sold.includes(i)) plot.classList.add('sold');
+    else if (corner.includes(i)) plot.classList.add('corner');
+    else if (reserved.includes(i)) plot.classList.add('reserved');
+
+    const status = sold.includes(i) ? 'Sold' : corner.includes(i) ? 'Corner Plot' : reserved.includes(i) ? 'Reserved' : 'Available';
+    plot.setAttribute('title', `Plot ${i + 1} — ${status}`);
+    plot.setAttribute('role', 'gridcell');
+    plot.setAttribute('aria-label', `Plot ${i + 1}: ${status}`);
+
+    if (!sold.includes(i)) {
+      plot.addEventListener('click', () => showToast(`Plot ${i + 1} — ${status}. Call us to book.`));
+    }
+    grid.appendChild(plot);
+  }
+}
+
+/* =============================================
+   SCROLL ANIMATIONS
+============================================= */
+function initScrollAnimations() {
+  const els = document.querySelectorAll('.animate-in');
+  if (!els.length) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, (i % 4) * 100);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+  els.forEach(el => observer.observe(el));
+}
+
+/* =============================================
+   WISHLIST TOGGLE
+============================================= */
+document.querySelectorAll('.card-wishlist').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isActive = btn.textContent.trim() === '♥';
+    btn.textContent = isActive ? '♡' : '♥';
+    btn.style.color = isActive ? '' : '#c0392b';
+    showToast(isActive ? 'Removed from saved properties' : '❤️ Saved to your profile');
+  });
+});
+
+/* =============================================
+   INIT
+============================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  buildLayoutGrid();
+  initScrollAnimations();
+  // Set min date for visit date input
+  const dateInput = document.getElementById('visit-date');
+  if (dateInput) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    dateInput.min = tomorrow.toISOString().split('T')[0];
+  }
+});
+</script>
+
+</body>
+</html>

@@ -13,7 +13,7 @@ os.environ.setdefault("MONGO_URL", "mongodb://127.0.0.1:27017")
 os.environ.setdefault("JWT_SECRET", "test-only-jwt-secret")
 os.environ.setdefault("ALLOW_LOCAL_AUTH_FALLBACK", "false")
 
-from server import CORS_ORIGINS, admin_access_is_active, app, has_admin_access  # noqa: E402
+from server import CORS_ORIGINS, admin_access_is_active, app, has_admin_access, is_primary_admin_login_user  # noqa: E402
 
 
 def test_admin_access_accepts_database_admin_roles():
@@ -28,6 +28,13 @@ def test_admin_access_rejects_non_admin_roles_and_inactive_records():
     assert admin_access_is_active({"role": "manager", "status": "active"})
     assert not admin_access_is_active({"role": "manager", "status": "suspended"})
     assert not admin_access_is_active({"role": "admin", "approval_status": "pending"})
+
+
+def test_primary_admin_login_is_limited_to_admin_records():
+    assert is_primary_admin_login_user({"role": "admin"})
+    assert is_primary_admin_login_user({"role": "customer", "is_admin": True})
+    assert not is_primary_admin_login_user({"role": "manager", "is_admin": False})
+    assert not is_primary_admin_login_user({"role": "super_admin", "is_admin": False})
 
 
 def test_only_otp_admin_login_routes_are_registered():

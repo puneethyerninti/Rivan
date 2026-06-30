@@ -26,7 +26,7 @@ function readableStatus(value?: string) {
 
 function badgeTone(status?: string) {
   const normalized = String(status || "").toLowerCase();
-  if (["confirmed", "approved", "completed"].includes(normalized)) {
+  if (["approved", "agent_approved", "admin_approved", "reserved", "scheduled", "completed"].includes(normalized)) {
     return { bg: colors.approvedBg, text: colors.approvedText };
   }
   if (["cancelled", "rejected"].includes(normalized)) {
@@ -58,11 +58,11 @@ export default function AdminScreen() {
   const visits = useMemo(() => (Array.isArray(overview?.visits) ? overview.visits : []), [overview]);
   const reminders = useMemo(() => (Array.isArray(overview?.reminders) ? overview.reminders : []), [overview]);
   const pendingVisits = useMemo(
-    () => visits.filter((visit: any) => ["pending", "approval requested"].includes(String(visit.status || "").toLowerCase())),
+    () => visits.filter((visit: any) => ["agent_approved", "admin_approved"].includes(String(visit.status || "").toLowerCase())),
     [visits]
   );
   const liveVisits = useMemo(
-    () => visits.filter((visit: any) => ["confirmed", "scheduled", "completed", "cancelled", "rejected"].includes(String(visit.status || "").toLowerCase())),
+    () => visits.filter((visit: any) => ["scheduled", "rescheduled", "completed", "cancelled", "rejected"].includes(String(visit.status || "").toLowerCase())),
     [visits]
   );
   const pendingAgents = useMemo(
@@ -70,7 +70,7 @@ export default function AdminScreen() {
     [agents]
   );
   const openBookings = useMemo(
-    () => bookings.filter((booking) => !["closed", "completed", "cancelled"].includes(String(booking.status || "").toLowerCase())),
+    () => bookings.filter((booking) => ["agent_approved", "admin_approved"].includes(String(booking.status || "").toLowerCase())),
     [bookings]
   );
 
@@ -98,7 +98,7 @@ export default function AdminScreen() {
     void load();
   }, [load]);
 
-  async function handleVisitStatus(visitId: string, status: "confirmed" | "completed" | "cancelled") {
+async function handleVisitStatus(visitId: string, status: "scheduled" | "completed" | "cancelled") {
     try {
       setErrorMessage("");
       setStatusMessage("");
@@ -146,7 +146,7 @@ export default function AdminScreen() {
       setStatusMessage("");
       setBusyKey(`booking:${bookingId}:confirm`);
       await api.adminConfirmBooking(bookingId);
-      setStatusMessage("Booking confirmed successfully.");
+      setStatusMessage("Booking reserved successfully.");
       await load();
     } catch (error: any) {
       setErrorMessage(error?.message || "Unable to confirm the booking.");
@@ -203,7 +203,7 @@ export default function AdminScreen() {
         <View style={[styles.hero, isPhone && styles.heroPhone]}>
           <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>Operations dashboard</Text>
-            <Text style={styles.heroTitle}>Review every live visit request before the customer moves to a confirmed journey.</Text>
+            <Text style={styles.heroTitle}>Review every live visit request before the customer moves to a scheduled journey.</Text>
             <Text style={styles.heroBody}>
               Visit approvals, agent onboarding, and booking oversight are grouped into one real-time control surface built on live backend records.
             </Text>
@@ -268,7 +268,7 @@ export default function AdminScreen() {
             <View style={styles.surfaceHeader}>
               <View style={styles.surfaceHeaderCopy}>
                 <Text style={styles.surfaceTitle}>Visit approval queue</Text>
-                <Text style={styles.surfaceBody}>Every customer visit request lands here first. Confirm to unlock the confirmed state in the customer Visits tab.</Text>
+                <Text style={styles.surfaceBody}>Agent-cleared visit requests land here for manager confirmation before the customer sees a scheduled visit.</Text>
               </View>
             </View>
 
@@ -292,10 +292,10 @@ export default function AdminScreen() {
                         onPress={() => handleVisitStatus(visit.id, "cancelled")}
                       />
                       <ActionButton
-                        label="Confirm"
-                        loading={busyKey === `visit:${visit.id}:confirmed`}
-                        onPress={() => handleVisitStatus(visit.id, "confirmed")}
-                      />
+                          label="Schedule"
+                          loading={busyKey === `visit:${visit.id}:scheduled`}
+                          onPress={() => handleVisitStatus(visit.id, "scheduled")}
+                        />
                     </View>
                   </View>
                 ))}
@@ -316,7 +316,7 @@ export default function AdminScreen() {
                     <Text style={styles.recordMeta}>{visit.property_name || visit.centre_name || "Selected location"}</Text>
                     <Text style={styles.recordMeta}>{visit.visit_date || "-"}{visit.visit_time ? ` at ${visit.visit_time}` : ""}</Text>
                     <Text style={styles.recordMeta}>{visit.customer_phone || visit.mobile || "-"}</Text>
-                    {String(visit.status || "").toLowerCase() === "confirmed" ? (
+                    {["scheduled", "rescheduled"].includes(String(visit.status || "").toLowerCase()) ? (
                       <View style={styles.actionRow}>
                         <ActionButton
                           label="Mark Completed"
@@ -329,7 +329,7 @@ export default function AdminScreen() {
                 ))}
               </View>
             ) : (
-              <EmptyPanel title="No confirmed visits yet" text="Confirmed visits will move here after approval." />
+              <EmptyPanel title="No scheduled visits yet" text="Scheduled visits will move here after approval." />
             )}
           </View>
         ) : null}
@@ -375,10 +375,10 @@ export default function AdminScreen() {
         {activePanel === "bookings" ? (
           <View style={styles.surface}>
             <Text style={styles.surfaceTitle}>Booking review</Text>
-            <Text style={styles.surfaceBody}>Customer bookings stay here until your operations team confirms them.</Text>
-            {bookings.length ? (
+            <Text style={styles.surfaceBody}>Agent-cleared customer bookings stay here until your operations team reserves or closes them.</Text>
+            {openBookings.length ? (
               <View style={[styles.recordGrid, isTablet && styles.recordGridTablet]}>
-                {bookings.map((booking: any) => (
+                {openBookings.map((booking: any) => (
                   <View key={booking.id} style={[styles.recordCard, isTablet && styles.recordCardTablet]}>
                     <View style={styles.recordTop}>
                       <Text style={styles.recordTitle}>{booking.name || "Booking request"}</Text>
@@ -387,10 +387,10 @@ export default function AdminScreen() {
                     <Text style={styles.recordMeta}>{booking.property_name || "-"}</Text>
                     <Text style={styles.recordMeta}>{booking.plot_number || booking.plot_id || "-"}</Text>
                     <Text style={styles.recordMeta}>{booking.mobile || "-"}</Text>
-                    {!["closed", "completed", "cancelled", "confirmed"].includes(String(booking.status || "").toLowerCase()) ? (
+                    {!["closed", "completed", "cancelled", "reserved"].includes(String(booking.status || "").toLowerCase()) ? (
                       <View style={styles.actionRow}>
                         <ActionButton
-                          label="Confirm Booking"
+                          label="Reserve Booking"
                           loading={busyKey === `booking:${booking.id}:confirm`}
                           onPress={() => handleConfirmBooking(booking.id)}
                         />

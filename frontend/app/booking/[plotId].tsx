@@ -123,7 +123,7 @@ export default function BookingScreen() {
           </View>
           <Text style={styles.successTitle}>Booking request received</Text>
           <Text style={styles.successBody}>
-            Your enquiry for {plot?.number || "this unit"} has been submitted. The Rivan team will contact you shortly to continue the process.
+            Your enquiry for {plot?.number || "this unit"} has been submitted. Your assigned agent will review it first, then the admin team will confirm the reservation updates.
           </Text>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Unit</Text>
@@ -220,7 +220,7 @@ export default function BookingScreen() {
             <View style={styles.notice}>
               <Feather name="info" size={14} color={colors.primary} />
               <Text style={styles.noticeText}>
-                By continuing, you agree to be contacted by the Rivan team for booking confirmation and next steps.
+                By continuing, you agree to be contacted for agent review, admin reservation approval, and the next booking steps.
               </Text>
             </View>
 

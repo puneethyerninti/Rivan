@@ -27,26 +27,39 @@ function getVisitStatusTone(status?: string) {
   const normalized = String(status || "").trim().toLowerCase();
   switch (normalized) {
     case "pending":
-    case "approval requested":
+    case "pending_agent_approval":
       return {
-        label: "Awaiting Approval",
+        label: "Pending Agent Approval",
         bg: colors.pendingBg,
         text: colors.pendingText,
         icon: "clock" as const,
+      };
+    case "agent_approved":
+      return {
+        label: "Agent Approved",
+        bg: colors.primarySoft,
+        text: colors.primaryDark,
+        icon: "check-circle" as const,
+      };
+    case "admin_approved":
+      return {
+        label: "Admin Approved",
+        bg: colors.primarySoft,
+        text: colors.primaryDark,
+        icon: "shield" as const,
       };
     case "scheduled":
-    case "upcoming":
     case "rescheduled":
       return {
-        label: normalized === "rescheduled" ? "Rescheduled" : normalized === "scheduled" ? "Scheduled" : normalized === "upcoming" ? "Upcoming" : "Pending",
+        label: normalized === "rescheduled" ? "Rescheduled" : "Scheduled",
         bg: colors.pendingBg,
         text: colors.pendingText,
         icon: "clock" as const,
       };
-    case "confirmed":
-      return { label: "Confirmed", bg: colors.primarySoft, text: colors.primaryDark, icon: "check-circle" as const };
     case "completed":
       return { label: "Completed", bg: colors.approvedBg, text: colors.approvedText, icon: "check" as const };
+    case "rejected":
+      return { label: "Rejected", bg: colors.rejectedBg, text: colors.rejectedText, icon: "x-circle" as const };
     case "cancelled":
       return { label: "Cancelled", bg: colors.rejectedBg, text: colors.rejectedText, icon: "x-circle" as const };
     default:
@@ -202,7 +215,7 @@ export default function VisitsScreen() {
               visits.map((v) => {
                 const tone = getVisitStatusTone(v.status);
                 const normalizedStatus = String(v.status || "").toLowerCase();
-                const canContinue = v.type === "site" && v.property_id && ["confirmed", "completed"].includes(normalizedStatus);
+                const canContinue = v.type === "site" && v.property_id && ["scheduled", "rescheduled", "completed"].includes(normalizedStatus);
                 return (
                   <View key={v.id} style={[styles.visitCard, isPhone && styles.visitCardPhone]} testID={`visits-history-${v.id}`}>
                     <View style={[styles.visitIcon, { backgroundColor: tone.text }]}>
@@ -220,8 +233,20 @@ export default function VisitsScreen() {
                         {v.visit_date}{v.visit_time ? ` at ${v.visit_time}` : ""}
                       </Text>
                       <Text style={styles.visitType}>{v.type === "centre" ? "Experience centre visit" : "Site visit"}</Text>
+                      {normalizedStatus === "pending_agent_approval" ? (
+                        <Text style={styles.visitApprovalHint}>Your request is waiting for agent review before it moves to the admin queue.</Text>
+                      ) : null}
+                      {normalizedStatus === "agent_approved" ? (
+                        <Text style={styles.visitApprovalHint}>The agent approved your request. The admin team will schedule it next.</Text>
+                      ) : null}
+                      {normalizedStatus === "admin_approved" ? (
+                        <Text style={styles.visitApprovalHint}>The manager approved your request. Scheduling details will update shortly.</Text>
+                      ) : null}
+                      {["scheduled", "rescheduled"].includes(normalizedStatus) ? (
+                        <Text style={styles.visitApprovalHint}>Your visit is scheduled. You can continue to the property flow after completion.</Text>
+                      ) : null}
                       {["pending", "approval requested"].includes(normalizedStatus) ? (
-                        <Text style={styles.visitApprovalHint}>Admin confirmation is pending. Booking unlocks immediately after approval.</Text>
+                        <Text style={styles.visitApprovalHint}>Your request is waiting for review.</Text>
                       ) : null}
                       <View style={styles.visitActions}>
                         <TouchableOpacity style={styles.visitActionGhost} onPress={() => router.push("/notifications")}>

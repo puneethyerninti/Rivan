@@ -80,7 +80,7 @@ export default function CentreVisitScreen() {
       setVisitSuccess({
         date,
         time: !isSiteVisit ? time : undefined,
-        status: "Pending approval",
+        status: "Pending agent approval",
       });
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -131,7 +131,7 @@ export default function CentreVisitScreen() {
               <Text style={styles.successTitle}>Visit scheduled successfully</Text>
               <Text style={styles.successBody}>
                 Your {isSiteVisit ? "site" : "centre"} visit request for {title} was submitted for {visitSuccess.date}
-                {visitSuccess.time ? ` at ${visitSuccess.time}` : ""}. The admin team will confirm it, and the status will update in Visits automatically.
+                {visitSuccess.time ? ` at ${visitSuccess.time}` : ""}. Your assigned agent will review it first, then the admin team will schedule it and the status will update in Visits automatically.
               </Text>
               <View style={[styles.successActions, isPhone && styles.successActionsPhone]}>
                 <Button title="View visit status" onPress={() => router.replace("/(tabs)/visits")} fullWidth={false} style={{ flex: 1 }} />
@@ -152,9 +152,9 @@ export default function CentreVisitScreen() {
 
               <View style={styles.statusRow}>
                 <View style={[styles.statusPill, styles.statusPillMuted]}>
-                  <Text style={styles.statusPillMutedText}>Pending confirmation</Text>
-                </View>
-                <Text style={styles.statusHint}>Once submitted, the visit moves into your booking workflow and appears in Visit Status.</Text>
+                <Text style={styles.statusPillMutedText}>Pending confirmation</Text>
+              </View>
+                <Text style={styles.statusHint}>Once submitted, the request goes to your assigned agent first and then to the admin scheduling queue.</Text>
               </View>
 
               <View style={styles.inputBlock}>
