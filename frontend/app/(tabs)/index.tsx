@@ -32,6 +32,12 @@ const NAV_ITEMS = [
   { key: "featured", label: "Properties" },
 ] as const;
 
+const QUICK_ACTIONS = [
+  { key: "services", label: "Services", icon: "tool", color: "#FCE8D8" },
+  { key: "documents", label: "Documents", icon: "file-text", color: "#E4F3E8" },
+  { key: "wishlist", label: "Wishlist", icon: "heart", color: "#FCE4EA" },
+] as const;
+
 type SectionKey = (typeof NAV_ITEMS)[number]["key"] | "top" | "access";
 
 function getUserInitials(name?: string) {
@@ -126,6 +132,8 @@ export function HomeScreen() {
   );
   const curatedProperties = useMemo(() => (siripuramProperty ? [siripuramProperty] : properties), [properties, siripuramProperty]);
   const heroProperty = curatedProperties[0] || null;
+  const featuredProperties = useMemo(() => curatedProperties.slice(0, Math.min(curatedProperties.length, 3)), [curatedProperties]);
+  const categoryChips = useMemo(() => ["All", "Plots", "Layouts", "Villas", "Documents"], []);
 
   const filteredProperties = useMemo(() => {
     const normalizedLocation = selectedLocation.toLowerCase();
@@ -419,123 +427,191 @@ export function HomeScreen() {
         onScroll={(event) => setScrolled(event.nativeEvent.contentOffset.y > 20)}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.hero, !isDesktop && styles.heroMobile, isPhone && styles.heroPhone]}>
-          <View style={[styles.heroLeft, styles.heroLeftFull, isPhone && styles.heroLeftPhone]}>
-            <View style={styles.heroBadge}>
-              <View style={styles.heroBadgeDot} />
-              <Text style={styles.heroBadgeText}>Now active in customer discovery</Text>
-            </View>
-
-            <Text style={[styles.heroTitle, isPhone && styles.heroTitlePhone]}>
-              Live where you{"\n"}truly <Text style={styles.heroItalic}>belong.</Text>
-            </Text>
-            <Text style={[styles.heroSub, isPhone && styles.heroSubPhone]}>
-              Rivan Reality pairs discerning buyers with real property inventory, layout clarity, and a cleaner journey
-              from discovery to visit scheduling.
-            </Text>
-
-            <View style={[styles.heroStats, isPhone && styles.heroStatsPhone]}>
+        <View style={[styles.homeShell, isDesktop && styles.homeShellDesktop, isPhone && styles.homeShellPhone]}>
+          <View style={[styles.homeTopCard, isDesktop && styles.homeTopCardDesktop]}>
+            <View style={styles.greetingRow}>
               <View>
-                <Text style={styles.hStatNum}>{curatedProperties.length || 0}</Text>
-                <Text style={styles.hStatLabel}>Properties</Text>
+                <View style={styles.locationRow}>
+                  <Feather name="map-pin" size={14} color={colors.accent} />
+                  <Text style={styles.locationText}>{selectedLocation === "All locations" ? "Achutapuram" : selectedLocation}</Text>
+                  <Feather name="chevron-down" size={14} color={colors.stone500} />
+                </View>
+                <Text style={styles.greetingText}>Hi, {getUserDisplayName(user).split(" ")[0] || "Puneeth"} 👋</Text>
               </View>
-              <View>
-                <Text style={styles.hStatNum}>{heroProperty?.approvals?.length || 0}</Text>
-                <Text style={styles.hStatLabel}>Approvals</Text>
-              </View>
-              <View>
-                <Text style={styles.hStatNum}>{heroProperty ? "Ready" : "Soon"}</Text>
-                <Text style={styles.hStatLabel}>Visit Flow</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.heroSearchWrap, isPhone && styles.heroSearchWrapPhone]}>
-            <View style={[styles.searchBarInline, searchBarLayoutStyle, isPhone && styles.searchBarInlinePhone]}>
-              <View style={[styles.searchField, isPhone && styles.searchFieldPhone]}>
-                <Text style={styles.searchLabel}>Location</Text>
-                <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("location")}>
-                  <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedLocation}</Text>
-                  <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
+              <View style={styles.topIconsRow}>
+                <TouchableOpacity style={styles.topIconButton} onPress={() => router.push("/wishlist")}>
+                  <Feather name="heart" size={18} color={colors.primaryDeepest} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.topIconButton} onPress={() => router.push("/notifications")}>
+                  <Feather name="bell" size={18} color={colors.primaryDeepest} />
                 </TouchableOpacity>
               </View>
-              <View style={[styles.searchField, isPhone && styles.searchFieldPhone]}>
-                <Text style={styles.searchLabel}>Property type</Text>
-                <TouchableOpacity style={styles.searchSelect} onPress={() => setOpenDropdown("type")}>
-                  <Text numberOfLines={1} style={[styles.searchSelectText, isPhone && styles.searchSelectTextPhone]}>{selectedPropertyType}</Text>
-                  <Feather name="chevron-down" size={16} color={colors.primaryDeepest} />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={[styles.btnSearchWide, isPhone && styles.btnSearchWidePhone]} onPress={openProperties}>
-                <Feather name="search" size={18} color={colors.white} />
-                <Text style={styles.btnSearchWideText}>Show properties</Text>
+            </View>
+
+            <TouchableOpacity style={styles.searchHeroBar} activeOpacity={0.9} onPress={openProperties}>
+              <Feather name="search" size={18} color={colors.stone400} />
+              <Text style={styles.searchHeroText}>Search properties, locations...</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.searchControlsRow, searchBarLayoutStyle]}>
+              <TouchableOpacity style={styles.compactFilter} onPress={() => setOpenDropdown("location")}>
+                <Text style={styles.compactFilterLabel}>Location</Text>
+                <Text numberOfLines={1} style={styles.compactFilterValue}>{selectedLocation}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.compactFilter} onPress={() => setOpenDropdown("type")}>
+                <Text style={styles.compactFilterLabel}>Property type</Text>
+                <Text numberOfLines={1} style={styles.compactFilterValue}>{selectedPropertyType}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.compactSearchButton} onPress={openProperties}>
+                <Text style={styles.compactSearchButtonText}>Search</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        <View style={[styles.sectionWhite, isPhone && styles.sectionPhone]} nativeID="featured">
-          <View style={styles.featuredHeader}>
-            <View>
-              <Text style={styles.sectionEye}>Featured</Text>
-              <Text style={styles.sectionHeadingDark}>Live listings from the current platform feed.</Text>
+          <View nativeID="featured" style={styles.homeSectionBlock}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.mobileSectionTitle}>Featured Projects</Text>
+              <View style={styles.premiumPill}>
+                <Feather name="star" size={12} color={colors.accent} />
+                <Text style={styles.premiumPillText}>Premium</Text>
+              </View>
             </View>
-            {heroProperty ? (
-              <TouchableOpacity onPress={() => router.push(`/property/${heroProperty.id}`)}>
-                <Text style={styles.featLink}>Open featured property</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
 
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={styles.loadingText}>Loading live listings...</Text>
-            </View>
-          ) : !filteredProperties.length ? (
-            <View style={styles.loadingBox}>
-              <Text style={styles.loadingText}>No live property is available right now.</Text>
-            </View>
-          ) : (
-            <View style={[styles.cardsGrid, featuredGridLayoutStyle, !isDesktop && styles.cardsGridMobile]}>
-              {filteredProperties.map((property, index) => (
-                <TouchableOpacity
-                  key={property.id}
-                  style={styles.propCard}
-                  activeOpacity={0.95}
-                  onPress={() => router.push(`/property/${property.id}`)}
-                >
-                  <View style={styles.propImg}>
-                    {property.image ? (
-                      <PropertyMedia image={property.image} style={styles.propMedia} />
-                    ) : (
-                      <View style={styles.propFallback} />
-                    )}
-                    <View style={styles.propTag}>
-                      <Text style={styles.propTagText}>{index === 0 ? "Featured" : "Live"}</Text>
-                    </View>
-                    {property.approvals.length ? (
-                      <View style={styles.propBadge}>
-                        <Text style={styles.propBadgeText}>Verified</Text>
+            {loading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loadingText}>Loading live listings...</Text>
+              </View>
+            ) : !featuredProperties.length ? (
+              <View style={styles.loadingBox}>
+                <Text style={styles.loadingText}>No live property is available right now.</Text>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal={!isDesktop}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[styles.featuredScroller, isDesktop && styles.featuredScrollerDesktop]}
+              >
+                {featuredProperties.map((property, index) => (
+                  <TouchableOpacity
+                    key={property.id}
+                    style={[styles.featuredProjectCard, isDesktop && styles.featuredProjectCardDesktop]}
+                    activeOpacity={0.95}
+                    onPress={() => router.push(`/property/${property.id}`)}
+                  >
+                    <View style={styles.featuredProjectMedia}>
+                      {property.image ? <PropertyMedia image={property.image} style={styles.featuredProjectMediaImage} /> : <View style={styles.propFallback} />}
+                      <View style={styles.featuredProjectOverlay} />
+                      <View style={styles.featuredProjectBadge}>
+                        <Text style={styles.featuredProjectBadgeText}>{index === 0 ? "Open plots" : property.category || "Layout"}</Text>
                       </View>
-                    ) : null}
-                  </View>
-
-                  <View style={[styles.propBody, isPhone && styles.propBodyPhone]}>
-                    <Text style={styles.propPrice}>
-                      {property.startingPrice ? formatINR(property.startingPrice) : "On request"}
-                    </Text>
-                    <Text style={styles.propName}>{property.name}</Text>
-                    <View style={styles.propMeta}>
-                      <Text style={styles.propM}>{property.location}</Text>
-                      <Text style={styles.propM}>{property.size || "Layout based"}</Text>
-                      <Text style={styles.propM}>{property.facing || "Facing options"}</Text>
                     </View>
+                    <View style={styles.featuredProjectCopy}>
+                      <Text style={styles.featuredProjectName} numberOfLines={1}>{property.name}</Text>
+                      <View style={styles.featuredProjectLocationRow}>
+                        <Feather name="map-pin" size={12} color="rgba(255,255,255,0.78)" />
+                        <Text style={styles.featuredProjectLocation} numberOfLines={1}>{property.location}</Text>
+                      </View>
+                      <Text style={styles.featuredProjectPrice}>From {property.startingPrice ? formatINR(property.startingPrice) : "On request"}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          <View style={styles.homeSectionBlock}>
+            <Text style={styles.mobileSectionTitle}>Browse Categories</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
+              {categoryChips.map((chip) => {
+                const active =
+                  (chip === "All" && selectedPropertyType === "All types") ||
+                  selectedPropertyType.toLowerCase().includes(chip.toLowerCase());
+                return (
+                  <TouchableOpacity
+                    key={chip}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => {
+                      if (chip === "All") {
+                        setSelectedPropertyType("All types");
+                        return;
+                      }
+                      if (chip === "Documents") {
+                        router.push("/documents");
+                        return;
+                      }
+                      setSelectedPropertyType(chip);
+                    }}
+                  >
+                    <Feather name={chip === "All" ? "grid" : chip === "Documents" ? "file-text" : chip === "Villas" ? "home" : "layers"} size={15} color={active ? colors.white : colors.primary} />
+                    <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{chip}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          <View style={styles.homeSectionBlock}>
+            <View style={[styles.quickActionsGrid, isDesktop && styles.quickActionsGridDesktop]}>
+              {QUICK_ACTIONS.map((action) => (
+                <TouchableOpacity
+                  key={action.key}
+                  style={styles.quickActionCard}
+                  onPress={() => {
+                    if (action.key === "services") router.push("/services");
+                    if (action.key === "documents") router.push("/documents");
+                    if (action.key === "wishlist") router.push("/wishlist");
+                  }}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
+                    <Feather name={action.icon as any} size={20} color={colors.primary} />
                   </View>
+                  <Text style={styles.quickActionText}>{action.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          )}
+          </View>
+
+          <View style={styles.homeSectionBlock}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.mobileSectionTitle}>All Properties ({filteredProperties.length || curatedProperties.length})</Text>
+              <TouchableOpacity onPress={openProperties}>
+                <Text style={styles.featLink}>View all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.loadingText}>Loading live listings...</Text>
+              </View>
+            ) : !filteredProperties.length ? (
+              <View style={styles.loadingBox}>
+                <Text style={styles.loadingText}>No live property is available right now.</Text>
+              </View>
+            ) : (
+              <View style={[styles.propertiesGrid, isDesktop && styles.propertiesGridDesktop]}>
+                {filteredProperties.map((property) => (
+                  <TouchableOpacity key={property.id} style={styles.propertyListCard} activeOpacity={0.95} onPress={() => router.push(`/property/${property.id}`)}>
+                    <View style={styles.propertyListMedia}>
+                      {property.image ? <PropertyMedia image={property.image} style={styles.propertyListMediaImage} /> : <View style={styles.propFallback} />}
+                      <View style={styles.propertyListTag}>
+                        <Text style={styles.propertyListTagText}>{property.availability || "Available"}</Text>
+                      </View>
+                      <View style={styles.propertyListTypeTag}>
+                        <Text style={styles.propertyListTypeTagText}>{property.category || "Open Plots"}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.propertyListBody}>
+                      <Text style={styles.propertyListName}>{property.name}</Text>
+                      <Text style={styles.propertyListLocation}>{property.location}</Text>
+                      <Text style={styles.propertyListPrice}>{property.startingPrice ? formatINR(property.startingPrice) : "On request"}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         <View nativeID="access" style={[styles.loginSection, !isDesktop && styles.loginSectionMobile, isPhone && styles.loginSectionPhone]}>
@@ -1068,6 +1144,365 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 13,
     fontWeight: "700",
+  },
+  homeShell: {
+    backgroundColor: "#F7F8F4",
+    paddingTop: 92,
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+    gap: 18,
+  },
+  homeShellDesktop: {
+    paddingTop: 120,
+    paddingHorizontal: 28,
+    gap: 24,
+  },
+  homeShellPhone: {
+    paddingTop: 86,
+    paddingHorizontal: 12,
+  },
+  homeTopCard: {
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: 18,
+    gap: 16,
+    ...shadow.md,
+  },
+  homeTopCardDesktop: {
+    padding: 22,
+  },
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  locationText: {
+    color: colors.stone500,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  greetingText: {
+    color: colors.primaryDeepest,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "800",
+    fontFamily: fonts.heading,
+  },
+  topIconsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  topIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#F5F6F1",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  searchHeroBar: {
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: "#FBFBF8",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  searchHeroText: {
+    color: colors.stone400,
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  searchControlsRow: {
+    gap: 12,
+  },
+  compactFilter: {
+    flex: 1,
+    minHeight: 58,
+    borderRadius: 18,
+    backgroundColor: "#F7F8F4",
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    justifyContent: "center",
+  },
+  compactFilterLabel: {
+    color: colors.stone400,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: 3,
+  },
+  compactFilterValue: {
+    color: colors.primaryDeepest,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  compactSearchButton: {
+    minHeight: 58,
+    borderRadius: 18,
+    backgroundColor: colors.primaryDeepest,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  compactSearchButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  homeSectionBlock: {
+    gap: 14,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  mobileSectionTitle: {
+    color: colors.primaryDeepest,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "800",
+    fontFamily: fonts.heading,
+  },
+  premiumPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.accentSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  premiumPillText: {
+    color: colors.accentDark,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.1,
+  },
+  featuredScroller: {
+    gap: 14,
+    paddingRight: 6,
+  },
+  featuredScrollerDesktop: {
+    flexDirection: "row",
+  },
+  featuredProjectCard: {
+    width: 254,
+    borderRadius: 26,
+    overflow: "hidden",
+    backgroundColor: colors.primaryDark,
+    ...shadow.md,
+  },
+  featuredProjectCardDesktop: {
+    flex: 1,
+    width: "auto",
+    minWidth: 0,
+  },
+  featuredProjectMedia: {
+    height: 190,
+    position: "relative",
+    backgroundColor: "#9DAC9C",
+  },
+  featuredProjectMediaImage: {
+    width: "100%",
+    height: "100%",
+  },
+  featuredProjectOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(12,33,23,0.22)",
+  },
+  featuredProjectBadge: {
+    position: "absolute",
+    left: 14,
+    top: 14,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  featuredProjectBadgeText: {
+    color: colors.primaryDeepest,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  featuredProjectCopy: {
+    padding: 16,
+    gap: 6,
+  },
+  featuredProjectName: {
+    color: colors.white,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "800",
+    fontFamily: fonts.heading,
+  },
+  featuredProjectLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  featuredProjectLocation: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 13,
+    flex: 1,
+  },
+  featuredProjectPrice: {
+    color: "#F3C47D",
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  categoryScroller: {
+    gap: 10,
+    paddingRight: 10,
+  },
+  categoryChip: {
+    minHeight: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    color: colors.primaryDeepest,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  categoryChipTextActive: {
+    color: colors.white,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  quickActionsGridDesktop: {
+    justifyContent: "flex-start",
+  },
+  quickActionCard: {
+    flex: 1,
+    alignItems: "center",
+    gap: 10,
+  },
+  quickActionIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickActionText: {
+    color: colors.primaryDeepest,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  propertiesGrid: {
+    gap: 14,
+  },
+  propertiesGridDesktop: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  propertyListCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    ...shadow.sm,
+  },
+  propertyListMedia: {
+    height: 180,
+    position: "relative",
+    backgroundColor: "#E3E6DF",
+  },
+  propertyListMediaImage: {
+    width: "100%",
+    height: "100%",
+  },
+  propertyListTag: {
+    position: "absolute",
+    left: 12,
+    top: 12,
+    borderRadius: 7,
+    backgroundColor: colors.available,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  propertyListTagText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  propertyListTypeTag: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    borderRadius: 7,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  propertyListTypeTagText: {
+    color: colors.primaryDeepest,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  propertyListBody: {
+    padding: 16,
+    gap: 4,
+  },
+  propertyListName: {
+    color: colors.primaryDeepest,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "800",
+    fontFamily: fonts.heading,
+  },
+  propertyListLocation: {
+    color: colors.stone500,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  propertyListPrice: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 4,
   },
   sectionSoft: {
     backgroundColor: "#F6F8F5",

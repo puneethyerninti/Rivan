@@ -87,9 +87,9 @@ img {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(248, 245, 239, 0.92);
+  background: rgba(28, 58, 40, 0.96);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(184, 154, 90, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .nav-inner {
@@ -97,7 +97,9 @@ img {
   align-items: center;
   justify-content: space-between;
   min-height: 62px;
-  gap: 16px;
+  gap: 20px;
+  flex-wrap: nowrap;
+  position: relative;
 }
 
 .brandmark {
@@ -118,12 +120,12 @@ img {
 .brandmark strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 16px;
-  color: var(--green-800);
+  font-size: 15px;
+  color: var(--white);
   line-height: 1;
   letter-spacing: 0.05em;
   font-weight: 500;
-  text-shadow: 0 1px 0 rgba(184, 154, 90, 0.18);
+  text-shadow: none;
 }
 
 .brandmark span {
@@ -140,15 +142,23 @@ img {
   display: none;
 }
 
+.site-header .brandmark img {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .nav-links > a,
 .nav-links > button {
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .nav-links > a {
@@ -220,11 +230,12 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 36px;
+  min-height: 40px;
   border-radius: var(--radius-sm);
-  padding: 0 12px;
+  padding: 0 16px;
   border: 1px solid var(--grey-300);
-  font-size: 11.5px;
+  font-size: 12px;
+  justify-content: center;
 }
 
 .ghost-pill {
@@ -240,8 +251,8 @@ img {
 .mini-pill {
   color: var(--grey-700);
   background: transparent;
-  padding: 0 10px;
-  font-size: 11px;
+  padding: 0 14px;
+  font-size: 11.5px;
   letter-spacing: 0.04em;
   border-radius: 3px;
 }
@@ -1087,6 +1098,476 @@ img {
 .property-type-nav .account-quick-link {
   font-size: 0.82rem;
   letter-spacing: 0.01em;
+}
+
+.home-page-app {
+  background: linear-gradient(180deg, #f6faf6 0%, #f8f5ef 100%);
+}
+
+.home-app-shell {
+  padding-top: 14px;
+}
+
+.home-app-frame {
+  display: grid;
+  gap: 12px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.home-app-top-card,
+.home-app-section-block {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(184, 154, 90, 0.14);
+  box-shadow: var(--shadow-soft);
+}
+
+.home-app-top-row,
+.home-app-head-row,
+.home-app-top-actions,
+.home-property-footer,
+.home-property-availability {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.home-app-location-line {
+  color: var(--gold-500);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-app-top-card h1,
+.home-app-head-row h2 {
+  margin: 4px 0 0;
+  color: var(--green-900);
+  font-size: clamp(16px, 1.25vw, 21px);
+  line-height: 1.08;
+}
+
+.home-app-circle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #f7faf6;
+  border: 1px solid rgba(184, 154, 90, 0.14);
+  color: var(--green-900);
+}
+
+.home-app-circle-button svg,
+.home-app-action-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.home-app-search {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(184, 154, 90, 0.14);
+  background: #fbfcfa;
+  color: var(--grey-500);
+  text-align: left;
+  font-size: 0.86rem;
+}
+
+.home-app-search-wrap {
+  flex: 1;
+}
+
+.home-app-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 154, 90, 0.16);
+  background: #fbfcfa;
+  color: var(--green-900);
+  font-size: 0.84rem;
+}
+
+.home-app-search-input::placeholder {
+  color: var(--grey-500);
+}
+
+.home-app-premium-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(248, 238, 220, 0.92);
+  border: 1px solid rgba(184, 154, 90, 0.14);
+  color: var(--gold-500);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-featured-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 0.9fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.home-featured-card {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #d8ddd3;
+  color: var(--white);
+}
+
+.home-featured-card.is-featured {
+  min-height: 260px;
+}
+
+.home-featured-media,
+.home-featured-media img {
+  width: 100%;
+  height: 100%;
+}
+
+.home-featured-media img {
+  display: block;
+  object-fit: cover;
+}
+
+.carousel-image {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.carousel-image.is-active {
+  opacity: 1;
+}
+
+.home-featured-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(21, 36, 27, 0.08) 0%, rgba(12, 24, 18, 0.78) 100%);
+}
+
+.home-featured-copy {
+  position: absolute;
+  inset: auto 16px 16px 16px;
+  z-index: 1;
+}
+
+.home-featured-tag,
+.home-property-status,
+.home-property-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.home-featured-tag,
+.home-property-type {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--green-900);
+}
+
+.home-featured-copy strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 1.12rem;
+  line-height: 1.08;
+  font-weight: 600;
+}
+
+.home-featured-copy p,
+.home-featured-copy em {
+  display: block;
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+.home-featured-copy em {
+  color: #f1c880;
+  font-weight: 600;
+}
+
+.home-app-chip-row,
+.home-quick-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.home-app-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(184, 154, 90, 0.18);
+  color: var(--green-900);
+  font-size: 0.8rem;
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.home-app-chip:hover,
+.home-app-chip.is-active {
+  transform: translateY(-1px);
+  background: var(--green-700);
+  color: var(--white);
+}
+
+.home-app-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.home-app-action-card {
+  padding: 12px;
+  border-radius: 16px;
+  background: #fcfbf7;
+  border: 1px solid rgba(184, 154, 90, 0.12);
+}
+
+.home-app-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(232, 240, 234, 0.92);
+  color: var(--green-900);
+}
+
+.home-app-action-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--green-900);
+  font-size: 0.9rem;
+}
+
+.home-app-action-card span:last-child {
+  display: block;
+  margin-top: 4px;
+  color: var(--grey-500);
+  font-size: 0.72rem;
+}
+
+.availability-square-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.availability-square-block {
+  min-height: 124px;
+  padding: 10px;
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  justify-items: start;
+  text-align: left;
+}
+
+.availability-square-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.68rem;
+  color: var(--green-900);
+}
+
+.availability-square-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.availability-square-copy strong {
+  font-size: 0.92rem;
+  color: var(--green-900);
+}
+
+.availability-square-copy span,
+.availability-square-copy small {
+  color: var(--grey-500);
+  line-height: 1.35;
+}
+
+.availability-square-copy em {
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 0.76rem;
+  color: var(--green-700);
+}
+
+.home-property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
+  justify-content: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.home-property-card {
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(247,250,247,0.96) 100%);
+  border: 1px solid rgba(184, 154, 90, 0.14);
+  box-shadow: var(--shadow-soft);
+}
+
+.home-property-media {
+  position: relative;
+  display: block;
+  aspect-ratio: 1.18 / 1;
+  overflow: hidden;
+}
+
+.home-property-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.home-property-status-row {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-property-status {
+  background: rgba(48, 181, 111, 0.92);
+  color: var(--white);
+}
+
+.home-property-body {
+  padding: 12px;
+}
+
+.home-property-body h3 {
+  margin: 0;
+  color: var(--green-900);
+  font-size: 0.94rem;
+  line-height: 1.08;
+  font-weight: 600;
+}
+
+.home-property-body p,
+.home-property-size {
+  margin: 6px 0 0;
+  color: var(--grey-500);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.home-property-note {
+  margin-top: 8px;
+  color: var(--gold-500);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.home-property-price span {
+  display: block;
+  color: var(--grey-500);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.home-property-price strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--green-900);
+  font-size: 1.02rem;
+  line-height: 1.05;
+}
+
+.home-property-availability {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fbf9f4;
+  border: 1px solid rgba(184, 154, 90, 0.14);
+}
+
+.home-property-availability strong {
+  display: block;
+  color: var(--green-900);
+  font-size: 0.86rem;
+}
+
+.home-property-availability span {
+  display: block;
+  margin-top: 4px;
+  color: var(--grey-500);
+  font-size: 0.7rem;
+}
+
+.home-app-section-block .btn-primary,
+.home-app-section-block .btn-secondary {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 0.74rem;
+}
+
+.nav-links > a,
+.nav-links > button {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ghost-pill,
+.mini-pill {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.primary-pill {
+  background: #d7b46a;
+  border-color: #d7b46a;
+  color: #183224;
+  font-weight: 500;
+}
+
+.profile-chip {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--white);
+}
+
+.profile-chip small {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .hero-note-card,
@@ -2029,9 +2510,9 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 42px;
   padding: 0 16px;
-  margin-bottom: 18px;
   border-radius: 999px;
   border: 1px solid rgba(184, 154, 90, 0.18);
   background: rgba(255, 255, 255, 0.94);
@@ -2161,6 +2642,58 @@ img {
   box-shadow: var(--shadow-soft);
 }
 
+.property-summary {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.property-summary > h1,
+.property-summary > p,
+.property-summary .price-lockup,
+.property-summary .detail-list.compact,
+.property-summary .button-row {
+  margin: 0;
+}
+
+.property-description {
+  margin: 0;
+  color: var(--grey-500);
+  font-size: 0.88rem;
+  line-height: 1.72;
+}
+
+.property-visit-card {
+  margin-top: 4px;
+  padding: 16px;
+}
+
+.property-visit-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.property-visit-head .section-label {
+  margin: 0;
+}
+
+.property-visit-head h2 {
+  margin: 0;
+  color: var(--green-900);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1.18;
+  font-weight: 400;
+}
+
+.property-visit-head p {
+  margin: 0;
+  color: var(--grey-500);
+  font-size: 0.82rem;
+  line-height: 1.62;
+}
+
 .property-gallery,
 .gallery-strip,
 .admin-grid,
@@ -2210,6 +2743,354 @@ img {
 .plot-block.booked { background: rgba(178, 70, 70, 0.08); }
 .plot-block.sold { background: rgba(61, 61, 61, 0.08); }
 .plot-block.is-selected { border-color: var(--green-700); box-shadow: inset 0 0 0 1px var(--green-700); }
+
+.availability-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 18px;
+}
+
+.availability-page-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(248, 225, 187, 0.82);
+  color: var(--green-900);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.availability-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.availability-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(184, 154, 90, 0.18);
+  background: #fbf8f1;
+  color: var(--green-900);
+}
+
+.availability-filter-chip strong {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--grey-500);
+}
+
+.availability-filter-chip.is-active {
+  background: var(--green-700);
+  color: var(--white);
+  border-color: rgba(23, 62, 40, 0.42);
+}
+
+.availability-filter-chip.is-active strong {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.availability-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.availability-unit-card {
+  text-align: left;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(184, 154, 90, 0.16);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.availability-unit-card.is-selected {
+  border-color: rgba(23, 62, 40, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(23, 62, 40, 0.42), var(--shadow-soft);
+}
+
+.availability-unit-media {
+  min-height: 108px;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  padding: 16px;
+  color: var(--white);
+  background: linear-gradient(180deg, #5689ef 0%, #4476d9 100%);
+}
+
+.availability-unit-card.reserved .availability-unit-media { background: linear-gradient(180deg, #d3b16f 0%, #c29441 100%); }
+.availability-unit-card.booked .availability-unit-media { background: linear-gradient(180deg, #245138 0%, #173e28 100%); }
+.availability-unit-card.sold .availability-unit-media { background: linear-gradient(180deg, #5d6460 0%, #444946 100%); }
+
+.availability-unit-media svg {
+  width: 22px;
+  height: 22px;
+}
+
+.availability-unit-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.74rem;
+}
+
+.availability-unit-copy {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.availability-unit-copy strong {
+  font-size: 1rem;
+  color: var(--green-900);
+}
+
+.availability-unit-copy span,
+.availability-unit-copy small {
+  color: var(--grey-500);
+  line-height: 1.55;
+}
+
+.availability-unit-copy em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--green-700);
+}
+
+.plot-sidebar-note {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(184, 154, 90, 0.14);
+}
+
+.plot-sidebar-note strong {
+  color: var(--green-900);
+}
+
+.plot-sidebar-note span {
+  color: var(--grey-500);
+  line-height: 1.6;
+}
+
+.myland-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.myland-side-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.myland-card {
+  display: grid;
+  gap: 18px;
+}
+
+.myland-card-hero,
+.myland-ownership-banner,
+.myland-payment-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
+.myland-card-hero h3 {
+  margin: 10px 0 4px;
+}
+
+.myland-card-hero p {
+  margin: 0;
+}
+
+.myland-complete-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(248, 225, 187, 0.82);
+  color: var(--green-900);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.myland-complete-badge.is-complete {
+  background: rgba(28, 123, 79, 0.12);
+  color: var(--success);
+}
+
+.myland-asset-meta,
+.myland-payment-grid,
+.myland-action-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.myland-asset-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.myland-meta-tile {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fcfbf7;
+  border: 1px solid rgba(184, 154, 90, 0.12);
+}
+
+.myland-meta-icon,
+.myland-action-icon,
+.myland-ownership-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.myland-meta-icon,
+.myland-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(232, 240, 234, 0.9);
+  color: var(--green-700);
+}
+
+.myland-ownership-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(232, 240, 234, 0.9);
+  color: var(--green-700);
+}
+
+.myland-meta-icon svg,
+.myland-action-icon svg,
+.myland-ownership-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.myland-meta-tile small,
+.myland-ownership-price small,
+.myland-payment-grid span,
+.myland-side-metrics span,
+.myland-next-due {
+  color: var(--grey-500);
+}
+
+.myland-meta-tile strong,
+.myland-ownership-banner strong,
+.myland-payment-grid strong,
+.myland-side-metrics strong {
+  color: var(--green-900);
+}
+
+.myland-ownership-banner {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(235, 244, 238, 0.88);
+  border: 1px solid rgba(28, 123, 79, 0.12);
+}
+
+.myland-ownership-banner > div:nth-child(2) {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.myland-ownership-price {
+  min-width: 130px;
+  text-align: right;
+}
+
+.myland-action-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.myland-action-button {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(184, 154, 90, 0.14);
+}
+
+.myland-action-button strong {
+  font-size: 0.86rem;
+  color: var(--green-900);
+}
+
+.myland-payment-panel {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faf7 100%);
+  border: 1px solid rgba(184, 154, 90, 0.14);
+}
+
+.myland-payment-head h4 {
+  margin: 10px 0 0;
+  font-size: 1rem;
+  color: var(--green-900);
+}
+
+.myland-payment-grid,
+.myland-side-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.myland-progress-bar {
+  height: 10px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: rgba(184, 154, 90, 0.12);
+  overflow: hidden;
+}
+
+.myland-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1c7b4f 0%, #3fb982 100%);
+}
+
+.myland-next-due {
+  margin: 10px 0 0;
+}
+
+.myland-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
 
 .legend-item {
   display: inline-flex;
@@ -2580,6 +3461,52 @@ img {
   max-width: 760px;
 }
 
+.protected-page {
+  min-height: calc(100vh - 220px);
+  display: flex;
+  align-items: center;
+}
+
+.protected-page-wrap {
+  width: 100%;
+}
+
+.protected-card {
+  padding: 22px;
+  border-radius: 26px;
+  display: grid;
+  gap: 20px;
+  background: linear-gradient(180deg, #fffdfa 0%, #f7faf7 100%);
+}
+
+.protected-top-actions {
+  margin-bottom: 0;
+}
+
+.protected-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.protected-copy h1 {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.04;
+}
+
+.protected-copy p {
+  margin: 0;
+  max-width: 620px;
+  color: var(--grey-500);
+  line-height: 1.7;
+}
+
+.protected-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .admin-grid,
 .property-meta-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2727,6 +3654,7 @@ img {
 .page-top-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -3093,6 +4021,12 @@ img {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .home-featured-grid,
+  .home-property-grid,
+  .home-app-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hero-note-grid,
   .highlight-grid,
   .experience-grid,
@@ -3127,6 +4061,22 @@ img {
   .editorial-copy {
     margin: 0 auto;
     padding: 28px 0 24px;
+  }
+
+  .home-app-top-row,
+  .home-app-head-row,
+  .home-property-footer,
+  .home-property-availability {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .availability-page-head,
+  .myland-card-hero,
+  .myland-ownership-banner,
+  .myland-payment-head {
+    flex-direction: column;
+    align-items: start;
   }
 
   .layout-preview-grid {
@@ -3193,6 +4143,29 @@ img {
     width: min(100% - 20px, 1240px);
   }
 
+  .nav-inner {
+    min-height: 74px;
+    gap: 12px;
+  }
+
+  .brandmark {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .brandmark img {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    padding: 5px;
+  }
+
+  .brandmark strong {
+    font-size: 13px;
+    line-height: 1.1;
+    letter-spacing: 0.03em;
+  }
+
   .onboarding-stage,
   .login-preview-card,
   .login-form-card {
@@ -3235,6 +4208,75 @@ img {
     grid-template-columns: 1fr;
   }
 
+  .home-app-top-card,
+  .home-app-section-block {
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .home-app-frame {
+    gap: 10px;
+  }
+
+  .home-app-head-row {
+    gap: 10px;
+  }
+
+  .home-app-premium-pill {
+    align-self: flex-start;
+  }
+
+  .home-app-chip {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 0.76rem;
+  }
+
+  .home-app-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .home-app-action-card {
+    min-height: 120px;
+    padding: 12px 10px;
+  }
+
+  .home-app-action-card strong {
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .home-app-action-card span:last-child {
+    font-size: 0.68rem;
+    line-height: 1.45;
+  }
+
+  .home-property-body h3,
+  .home-featured-copy strong {
+    font-size: 1.35rem;
+  }
+
+  .home-featured-card,
+  .home-featured-card.is-featured {
+    min-height: 220px;
+  }
+
+  .home-property-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-property-card,
+  .home-featured-card,
+  .home-app-section-block,
+  .home-app-top-card,
+  .surface-card,
+  .inner-panel,
+  .surface-card-soft,
+  .surface-card-green {
+    max-width: 100%;
+  }
+
   .login-preview-hero {
     min-height: 240px;
     padding: 24px;
@@ -3273,13 +4315,17 @@ img {
 
   .mobile-trigger {
     display: inline-flex;
+    flex: 0 0 auto;
   }
 
   .nav-links {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 12px;
-    width: min(320px, calc(100vw - 24px));
+    position: fixed;
+    top: 84px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
     padding: 14px;
     background: rgba(255, 255, 255, 0.97);
     border-radius: 24px;
@@ -3288,6 +4334,9 @@ img {
     display: none;
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+    z-index: 60;
+    backdrop-filter: blur(18px);
   }
 
   .nav-links.is-open {
@@ -3297,6 +4346,46 @@ img {
   .nav-links > a,
   .nav-links > button {
     width: 100%;
+    min-height: 48px;
+    justify-content: flex-start;
+    text-align: left;
+    border-radius: 16px;
+  }
+
+  .nav-links > a {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    color: var(--green-900);
+    background: #fcfbf7;
+    border: 1px solid rgba(184, 154, 90, 0.14);
+  }
+
+  .ghost-pill,
+  .primary-pill,
+  .mini-pill,
+  .profile-chip {
+    padding: 0 14px;
+    border-radius: 16px;
+  }
+
+  .ghost-pill,
+  .mini-pill {
+    background: #f6f8f3;
+    color: var(--green-900);
+    border-color: rgba(184, 154, 90, 0.14);
+  }
+
+  .primary-pill {
+    background: #d7b46a;
+    color: var(--green-900);
+    border-color: #d7b46a;
+  }
+
+  .profile-chip {
+    background: #f7faf6;
+    color: var(--green-900);
+    border-color: rgba(184, 154, 90, 0.14);
   }
 
   .hero-copy h1 {
@@ -3333,7 +4422,23 @@ img {
   .detail-list,
   .form-grid,
   .card-grid,
-  .gallery-strip {
+  .gallery-strip,
+  .property-detail-grid,
+  .layout-grid-page,
+  .property-meta-grid,
+  .admin-grid,
+  .admin-kpi-strip,
+  .admin-command-center,
+  .workflow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .myland-grid,
+  .myland-action-grid,
+  .myland-asset-meta,
+  .myland-payment-grid,
+  .myland-side-metrics,
+  .availability-card-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3363,6 +4468,41 @@ img {
     align-items: stretch;
   }
 
+  .list-item-actions,
+  .admin-toolbar,
+  .admin-header-nav,
+  .admin-header-actions {
+    width: 100%;
+  }
+
+  .admin-nav-pill,
+  .admin-toolbar-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .account-quick-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-top-actions,
+  .protected-actions,
+  .myland-empty-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-home-link,
+  .page-back-button,
+  .protected-actions .btn-primary,
+  .protected-actions .btn-secondary,
+  .myland-empty-actions .btn-primary,
+  .myland-empty-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
   .modal-box,
   .modal-box-admin {
     max-width: 100%;
@@ -3385,6 +4525,22 @@ img {
     padding: 16px;
   }
 
+  .subpage-hero-card,
+  .protected-card,
+  .myland-card,
+  .myland-payment-panel {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .availability-square-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .availability-square-block {
+    min-height: 108px;
+  }
+
   .editorial-right {
     padding: 0 12px 14px;
   }
@@ -3395,5 +4551,81 @@ img {
 
   .editorial-mini-panel {
     min-height: 92px;
+  }
+}
+
+@media (max-width: 380px) {
+  .container {
+    width: min(100% - 16px, 1240px);
+  }
+
+  .nav-inner {
+    min-height: 70px;
+  }
+
+  .brandmark strong {
+    font-size: 12px;
+  }
+
+  .mobile-trigger {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .nav-links {
+    top: 78px;
+    left: 8px;
+    right: 8px;
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .home-app-top-card,
+  .home-app-section-block,
+  .subpage-hero-card,
+  .protected-card,
+  .surface-card,
+  .inner-panel,
+  .surface-card-soft,
+  .surface-card-green {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .home-app-actions-grid,
+  .availability-square-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-featured-copy strong,
+  .home-property-body h3 {
+    font-size: 1.15rem;
+  }
+
+  .home-app-chip,
+  .account-quick-link,
+  .page-home-link,
+  .page-back-button {
+    min-height: 34px;
+    font-size: 0.74rem;
+  }
+
+  .property-summary {
+    gap: 10px;
+  }
+
+  .property-visit-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .property-visit-head h2 {
+    font-size: 0.96rem;
+  }
+
+  .property-visit-head p,
+  .property-description {
+    font-size: 0.8rem;
   }
 }

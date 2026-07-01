@@ -5,7 +5,7 @@ FastAPI + MongoDB customer platform with production auth flows.
 import asyncio
 import base64
 from collections import defaultdict, deque
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query, Request, Response
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
@@ -207,6 +207,63 @@ _db_availability_cache: Dict[str, Any] = {"value": None, "checked_at": 0.0}
 _rate_limit_store: Dict[str, deque[float]] = defaultdict(deque)
 FEATURED_PROPERTIES_CACHE_TTL_SECONDS = int(os.environ.get("FEATURED_PROPERTIES_CACHE_TTL_SECONDS", "90"))
 _featured_properties_cache: Dict[str, Any] = {"value": None, "expires_at": 0.0}
+ACCESS_TOKEN_COOKIE_NAME = "rivan_access_token"
+REFRESH_TOKEN_COOKIE_NAME = "rivan_refresh_token"
+COOKIE_SECURE = get_env_bool("COOKIE_SECURE", True)
+COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "none").strip().lower() or "none"
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "").strip() or None
+
+
+class LiveUpdateManager:
+    def __init__(self) -> None:
+        self.connections: Dict[str, Dict[str, Any]] = {}
+
+    async def connect(self, websocket: WebSocket, *, user_id: Optional[str], role: Optional[str]) -> str:
+        await websocket.accept()
+        connection_id = str(uuid.uuid4())
+        self.connections[connection_id] = {
+            "websocket": websocket,
+            "user_id": str(user_id or "").strip() or None,
+            "role": str(role or "").strip().lower() or "guest",
+            "connected_at": now_utc().isoformat(),
+        }
+        return connection_id
+
+    def disconnect(self, connection_id: str) -> None:
+        self.connections.pop(connection_id, None)
+
+    async def publish(
+        self,
+        *,
+        event: str,
+        payload: Dict[str, Any],
+        user_ids: Optional[List[str]] = None,
+        roles: Optional[List[str]] = None,
+    ) -> None:
+        normalized_user_ids = {str(item).strip() for item in (user_ids or []) if str(item).strip()}
+        normalized_roles = {str(item).strip().lower() for item in (roles or []) if str(item).strip()}
+        stale_ids: List[str] = []
+        message = {
+            "event": event,
+            "payload": payload,
+            "sent_at": now_utc().isoformat(),
+        }
+        for connection_id, connection in list(self.connections.items()):
+            connection_user_id = connection.get("user_id")
+            connection_role = str(connection.get("role") or "").strip().lower()
+            if normalized_user_ids and connection_user_id not in normalized_user_ids:
+                continue
+            if normalized_roles and connection_role not in normalized_roles:
+                continue
+            try:
+                await connection["websocket"].send_json(message)
+            except Exception:
+                stale_ids.append(connection_id)
+        for connection_id in stale_ids:
+            self.disconnect(connection_id)
+
+
+live_updates = LiveUpdateManager()
 
 
 def iso(dt: Optional[datetime]) -> Optional[str]:
@@ -632,6 +689,7 @@ def local_delete_otp(phone: str) -> None:
 
 
 def ensure_local_demo_users() -> None:
+    return
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         return
 
@@ -774,6 +832,7 @@ def ensure_local_demo_users() -> None:
 
 
 async def sync_demo_auth_users_to_db() -> None:
+    return
     if not ENABLE_DEMO_DATA or not await is_database_available():
         return
 
@@ -958,6 +1017,40 @@ async def purge_demo_auth_users_from_db() -> None:
     logger.info("Purged seeded demo auth users from database: %s", ", ".join(sorted(ids_to_remove)))
 
 
+async def purge_legacy_demo_records_from_db() -> None:
+    if not await is_database_available():
+        return
+
+    legacy_properties = await db.properties.find({}, {"_id": 0, "id": 1, "name": 1, "location": 1}).to_list(500)
+    legacy_property_ids = [
+        item["id"]
+        for item in legacy_properties
+        if item.get("id")
+        and is_legacy_demo_property_reference(item.get("name"), item.get("location"))
+    ]
+
+    if legacy_property_ids:
+        await db.plots.delete_many({"property_id": {"$in": legacy_property_ids}})
+        await db.properties.delete_many({"id": {"$in": legacy_property_ids}})
+
+    for collection_name in ("bookings", "visits", "notifications", "documents", "service_requests"):
+        items = await db[collection_name].find({}, {"_id": 0}).to_list(2000)
+        ids_to_remove = [
+            item.get("id")
+            for item in items
+            if item.get("id")
+            and (
+                should_hide_demo_item(item)
+                or item.get("property_id") in legacy_property_ids
+                or item.get("plot_id") in {"villa-2-2", "villa-2-3", "flat-3-T1-F08-01", "flat-3-T1-F08-02", "flat-3-T2-F10-01"}
+            )
+        ]
+        if ids_to_remove:
+            await db[collection_name].delete_many({"id": {"$in": ids_to_remove}})
+
+    logger.info("Purged legacy demo workflow records from database.")
+
+
 LOCAL_FALLBACK_PROPERTIES: List[Dict[str, Any]] = [
     {
         "id": "prop-1",
@@ -1051,6 +1144,9 @@ LOCAL_FALLBACK_PLOTS: List[Dict[str, Any]] = [
     {"id": "flat-3-T1-F08-02", "property_id": "prop-3", "agent_id": "agent-main-001", "unit_type": "flat", "tower": "T1", "floor": 8, "plot_number": "T1-802", "flat_number": "T1-802", "bhk": "3.5 BHK", "survey_number": "SY-No 11/1", "size": "1750 sq ft", "size_sqft": 1750, "facing": "West", "price": 9300000, "status": "available", "row": 8, "col": 2},
     {"id": "flat-3-T2-F10-01", "property_id": "prop-3", "agent_id": "agent-sub-001", "unit_type": "flat", "tower": "T2", "floor": 10, "plot_number": "T2-1001", "flat_number": "T2-1001", "bhk": "4 BHK", "survey_number": "SY-No 11/1", "size": "2200 sq ft", "size_sqft": 2200, "facing": "North-East", "price": 12400000, "status": "sold", "row": 10, "col": 1},
 ]
+
+LOCAL_FALLBACK_PROPERTIES = []
+LOCAL_FALLBACK_PLOTS = []
 
 
 def local_get_properties() -> List[Dict[str, Any]]:
@@ -1236,7 +1332,9 @@ async def is_database_available(
     return available
 
 
-async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
+async def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    if not token:
+        token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(token, JWT_SECRET)
@@ -1257,6 +1355,7 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
                     raise HTTPException(status_code=401, detail="Session expired")
             except ValueError:
                 raise HTTPException(status_code=401, detail="Session expired")
+        await touch_user_session(str(session_id))
     if await is_database_available():
         user = await db.users.find_one({"id": user_id}, {"_id": 0})
     elif ALLOW_LOCAL_AUTH_FALLBACK:
@@ -1268,8 +1367,8 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dic
     return apply_session_role(user, session)
 
 
-async def get_admin_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    user = await get_current_user(token)
+async def get_admin_user(request: Request, token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    user = await get_current_user(request, token)
     if not has_admin_access(user):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
@@ -1352,8 +1451,8 @@ def agent_approval_error_message(user: Dict[str, Any]) -> str:
     return "Your agent account is pending manager approval"
 
 
-async def get_agent_user(token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
-    user = await get_current_user(token)
+async def get_agent_user(request: Request, token: Optional[str] = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    user = await get_current_user(request, token)
     if not is_agent_role(user.get("role")):
         raise HTTPException(status_code=403, detail="Agent access required")
     if str(user.get("approval_status") or "").strip().lower() != "approved":
@@ -2526,30 +2625,57 @@ def clean_user(doc: Dict[str, Any]) -> Dict[str, Any]:
     return user
 
 
+def websocket_role_for_user(user: Optional[Dict[str, Any]]) -> str:
+    if not user:
+        return "guest"
+    portal_role = str(user.get("portal_role") or "").strip().lower()
+    if portal_role in {"customer", "agent", "admin"}:
+        return portal_role
+    if has_admin_access(user):
+        return "admin"
+    if is_agent_role(user.get("role")):
+        return "agent"
+    return "customer"
+
+
+async def publish_live_update(
+    event: str,
+    payload: Dict[str, Any],
+    *,
+    user_ids: Optional[List[str]] = None,
+    roles: Optional[List[str]] = None,
+) -> None:
+    await live_updates.publish(
+        event=event,
+        payload=payload,
+        user_ids=user_ids,
+        roles=roles,
+    )
+
+
 async def create_notification(user_id: str, title: str, body: str, type_: str = "welcome") -> None:
     normalized_title = replace_live_property_labels(title)
     normalized_body = replace_live_property_labels(body)
+    notification_payload = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "title": normalized_title,
+        "body": normalized_body,
+        "type": type_,
+        "read": False,
+        "created_at": now_utc().isoformat(),
+    }
     if await is_database_available():
-        await db.notifications.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "title": normalized_title,
-            "body": normalized_body,
-            "type": type_,
-            "read": False,
-            "created_at": now_utc().isoformat(),
-        })
+        await db.notifications.insert_one(notification_payload.copy())
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        local_upsert_collection_item("notifications", notification_payload.copy())
+    else:
         return
-    if ALLOW_LOCAL_AUTH_FALLBACK:
-        local_upsert_collection_item("notifications", {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "title": normalized_title,
-            "body": normalized_body,
-            "type": type_,
-            "read": False,
-            "created_at": now_utc().isoformat(),
-        })
+    await publish_live_update(
+        "notification.created",
+        {"notification": notification_payload},
+        user_ids=[user_id],
+    )
 
 
 def build_local_agent_dashboard(user: Dict[str, Any]) -> Dict[str, Any]:
@@ -2736,6 +2862,22 @@ async def get_user_session(session_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+async def touch_user_session(session_id: str) -> None:
+    timestamp = now_utc().isoformat()
+    if await is_database_available():
+        await db.user_sessions.update_one(
+            {"id": session_id, "revoked_at": None},
+            {"$set": {"last_seen_at": timestamp, "updated_at": timestamp}},
+        )
+        return
+    if ALLOW_LOCAL_AUTH_FALLBACK:
+        session = await get_user_session(session_id)
+        if session and not session.get("revoked_at"):
+            session["last_seen_at"] = timestamp
+            session["updated_at"] = timestamp
+            local_upsert_collection_item("sessions", session)
+
+
 async def revoke_user_session(session_id: str) -> None:
     revoked_at = now_utc().isoformat()
     if await is_database_available():
@@ -2752,8 +2894,67 @@ async def revoke_user_session(session_id: str) -> None:
             local_upsert_collection_item("sessions", session)
 
 
+async def revoke_user_sessions_for_user(user_id: str, *, session_role: Optional[str] = None) -> None:
+    revoked_at = now_utc().isoformat()
+    query: Dict[str, Any] = {"user_id": user_id, "revoked_at": None}
+    if session_role:
+        query["session_role"] = session_role
+    if await is_database_available():
+        await db.user_sessions.update_many(
+            query,
+            {"$set": {"revoked_at": revoked_at, "updated_at": revoked_at}},
+        )
+        return
+    if ALLOW_LOCAL_AUTH_FALLBACK:
+        for session in local_list_collection("sessions"):
+            if session.get("user_id") != user_id or session.get("revoked_at"):
+                continue
+            if session_role and str(session.get("session_role") or "").strip().lower() != session_role:
+                continue
+            session["revoked_at"] = revoked_at
+            session["updated_at"] = revoked_at
+            local_upsert_collection_item("sessions", session)
+
+
+def set_auth_cookies(response: Response, *, access_token: str, refresh_token: str) -> None:
+    cookie_kwargs = {
+        "httponly": True,
+        "secure": COOKIE_SECURE,
+        "samesite": COOKIE_SAMESITE,
+        "path": "/",
+    }
+    if COOKIE_DOMAIN:
+        cookie_kwargs["domain"] = COOKIE_DOMAIN
+    response.set_cookie(
+        ACCESS_TOKEN_COOKIE_NAME,
+        access_token,
+        max_age=JWT_EXPIRES_MIN * 60,
+        **cookie_kwargs,
+    )
+    response.set_cookie(
+        REFRESH_TOKEN_COOKIE_NAME,
+        refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRES_MIN * 60,
+        **cookie_kwargs,
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    cookie_kwargs = {
+        "httponly": True,
+        "secure": COOKIE_SECURE,
+        "samesite": COOKIE_SAMESITE,
+        "path": "/",
+    }
+    if COOKIE_DOMAIN:
+        cookie_kwargs["domain"] = COOKIE_DOMAIN
+    response.delete_cookie(ACCESS_TOKEN_COOKIE_NAME, **cookie_kwargs)
+    response.delete_cookie(REFRESH_TOKEN_COOKIE_NAME, **cookie_kwargs)
+
+
 async def issue_token_response(
     user: Dict[str, Any],
+    response: Optional[Response] = None,
     request: Optional[Request] = None,
     session_id: Optional[str] = None,
     session_role: Optional[str] = None,
@@ -2785,6 +2986,8 @@ async def issue_token_response(
         }
     )
     response_user = apply_session_role(clean, {"session_role": session_role} if session_role else None)
+    if response is not None:
+        set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
     return TokenResp(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -2971,7 +3174,7 @@ async def ensure_indexes() -> None:
 
 # ---------- Auth Routes ----------
 @api_router.post("/auth/register", response_model=TokenResp)
-async def register(req: RegisterReq, request: Request):
+async def register(req: RegisterReq, request: Request, response: Response):
     email = normalize_email(req.email)
     enforce_rate_limit(rate_limit_key(request, "auth_register", email), limit=5, window_seconds=300)
     validate_password_strength(req.password)
@@ -2990,11 +3193,11 @@ async def register(req: RegisterReq, request: Request):
         password_hash=hash_password(req.password),
         auth_method="email",
     )
-    return await issue_token_response(user, request, session_role="customer")
+    return await issue_token_response(user, response, request, session_role="customer")
 
 
 @api_router.post("/auth/login", response_model=TokenResp)
-async def login(req: LoginReq, request: Request):
+async def login(req: LoginReq, request: Request, response: Response):
     email = normalize_email(req.email)
     enforce_rate_limit(rate_limit_key(request, "auth_login", email), limit=8, window_seconds=300)
     if await is_database_available():
@@ -3017,13 +3220,13 @@ async def login(req: LoginReq, request: Request):
             {"$set": {"updated_at": now_utc().isoformat(), "last_login_at": now_utc().isoformat()}},
         )
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
-        return await issue_token_response(refreshed, request, session_role="customer")
+        return await issue_token_response(refreshed, response, request, session_role="customer")
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["updated_at"] = now_utc().isoformat()
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
-    return await issue_token_response(user, request, session_role="customer")
+    return await issue_token_response(user, response, request, session_role="customer")
 
 
 @api_router.post("/auth/admin/status")
@@ -3066,7 +3269,7 @@ async def send_otp(req: SendOtpReq, request: Request):
 
 
 @api_router.post("/auth/verify-otp", response_model=TokenResp)
-async def verify_otp(req: VerifyOtpReq, request: Request):
+async def verify_otp(req: VerifyOtpReq, request: Request, response: Response):
     phone = normalize_phone(req.phone)
     enforce_rate_limit(rate_limit_key(request, "auth_verify_otp", phone), limit=10, window_seconds=300)
     otp_value = (req.otp or "").strip()
@@ -3076,7 +3279,7 @@ async def verify_otp(req: VerifyOtpReq, request: Request):
         phone=phone,
         auth_method="phone",
     )
-    return await issue_token_response(user, request, session_role="customer")
+    return await issue_token_response(user, response, request, session_role="customer")
 
 
 @api_router.post("/auth/agent/apply")
@@ -3241,7 +3444,7 @@ async def agent_access_status(req: AgentAccessStatusReq, request: Request):
 
 
 @api_router.post("/auth/google", response_model=TokenResp)
-async def google_auth(req: GoogleAuthReq, request: Request):
+async def google_auth(req: GoogleAuthReq, request: Request, response: Response):
     enforce_rate_limit(rate_limit_key(request, "auth_google"), limit=10, window_seconds=300)
     google_client_ids = get_google_client_ids()
     firebase_project_id = get_firebase_project_id()
@@ -3306,11 +3509,11 @@ async def google_auth(req: GoogleAuthReq, request: Request):
         google_sub=payload["sub"],
         auth_method="google",
     )
-    return await issue_token_response(user, request, session_role="customer")
+    return await issue_token_response(user, response, request, session_role="customer")
 
 
 @api_router.post("/auth/firebase", response_model=TokenResp)
-async def firebase_auth(req: FirebaseAuthReq, request: Request):
+async def firebase_auth(req: FirebaseAuthReq, request: Request, response: Response):
     normalized_phone = normalize_phone(req.phone) if req.phone else None
     enforce_rate_limit(rate_limit_key(request, "auth_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
@@ -3345,7 +3548,7 @@ async def firebase_auth(req: FirebaseAuthReq, request: Request):
         )
         refreshed = await db.users.find_one({"id": user["id"]}, {"_id": 0})
         logger.info("Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed, request, session_role="customer")
+        return await issue_token_response(refreshed, response, request, session_role="customer")
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     user["firebase_uid"] = payload.get("user_id") or payload.get("sub")
@@ -3353,11 +3556,11 @@ async def firebase_auth(req: FirebaseAuthReq, request: Request):
     user["last_login_at"] = now_utc().isoformat()
     local_save_user(user)
     logger.info("Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user, request, session_role="customer")
+    return await issue_token_response(user, response, request, session_role="customer")
 
 
 @api_router.post("/auth/agent/firebase", response_model=TokenResp)
-async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request):
+async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request, response: Response):
     normalized_phone = normalize_phone(req.phone) if req.phone else None
     enforce_rate_limit(rate_limit_key(request, "auth_agent_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
@@ -3403,7 +3606,7 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request):
         "phone_verified": True,
         "role": str(user.get("role") or "").strip().lower() or "agent",
         "approval_status": approval_value or "approved",
-        "status": "active" if approval_value == "approved" and status_value in {"", "pending", "inactive"} else status_value or "active",
+        "status": "active" if approval_value == "approved" and status_value not in {"rejected", "suspended"} else status_value or "active",
         "kyc_status": "verified" if approval_value == "approved" and kyc_value != "verified" else (kyc_value or "verified"),
         "updated_at": now_utc().isoformat(),
         "last_login_at": now_utc().isoformat(),
@@ -3414,16 +3617,16 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request):
         await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
         logger.info("Agent Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed, request, session_role="agent")
+        return await issue_token_response(refreshed, response, request, session_role="agent")
 
     user.update(updates)
     local_save_user(user)
     logger.info("Agent Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user, request, session_role="agent")
+    return await issue_token_response(user, response, request, session_role="agent")
 
 
 @api_router.post("/auth/admin/firebase", response_model=TokenResp)
-async def admin_firebase_auth(req: AdminFirebaseAuthReq, request: Request):
+async def admin_firebase_auth(req: AdminFirebaseAuthReq, request: Request, response: Response):
     normalized_phone = normalize_phone(req.phone) if req.phone else None
     enforce_rate_limit(rate_limit_key(request, "auth_admin_firebase", normalized_phone), limit=10, window_seconds=300)
     project_id = get_firebase_project_id()
@@ -3469,16 +3672,16 @@ async def admin_firebase_auth(req: AdminFirebaseAuthReq, request: Request):
         await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
         refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
         logger.info("Admin Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else user.get("id"))
-        return await issue_token_response(refreshed or {**user, **updates}, request, session_role="admin")
+        return await issue_token_response(refreshed or {**user, **updates}, response, request, session_role="admin")
 
     user.update(updates)
     local_save_user(user)
     logger.info("Admin Firebase phone auth succeeded for user_id=%s", user.get("id"))
-    return await issue_token_response(user, request, session_role="admin")
+    return await issue_token_response(user, response, request, session_role="admin")
 
 
 @api_router.post("/auth/refresh", response_model=TokenResp)
-async def refresh_auth_session(req: RefreshTokenReq, request: Request):
+async def refresh_auth_session(req: RefreshTokenReq, request: Request, response: Response):
     enforce_rate_limit(rate_limit_key(request, "auth_refresh"), limit=12, window_seconds=300)
     payload = decode_token(req.refresh_token, JWT_SECRET)
     if payload.get("type") != "refresh":
@@ -3515,16 +3718,17 @@ async def refresh_auth_session(req: RefreshTokenReq, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    return await issue_token_response(user, request, session_id=session_id, session_role=session.get("session_role"))
+    return await issue_token_response(user, response, request, session_id=session_id, session_role=session.get("session_role"))
 
 
 @api_router.post("/auth/logout")
-async def logout_auth_session(req: RefreshTokenReq, request: Request):
+async def logout_auth_session(req: RefreshTokenReq, request: Request, response: Response):
     enforce_rate_limit(rate_limit_key(request, "auth_logout"), limit=20, window_seconds=300)
     payload = decode_token(req.refresh_token, JWT_SECRET)
     session_id = str(payload.get("sid") or "").strip()
     if session_id:
         await revoke_user_session(session_id)
+    clear_auth_cookies(response)
     return {"success": True}
 
 
@@ -4114,12 +4318,18 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
         if plot.get("status") not in ("available", "reserved"):
             raise HTTPException(status_code=400, detail="Plot is not available for booking")
 
-        assigned_agent_id = await resolve_assigned_agent_id(property_id=plot["property_id"], plot_id=req.plot_id)
+        canonical_property_id = canonical_live_property_id(
+            plot.get("property_id"),
+            plot.get("property_name"),
+            plot.get("name"),
+            plot.get("location"),
+        ) or str(plot.get("property_id") or "")
+        assigned_agent_id = await resolve_assigned_agent_id(property_id=canonical_property_id, plot_id=req.plot_id)
         booking = {
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
             "plot_id": req.plot_id,
-            "property_id": plot["property_id"],
+            "property_id": canonical_property_id,
             "agent_id": assigned_agent_id or plot.get("agent_id"),
             "name": req.name,
             "mobile": req.mobile,
@@ -4147,6 +4357,12 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
             actor_user_id=user["id"],
             source="customer_booking",
         )
+        await publish_live_update(
+            "booking.created",
+            {"booking": booking, "scope": "customer_booking"},
+            user_ids=[user["id"], *( [assigned_agent_id] if assigned_agent_id else [])],
+            roles=["admin"],
+        )
         return {"success": True, "booking": booking, "message": "Booking request submitted. Your assigned agent will review it shortly."}
 
     plot = await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
@@ -4155,13 +4371,19 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
     if plot.get("status") not in ("available", "reserved"):
         raise HTTPException(status_code=400, detail="Plot is not available for booking")
 
-    assigned_agent_id = await resolve_assigned_agent_id(property_id=plot["property_id"], plot_id=req.plot_id)
+    canonical_property_id = canonical_live_property_id(
+        plot.get("property_id"),
+        plot.get("property_name"),
+        plot.get("name"),
+        plot.get("location"),
+    ) or str(plot.get("property_id") or "")
+    assigned_agent_id = await resolve_assigned_agent_id(property_id=canonical_property_id, plot_id=req.plot_id)
     booking_id = str(uuid.uuid4())
     booking = {
         "id": booking_id,
         "user_id": user["id"],
         "plot_id": req.plot_id,
-        "property_id": plot["property_id"],
+        "property_id": canonical_property_id,
         "agent_id": assigned_agent_id or plot.get("agent_id"),
         "name": req.name,
         "mobile": req.mobile,
@@ -4195,6 +4417,12 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
         customer=user,
         actor_user_id=user["id"],
         source="customer_booking",
+    )
+    await publish_live_update(
+        "booking.created",
+        {"booking": booking, "scope": "customer_booking"},
+        user_ids=[user["id"], *( [assigned_agent_id] if assigned_agent_id else [])],
+        roles=["admin"],
     )
     return {"success": True, "booking": booking, "message": "Booking request submitted. Your assigned agent will review it shortly."}
 
@@ -4424,6 +4652,12 @@ async def request_service(req: ServiceReq, user: Dict[str, Any] = Depends(get_cu
         customer=user,
         actor_user_id=user["id"],
     )
+    await publish_live_update(
+        "service_request.created",
+        {"request": sr},
+        user_ids=[user["id"]],
+        roles=["admin"],
+    )
     return {"success": True, "request": sr}
 
 
@@ -4490,24 +4724,37 @@ async def book_centre_visit(req: VisitBookingReq, user: Dict[str, Any] = Depends
         customer=user,
         actor_user_id=user["id"],
     )
+    await publish_live_update(
+        "visit.created",
+        {"visit": visit, "scope": "centre_visit"},
+        user_ids=[user["id"]],
+        roles=["admin"],
+    )
     return {"success": True, "visit": visit}
 
 
 @api_router.post("/visits/site")
 async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_current_user)):
+    requested_property_id = canonical_live_property_id(req.property_id) or str(req.property_id or "").strip()
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Visit database is unavailable")
-        prop = local_get_property(req.property_id)
+        prop = local_get_property(requested_property_id) or local_get_property(req.property_id)
         if not prop:
             raise HTTPException(status_code=404, detail="Property not found")
-        property_name = live_property_name(req.property_id, prop.get("name"))
-        assigned_agent_id = await resolve_assigned_agent_id(property_id=req.property_id)
+        canonical_property_id = canonical_live_property_id(
+            prop.get("id"),
+            prop.get("name"),
+            prop.get("location"),
+            requested_property_id,
+        ) or requested_property_id
+        property_name = live_property_name(canonical_property_id, prop.get("name"))
+        assigned_agent_id = await resolve_assigned_agent_id(property_id=canonical_property_id)
         visit = {
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
             "type": "site",
-            "property_id": req.property_id,
+            "property_id": canonical_property_id,
             "property_name": property_name,
             "visit_date": req.visit_date,
             "name": req.name,
@@ -4536,18 +4783,32 @@ async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_
             customer=user,
             actor_user_id=user["id"],
         )
+        await publish_live_update(
+            "visit.created",
+            {"visit": normalize_live_visit_record(visit), "scope": "customer_site_visit"},
+            user_ids=[user["id"], *( [assigned_agent_id] if assigned_agent_id else [])],
+            roles=["admin"],
+        )
         return {"success": True, "visit": normalize_live_visit_record(visit)}
 
-    prop = await db.properties.find_one({"id": req.property_id}, {"_id": 0})
+    prop = await db.properties.find_one({"id": requested_property_id}, {"_id": 0})
+    if not prop and requested_property_id != str(req.property_id or "").strip():
+        prop = await db.properties.find_one({"id": req.property_id}, {"_id": 0})
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
-    property_name = live_property_name(req.property_id, prop.get("name"))
-    assigned_agent_id = await resolve_assigned_agent_id(property_id=req.property_id)
+    canonical_property_id = canonical_live_property_id(
+        prop.get("id"),
+        prop.get("name"),
+        prop.get("location"),
+        requested_property_id,
+    ) or requested_property_id
+    property_name = live_property_name(canonical_property_id, prop.get("name"))
+    assigned_agent_id = await resolve_assigned_agent_id(property_id=canonical_property_id)
     visit = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "type": "site",
-        "property_id": req.property_id,
+        "property_id": canonical_property_id,
         "property_name": property_name,
         "visit_date": req.visit_date,
         "name": req.name,
@@ -4579,6 +4840,12 @@ async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_
         visit=visit,
         customer=user,
         actor_user_id=user["id"],
+    )
+    await publish_live_update(
+        "visit.created",
+        {"visit": normalize_live_visit_record(visit), "scope": "customer_site_visit"},
+        user_ids=[user["id"], *( [assigned_agent_id] if assigned_agent_id else [])],
+        roles=["admin"],
     )
     return {"success": True, "visit": normalize_live_visit_record(visit)}
 
@@ -4655,6 +4922,84 @@ async def read_all_notifications(user: Dict[str, Any] = Depends(get_current_user
         {"$set": {"read": True}}
     )
     return {"success": True}
+
+
+@app.websocket("/ws/live")
+async def live_updates_websocket(websocket: WebSocket):
+    token = (
+        websocket.query_params.get("token", "")
+        or websocket.cookies.get(ACCESS_TOKEN_COOKIE_NAME, "")
+        or str(websocket.headers.get("authorization") or "").removeprefix("Bearer ").strip()
+    )
+    user: Optional[Dict[str, Any]] = None
+    if token:
+        try:
+            payload = decode_token(token, JWT_SECRET)
+            user_id = payload.get("sub")
+            session_id = str(payload.get("sid") or "").strip()
+            session = await get_user_session(session_id) if session_id else None
+            if user_id:
+                if await is_database_available():
+                    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+                elif ALLOW_LOCAL_AUTH_FALLBACK:
+                    user = local_find_user(user_id=user_id)
+                if user:
+                    user = apply_session_role(user, session)
+        except Exception:
+            user = None
+
+    connection_id = await live_updates.connect(
+        websocket,
+        user_id=user.get("id") if user else None,
+        role=websocket_role_for_user(user),
+    )
+    await websocket.send_json(
+        {
+            "event": "live.connected",
+            "payload": {
+                "connection_id": connection_id,
+                "role": websocket_role_for_user(user),
+                "user_id": user.get("id") if user else None,
+            },
+            "sent_at": now_utc().isoformat(),
+        }
+    )
+    try:
+        while True:
+            message = await websocket.receive_json()
+            action = str(message.get("action") or "").strip().lower()
+            if action == "ping":
+                await websocket.send_json(
+                    {
+                        "event": "live.pong",
+                        "payload": {"ok": True},
+                        "sent_at": now_utc().isoformat(),
+                    }
+                )
+            elif action == "whoami":
+                await websocket.send_json(
+                    {
+                        "event": "live.identity",
+                        "payload": {
+                            "role": websocket_role_for_user(user),
+                            "user_id": user.get("id") if user else None,
+                            "authenticated": bool(user),
+                        },
+                        "sent_at": now_utc().isoformat(),
+                    }
+                )
+            elif action == "subscribe-dashboard":
+                await websocket.send_json(
+                    {
+                        "event": "dashboard.subscribed",
+                        "payload": {"role": websocket_role_for_user(user)},
+                        "sent_at": now_utc().isoformat(),
+                    }
+                )
+    except WebSocketDisconnect:
+        live_updates.disconnect(connection_id)
+    except Exception:
+        live_updates.disconnect(connection_id)
 
 
 # ---------- Admin ----------
@@ -4756,6 +5101,12 @@ async def admin_confirm_booking(booking_id: str, user: Dict[str, Any] = Depends(
             actor_user_id=user["id"],
             source="admin_confirm",
         )
+        await publish_live_update(
+            "booking.updated",
+            {"booking": updated_booking or booking, "scope": "admin_confirm"},
+            user_ids=[booking.get("user_id"), booking.get("agent_id")],
+            roles=["admin"],
+        )
         return {"success": True, "booking": updated_booking}
 
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
@@ -4791,6 +5142,12 @@ async def admin_confirm_booking(booking_id: str, user: Dict[str, Any] = Depends(
         customer=customer,
         actor_user_id=user["id"],
         source="admin_confirm",
+    )
+    await publish_live_update(
+        "booking.updated",
+        {"booking": refreshed_booking, "scope": "admin_confirm"},
+        user_ids=[booking.get("user_id"), booking.get("agent_id")],
+        roles=["admin"],
     )
     return {"success": True}
 
@@ -4980,6 +5337,14 @@ async def admin_update_agent_status(
             ),
             "agent",
         )
+        await publish_live_update(
+            "agent.status_updated",
+            {"agent": clean_user(agent), "approval_status": approval_status},
+            user_ids=[agent["id"]],
+            roles=["admin"],
+        )
+        if approval_status in {"pending", "rejected", "suspended"}:
+            await revoke_user_sessions_for_user(agent["id"], session_role="agent")
         return {"success": True, "agent": clean_user(agent)}
 
     agent = await db.users.find_one({"id": agent_id}, {"_id": 0})
@@ -5001,6 +5366,14 @@ async def admin_update_agent_status(
         ),
         "agent",
     )
+    await publish_live_update(
+        "agent.status_updated",
+        {"agent": clean_user(updated), "approval_status": approval_status},
+        user_ids=[agent["id"]],
+        roles=["admin"],
+    )
+    if approval_status in {"pending", "rejected", "suspended"}:
+        await revoke_user_sessions_for_user(agent["id"], session_role="agent")
     return {"success": True, "agent": clean_user(updated)}
 
 
@@ -5052,6 +5425,12 @@ async def admin_update_visit_status(
                 f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {next_status}.",
                 "visit",
             )
+        await publish_live_update(
+            "visit.updated",
+            {"visit": normalize_live_visit_record(updated), "scope": "admin_review"},
+            user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
+            roles=["admin"],
+        )
         return {"success": True, "visit": normalize_live_visit_record(updated)}
 
     existing = await db.visits.find_one({"id": visit_id}, {"_id": 0})
@@ -5066,6 +5445,13 @@ async def admin_update_visit_status(
             "Visit status updated",
             f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {next_status}.",
             "visit",
+        )
+    if updated:
+        await publish_live_update(
+            "visit.updated",
+            {"visit": normalize_live_visit_record(updated), "scope": "admin_review"},
+            user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
+            roles=["admin"],
         )
     return {"success": True, "visit": normalize_live_visit_record(updated)}
 
@@ -5186,6 +5572,12 @@ async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] 
             actor_user_id=user["id"],
             source="agent_booking",
         )
+        await publish_live_update(
+            "booking.created",
+            {"booking": booking, "scope": "agent_booking"},
+            user_ids=[customer["id"], booking.get("agent_id")],
+            roles=["admin"],
+        )
         return {"success": True, "booking": booking}
 
     plot = await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
@@ -5235,6 +5627,12 @@ async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] 
         actor_user_id=user["id"],
         source="agent_booking",
     )
+    await publish_live_update(
+        "booking.created",
+        {"booking": booking, "scope": "agent_booking"},
+        user_ids=[customer["id"], booking.get("agent_id")],
+        roles=["admin"],
+    )
     return {"success": True, "booking": booking}
 
 @api_router.put("/agent/bookings/{booking_id}/status")
@@ -5282,6 +5680,12 @@ async def agent_update_booking_status(booking_id: str, req: AgentBookingStatusRe
             actor_user_id=user["id"],
             source="agent_booking",
         )
+        await publish_live_update(
+            "booking.updated",
+            {"booking": updated_booking or booking, "scope": "agent_status"},
+            user_ids=[booking.get("user_id"), booking.get("agent_id")],
+            roles=["admin"],
+        )
         return {"success": True, "booking": updated_booking}
 
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
@@ -5311,6 +5715,12 @@ async def agent_update_booking_status(booking_id: str, req: AgentBookingStatusRe
         customer=customer,
         actor_user_id=user["id"],
         source="agent_booking",
+    )
+    await publish_live_update(
+        "booking.updated",
+        {"booking": updated or booking, "scope": "agent_status"},
+        user_ids=[booking.get("user_id"), booking.get("agent_id")],
+        roles=["admin"],
     )
     return {"success": True, "booking": updated}
 
@@ -5450,12 +5860,24 @@ async def agent_create_site_visit(req: AgentVisitReq, user: Dict[str, Any] = Dep
             customer={"id": req.customer_id, "name": req.customer_name, "phone": req.customer_phone, "email": req.customer_email},
             actor_user_id=user["id"],
         )
+        await publish_live_update(
+            "visit.created",
+            {"visit": visit, "scope": "agent_created_visit"},
+            user_ids=[req.customer_id, assigned_agent_id] if req.customer_id else [assigned_agent_id],
+            roles=["admin"],
+        )
         return {"success": True, "visit": visit}
     await db.visits.insert_one(visit.copy())
     await crm_sync_site_visit(
         visit=visit,
         customer={"id": req.customer_id, "name": req.customer_name, "phone": req.customer_phone, "email": req.customer_email},
         actor_user_id=user["id"],
+    )
+    await publish_live_update(
+        "visit.created",
+        {"visit": visit, "scope": "agent_created_visit"},
+        user_ids=[req.customer_id, assigned_agent_id] if req.customer_id else [assigned_agent_id],
+        roles=["admin"],
     )
     return {"success": True, "visit": visit}
 
@@ -5508,6 +5930,12 @@ async def agent_update_site_visit(visit_id: str, req: AgentVisitUpdateReq, user:
                 },
                 actor_user_id=user["id"],
             )
+            await publish_live_update(
+                "visit.updated",
+                {"visit": updated, "scope": "agent_review"},
+                user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
+                roles=["admin"],
+            )
         return {"success": True, "visit": updated}
     visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
     if not visit:
@@ -5537,6 +5965,12 @@ async def agent_update_site_visit(visit_id: str, req: AgentVisitUpdateReq, user:
             },
             actor_user_id=user["id"],
         )
+        await publish_live_update(
+            "visit.updated",
+            {"visit": updated, "scope": "agent_review"},
+            user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
+            roles=["admin"],
+        )
     return {"success": True, "visit": updated}
 
 
@@ -5560,6 +5994,12 @@ async def agent_close_booking(booking_id: str, user: Dict[str, Any] = Depends(ge
             customer=customer,
             actor_user_id=user["id"],
             source="agent_booking",
+        )
+        await publish_live_update(
+            "booking.updated",
+            {"booking": updated_booking or booking, "scope": "agent_close"},
+            user_ids=[booking.get("user_id"), booking.get("agent_id")],
+            roles=["admin"],
         )
         return {"success": True, "status": "completed", "booking": updated_booking}
 
@@ -5588,6 +6028,12 @@ async def agent_close_booking(booking_id: str, user: Dict[str, Any] = Depends(ge
         customer=customer,
         actor_user_id=user["id"],
         source="agent_booking",
+    )
+    await publish_live_update(
+        "booking.updated",
+        {"booking": refreshed_booking, "scope": "agent_close"},
+        user_ids=[booking.get("user_id"), booking.get("agent_id")],
+        roles=["admin"],
     )
     return {"success": True, "status": "completed"}
 
@@ -5649,6 +6095,8 @@ async def admin_create_property(req: AdminPropertyReq, user: Dict[str, Any] = De
 
 # ---------- Seed Data ----------
 async def seed_data():
+    logger.info("Demo startup seeding is disabled in realtime mode.")
+    return
     if not ENABLE_DEMO_DATA:
         logger.info("Demo seed data disabled; skipping startup seed.")
         return
@@ -6379,11 +6827,24 @@ async def ensure_cors_headers(request: Request, call_next):
         )
         response.headers["Vary"] = "Origin"
 
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data: https:; media-src 'self' data: https:; connect-src 'self' https: wss: ws:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; font-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https:;",
+    )
+
     return response
 
 
 @app.on_event("startup")
 async def on_startup():
+    await purge_demo_auth_users_from_db()
+    await purge_legacy_demo_records_from_db()
     await seed_data()
 
 

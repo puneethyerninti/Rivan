@@ -44,13 +44,13 @@ const ONBOARDING_STEPS = [
   },
 ] as const;
 
-const HOME_QUICK_LINKS = [
-  { label: "Home", href: `${HOME_PATH}#top` },
-  { label: "My Properties", to: "/myland" },
-  { label: "Property Types", href: `${HOME_PATH}#property-types` },
-  { label: "Site Visits", to: "/visits" },
-  { label: "Bookings", to: "/bookings" },
-  { label: "Support", to: "/services" },
+const HOME_ACTIONS = [
+  { label: "My Land", to: "/myland", note: "Owned" },
+  { label: "Payments", to: "/payments", note: "History" },
+  { label: "Site Visits", to: "/visits", note: "Tracking" },
+  { label: "Documents", to: "/documents", note: "Records" },
+  { label: "Services", to: "/services", note: "Support" },
+  { label: "Wishlist", to: "/wishlist", note: "Saved" },
 ] as const;
 
 function cn(...values: Array<string | false | null | undefined>) {
@@ -171,6 +171,11 @@ function roleLabel(user: UserRecord | null) {
   return "Customer";
 }
 
+function getFirstName(user: UserRecord | null) {
+  const display = firstString(user?.name, "Guest");
+  return display.split(" ")[0] || "Guest";
+}
+
 function formatStatusLabel(status?: string | null) {
   const normalized = String(status || "").trim().toLowerCase();
   if (normalized === "closed") return "Completed";
@@ -242,8 +247,13 @@ function useHomeData() {
           }
         }
 
+        if (!normalized.length) {
+          const fallbackProperty = getFallbackProperty("prop-1");
+          normalized = fallbackProperty ? [fallbackProperty] : [];
+        }
+
         setProperties(normalized);
-        setError(normalized.length ? "" : "Siripuram Gardens inventory is not available right now.");
+        setError("");
       } catch (loadError: any) {
         if (!active) return;
         setProperties([]);
@@ -493,9 +503,9 @@ function Navbar({
         </Link>
 
         <nav className={cn("nav-links", mobileOpen && "is-open")}>
+          <a href={`${HOME_PATH}#top`}>Home</a>
           <a href={`${HOME_PATH}#properties`}>Properties</a>
-          <a href={`${HOME_PATH}#workflow`}>Workflow</a>
-          <a href={`${HOME_PATH}#about`}>Why choose us</a>
+          <a href={`${HOME_PATH}#property-types`}>Categories</a>
           <a href={`${HOME_PATH}#visits`}>Site Visits</a>
           <a href={`${HOME_PATH}#contact`}>Contact</a>
           {isAuthed ? (
@@ -593,19 +603,19 @@ function SubpageHeader({ label, title, body }: { label: string; title: string; b
       <div className="container page-head-wrap">
         <div className="subpage-hero-card">
           <div className="page-top-actions">
+            <button
+              type="button"
+              className="page-back-button"
+              onClick={() => {
+                if (window.history.length > 1) navigate(-1);
+                else navigate(HOME_PATH);
+              }}
+            >
+              <span>Go Back</span>
+            </button>
             <Link className="page-home-link" to={HOME_PATH}>
               Home
             </Link>
-          <button
-            type="button"
-            className="page-back-button"
-            onClick={() => {
-              if (window.history.length > 1) navigate(-1);
-              else navigate(HOME_PATH);
-            }}
-          >
-            ← Go Back
-          </button>
           </div>
           <span className="section-label">{label}</span>
           <h1>{title}</h1>
@@ -661,19 +671,19 @@ function AccountShell({
         <div className="container account-hero-grid">
           <div className="account-hero-copy">
             <div className="page-top-actions">
+              <button
+                type="button"
+                className="page-back-button page-back-button-light"
+                onClick={() => {
+                  if (window.history.length > 1) navigate(-1);
+                  else navigate(HOME_PATH);
+                }}
+              >
+                <span>Go Back</span>
+              </button>
               <Link className="page-home-link page-home-link-light" to={HOME_PATH}>
                 Home
               </Link>
-            <button
-              type="button"
-              className="page-back-button page-back-button-light"
-              onClick={() => {
-                if (window.history.length > 1) navigate(-1);
-                else navigate(HOME_PATH);
-              }}
-            >
-              ← Go Back
-            </button>
             </div>
             <div className="hero-eyebrow">
               <span className="hero-eyebrow-line" />
@@ -1255,6 +1265,274 @@ function PropertyCard({ property }: { property: NormalizedProperty }) {
   );
 }
 
+function UtilityGlyph({
+  type,
+}: {
+  type: "layout" | "directions" | "visit" | "support" | "payments" | "timeline" | "size" | "facing" | "survey";
+}) {
+  if (type === "layout") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5.5h16v13H4z" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M12 5.5v13M4 12h16" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    );
+  }
+  if (type === "directions") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m5 19 14-14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M14 5h5v5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "visit") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="6" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M8 3.8v4M16 3.8v4M4 10h16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === "support") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7.5 6.5a4.5 4.5 0 0 1 9 0v2.2a2.8 2.8 0 0 1 2.1 2.7v2.8a2.8 2.8 0 0 1-2.8 2.8h-1.7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M7.5 17h-.8A2.8 2.8 0 0 1 4 14.2v-2.8a2.8 2.8 0 0 1 2.8-2.8h.7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <path d="M10 18.5h4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === "payments") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="6" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M3.5 10.2h17" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    );
+  }
+  if (type === "timeline") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 6.5h11M6.5 12h11M6.5 17.5h11" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="4.5" cy="6.5" r="1" fill="currentColor" />
+        <circle cx="4.5" cy="12" r="1" fill="currentColor" />
+        <circle cx="4.5" cy="17.5" r="1" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (type === "size") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 7h10v10H7z" fill="none" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M7 12H4m3 0-2-2m2 2-2 2M17 12h3m-3 0 2-2m-2 2 2 2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "facing") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4.5v15M12 4.5l3 3M12 4.5l-3 3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 18.5h12M8 15V7.5h8V15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11h4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HomeFeaturedCard({ property, featured = false }: { property: NormalizedProperty; featured?: boolean }) {
+  const carouselImages = useMemo(() => {
+    const images = [
+      property.image,
+      ...arrayOf(property.images),
+      propertyImageOne,
+      propertyImageTwo,
+    ]
+      .map((image) => firstString(image))
+      .filter(Boolean);
+    return Array.from(new Set(images)).slice(0, 2);
+  }, [property.image, property.images]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [property.id]);
+
+  useEffect(() => {
+    if (carouselImages.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveImageIndex((current) => (current + 1) % carouselImages.length);
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, [carouselImages]);
+
+  return (
+    <Link to={`/property/${property.id}`} className={cn("home-featured-card", featured && "is-featured")}>
+      <div className="home-featured-media">
+        {carouselImages.length ? (
+          carouselImages.map((image, index) => (
+            <img
+              key={`${property.id}-featured-${index}`}
+              src={image}
+              alt={property.name}
+              className={cn("carousel-image", activeImageIndex === index && "is-active")}
+            />
+          ))
+        ) : (
+          <div className="property-image-placeholder" />
+        )}
+      </div>
+      <div className="home-featured-overlay" />
+      <div className="home-featured-copy">
+        <span className="home-featured-tag">{featured ? "Open plots" : firstString(property.category, "Property")}</span>
+        <strong>{property.name}</strong>
+        <p>{property.location}</p>
+        <em>From {formatCurrency(property.startingPrice)}</em>
+      </div>
+    </Link>
+  );
+}
+
+function HomePropertyCard({ property }: { property: NormalizedProperty }) {
+  const carouselImages = useMemo(() => {
+    const images = [
+      property.image,
+      ...arrayOf(property.images),
+      propertyImageOne,
+      propertyImageTwo,
+    ]
+      .map((image) => firstString(image))
+      .filter(Boolean);
+    return Array.from(new Set(images)).slice(0, 2);
+  }, [property.image, property.images]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [property.id]);
+
+  useEffect(() => {
+    if (carouselImages.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveImageIndex((current) => (current + 1) % carouselImages.length);
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, [carouselImages]);
+
+  return (
+    <article className="home-property-card">
+      <Link to={`/property/${property.id}`} className="home-property-media">
+        {carouselImages.length ? (
+          carouselImages.map((image, index) => (
+            <img
+              key={`${property.id}-property-${index}`}
+              src={image}
+              alt={property.name}
+              className={cn("carousel-image", activeImageIndex === index && "is-active")}
+            />
+          ))
+        ) : (
+          <div className="property-image-placeholder" />
+        )}
+        <div className="home-property-status-row">
+          <span className="home-property-status">{property.availability || "Available"}</span>
+          <span className="home-property-type">{firstString(property.category, "Property")}</span>
+        </div>
+      </Link>
+      <div className="home-property-body">
+        <h3>{property.name}</h3>
+        <p>{property.location}</p>
+        <div className="home-property-size">{property.size || "Open for enquiry"}</div>
+        {property.highlights ? <div className="home-property-note">{property.highlights}</div> : null}
+        <div className="home-property-footer">
+          <div className="home-property-price">
+            <span>Starting at</span>
+            <strong>{formatCurrency(property.startingPrice)}</strong>
+          </div>
+          <Link className="btn-primary" to={`/property/${property.id}`}>
+            View
+          </Link>
+        </div>
+        <div className="home-property-availability">
+          <div>
+            <strong>Interactive live map</strong>
+            <span>Open layout and check current availability.</span>
+          </div>
+          <Link className="btn-secondary" to={`/layout/${property.id}`}>
+            Availability
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function HomeGlyph({ type }: { type: "wishlist" | "alerts" | "services" | "documents" | "wishlist-card" | "myland" | "payments" | "visits" }) {
+  if (type === "wishlist") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 20.5 4.8 13.6a4.8 4.8 0 0 1 6.8-6.8L12 7.2l.4-.4a4.8 4.8 0 1 1 6.8 6.8Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "alerts") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 16.5h11l-1.2-1.7a4 4 0 0 1-.7-2.3V10a3.6 3.6 0 1 0-7.2 0v2.5a4 4 0 0 1-.7 2.3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10 18.5a2.2 2.2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === "services") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m14.5 6.5 3 3-7.8 7.8-3.7.7.7-3.7Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="m13 8 3 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === "documents") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 3.5h6l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 7 20V5A1.5 1.5 0 0 1 8.5 3.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M14 3.5V8h4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "myland") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 18.5h16M6.5 18.5V9l5.5-3.5L17.5 9v9.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "payments") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="6" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M3.5 10.2h17" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+  if (type === "visits") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="6" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 3.8v4M16 3.8v4M4 10h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 20.5 4.8 13.6a4.8 4.8 0 0 1 6.8-6.8L12 7.2l.4-.4a4.8 4.8 0 1 1 6.8 6.8Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function SearchRibbon({ properties }: { properties: NormalizedProperty[] }) {
   const navigate = useNavigate();
   const [location, setLocation] = useState("Siripuram Gardens");
@@ -1803,21 +2081,49 @@ function HomePage({
   forcedModal?: ModalType;
   profileOpen?: boolean;
 }) {
-  const { user } = useAuth();
+  const { user, isAuthed } = useAuth();
   const navigate = useNavigate();
   const [activeModal, setActiveModal] = useState<ModalType>(forcedModal);
   const [drawerOpen, setDrawerOpen] = useState(profileOpen);
   const [applyPhone, setApplyPhone] = useState("");
+  const [selectedHomeCategory, setSelectedHomeCategory] = useState("All");
+  const [homeSearch, setHomeSearch] = useState("");
   const { properties, loading, error } = useHomeData();
   const flagship = properties.find((item) => isSiripuramProperty(item)) || getFallbackProperty("prop-1");
+  const featuredProperties = useMemo(() => properties.slice(0, Math.min(properties.length, 3)), [properties]);
   const propertyTypes = useMemo(() => {
-    const unique = new Set<string>();
+    const unique = new Set<string>(["Plots", "Independent House", "Layouts", "Villas", "Apartments"]);
     properties.forEach((property) => {
       const label = firstString(property.category, "Plots");
       if (label) unique.add(label);
     });
-    return Array.from(unique).slice(0, 5);
+    return Array.from(unique).slice(0, 7);
   }, [properties]);
+  const homeCategoryChips = useMemo(() => ["All", ...propertyTypes, "Documents", "Services"], [propertyTypes]);
+  const filteredHomeProperties = useMemo(() => {
+    const query = homeSearch.trim().toLowerCase();
+    return properties.filter((property) => {
+      const matchesCategory =
+        selectedHomeCategory === "All" ||
+        selectedHomeCategory === "Documents" ||
+        selectedHomeCategory === "Services" ||
+        firstString(property.category, "Plots").toLowerCase().includes(selectedHomeCategory.toLowerCase());
+
+      const haystack = [
+        property.name,
+        property.location,
+        property.category,
+        property.description,
+        property.highlights,
+        property.size,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      const matchesQuery = !query || haystack.includes(query);
+      return matchesCategory && matchesQuery;
+    });
+  }, [properties, selectedHomeCategory, homeSearch]);
 
   useEffect(() => {
     setActiveModal(forcedModal);
@@ -1864,249 +2170,136 @@ function HomePage({
         }}
       />
 
-      <main>
-        <section className="hero-section section-green" id="top">
-          <div className="editorial-hero editorial-hero-split">
-            <div className="editorial-left">
-              <div className="editorial-copy">
-                <div className="hero-eyebrow">
-                  <span className="hero-eyebrow-line" />
-                  <span>Approved layout · Achutapuram</span>
+      <main className="home-page-app">
+        <section className="section-block section-white home-app-shell" id="top">
+          <div className="container">
+            <div className="home-app-frame">
+              <div className="home-app-top-card">
+                <div className="home-app-top-row">
+                  <div className="home-app-search-wrap">
+                    <input
+                      className="home-app-search-input"
+                      type="search"
+                      value={homeSearch}
+                      onChange={(event) => setHomeSearch(event.target.value)}
+                      placeholder="Search properties, locations..."
+                      aria-label="Search properties"
+                    />
+                  </div>
+                  <div className="home-app-top-actions">
+                    <Link to="/wishlist" className="home-app-circle-button" aria-label="Wishlist">
+                      <HomeGlyph type="wishlist" />
+                    </Link>
+                    <Link to="/notifications" className="home-app-circle-button" aria-label="Notifications">
+                      <HomeGlyph type="alerts" />
+                    </Link>
+                  </div>
                 </div>
-                <h1 className="editorial-title">
-                  Rivan Reality
-                  <br />
-                  <em>property journeys</em>
-                  <br />
-                  <strong>made clear, warm, and trackable</strong>
-                </h1>
-                <p className="editorial-body">Rivan Reality helps customers discover Siripuram Gardens, understand the layout, request visits, and continue into bookings from one calm place that also keeps agents and admins aligned.</p>
-                <div className="button-row editorial-actions">
-                  <a className="btn-primary" href={`${HOME_PATH}#properties`}>
-                    Explore Properties
-                  </a>
-                  <a className="btn-secondary" href={`${HOME_PATH}#visits`}>
-                    Book a Site Visit
-                  </a>
+              </div>
+
+              <section className="home-app-section-block">
+                <div className="home-app-head-row">
+                  <h2>Featured Projects</h2>
+                  <span className="home-app-premium-pill">Premium</span>
                 </div>
-                <div className="account-quick-nav home-quick-nav">
-                  {HOME_QUICK_LINKS.map((item) =>
-                    "to" in item ? (
-                      <Link key={item.label} className="account-quick-link" to={item.to}>
-                        {item.label}
+                {loading ? (
+                  <div className="home-featured-grid">
+                    {Array.from({ length: 2 }).map((_, index) => (
+                      <div className="skeleton-card" key={index} />
+                    ))}
+                  </div>
+                ) : featuredProperties.length ? (
+                  <div className="home-featured-grid">
+                    {featuredProperties.map((property, index) => (
+                      <HomeFeaturedCard key={property.id} property={property} featured={index === 0} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState title="No live property" body={error || "Live Siripuram Gardens listings will appear here."} />
+                )}
+              </section>
+
+              <section className="home-app-section-block">
+                <div className="home-app-head-row">
+                  <h2>Browse Categories</h2>
+                </div>
+                <div className="home-app-chip-row" id="property-types">
+                  {homeCategoryChips.map((chip) =>
+                    chip === "Documents" ? (
+                      <Link key={chip} to="/documents" className="home-app-chip">
+                        {chip}
+                      </Link>
+                    ) : chip === "Services" ? (
+                      <Link key={chip} to="/services" className="home-app-chip">
+                        {chip}
                       </Link>
                     ) : (
-                      <a key={item.label} className="account-quick-link" href={item.href}>
-                        {item.label}
-                      </a>
+                      <button
+                        key={chip}
+                        type="button"
+                        className={cn("home-app-chip", selectedHomeCategory === chip && "is-active")}
+                        onClick={() => setSelectedHomeCategory(chip)}
+                      >
+                        {chip}
+                      </button>
                     )
                   )}
                 </div>
-                <div className="hero-note-grid">
-                  <article className="hero-note-card">
-                    <span className="section-label">Clarity</span>
-                    <h3>Everything important, in one place</h3>
-                    <p>Property details, layouts, visits, and follow-up stay connected instead of scattered.</p>
-                  </article>
-                  <article className="hero-note-card">
-                    <span className="section-label">Progress</span>
-                    <h3>Better next steps for every role</h3>
-                    <p>Customers browse, agents guide, and admins review live actions with less friction.</p>
-                  </article>
+              </section>
+
+              <section className="home-app-section-block">
+                <div className="home-app-actions-grid">
+                  {HOME_ACTIONS.map((action) => (
+                    <Link key={action.label} to={action.to} className="home-app-action-card">
+                      <span className="home-app-action-icon">
+                        <HomeGlyph
+                          type={
+                            action.label === "My Land"
+                              ? "myland"
+                              : action.label === "Payments"
+                                ? "payments"
+                                : action.label === "Site Visits"
+                                  ? "visits"
+                                  : action.label === "Services"
+                                    ? "services"
+                                    : action.label === "Documents"
+                                      ? "documents"
+                                      : "wishlist-card"
+                          }
+                        />
+                      </span>
+                      <strong>{action.label}</strong>
+                      <span>{action.note}</span>
+                    </Link>
+                  ))}
                 </div>
-                <div className="hero-stats editorial-stats">
-                  <div>
-                    <strong>{properties.length || 0}</strong>
-                    <span>Listings</span>
+              </section>
+
+              <section className="home-app-section-block" id="properties">
+                <div className="home-app-head-row">
+                  <h2>All Properties ({filteredHomeProperties.length || properties.length})</h2>
+                </div>
+                {loading ? (
+                  <div className="home-property-grid">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <div className="skeleton-card" key={index} />
+                    ))}
                   </div>
-                  <div>
-                    <strong>1</strong>
-                    <span>Flagship layout</span>
+                ) : filteredHomeProperties.length ? (
+                  <div className="home-property-grid">
+                    {filteredHomeProperties.map((property) => (
+                      <HomePropertyCard key={property.id} property={property} />
+                    ))}
                   </div>
-                  <div>
-                    <strong>OTP</strong>
-                    <span>Secure access</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="editorial-right">
-              <div className="hero-video-shell">
-                <video className="hero-video" autoPlay muted loop playsInline preload="metadata">
-                  <source src="https://res.cloudinary.com/dzisksq78/video/upload/v1780939161/villa_1_ltxt2q.mp4" type="video/mp4" />
-                </video>
-                <div className="hero-video-overlay" />
-                <div className="hero-video-caption">
-                  <span>Siripuram Gardens</span>
-                  <strong>See the project before the visit</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="container ribbon-wrap editorial-ribbon-wrap">
-            <SearchRibbon properties={properties} />
-          </div>
-          <div className="container hero-trust-strip">
-            <div className="hero-trust-card">
-              <span className="section-label">Why this feels easier</span>
-              <div className="hero-trust-points">
-                <p>Siripuram Gardens stays as the main project journey</p>
-                <p>Visits, bookings, and approvals stay connected</p>
-                <p>Customers, agents, and admin all move in one flow</p>
-              </div>
+                ) : (
+                  <EmptyState title="No properties found" body={error || "Try another category."} />
+                )}
+              </section>
+
             </div>
           </div>
         </section>
 
-        <section className="section-block section-white" id="workflow">
-          <div className="container">
-            <div className="section-head">
-              <div>
-                <span className="section-label">How it works</span>
-                <h2 className="section-title">A guided real-estate flow that stays easy to understand.</h2>
-              </div>
-              <p className="section-subtitle">Every important action stays visible and connected, so people can move from discovery to follow-up without confusion.</p>
-            </div>
-            <div className="workflow-grid">
-              <article className="workflow-card">
-                <span className="workflow-step">01</span>
-                <h3>Explore with confidence</h3>
-                <p>Browse the project, compare details, and understand the property before making the next move.</p>
-              </article>
-              <article className="workflow-card">
-                <span className="workflow-step">02</span>
-                <h3>Sign in with OTP</h3>
-                <p>Customers, agents, and admins all enter with secure phone access tailored to their role.</p>
-              </article>
-              <article className="workflow-card">
-                <span className="workflow-step">03</span>
-                <h3>Request visits and bookings</h3>
-                <p>Visits, plot enquiries, and support actions move straight into the live admin and CRM flow.</p>
-              </article>
-              <article className="workflow-card">
-                <span className="workflow-step">04</span>
-                <h3>Track and continue</h3>
-                <p>Approvals, CRM activity, and customer updates stay aligned so follow-up feels faster and more reliable.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-          <section className="section-block section-white" id="properties">
-            <div className="container">
-              <div className="section-head">
-                <div>
-                  <span className="section-label">Properties</span>
-                  <h2 className="section-title">Explore the project through a calmer property view.</h2>
-                </div>
-                <p className="section-subtitle">The cards are designed to help people decide faster: what it is, where it is, how much it starts at, and what to do next.</p>
-              </div>
-              <div className="account-quick-nav property-type-nav" id="property-types">
-                <a className="account-quick-link is-active" href={`${HOME_PATH}#properties`}>
-                  All Properties
-                </a>
-                {propertyTypes.map((type) => (
-                  <a key={type} className="account-quick-link" href={`${HOME_PATH}#properties`}>
-                    {type}
-                  </a>
-                ))}
-              </div>
-              <div className="highlight-grid">
-                <article className="highlight-card">
-                  <span className="section-label">Availability</span>
-                  <h3>Live property visibility</h3>
-                  <p>Open the listing, enter the layout, and continue to the next step without losing context.</p>
-                </article>
-                <article className="highlight-card">
-                  <span className="section-label">Layout ready</span>
-                  <h3>Plot-first decision making</h3>
-                  <p>Let users understand the project visually before they request a visit or booking.</p>
-                </article>
-                <article className="highlight-card">
-                  <span className="section-label">Support flow</span>
-                  <h3>Connected next steps</h3>
-                  <p>Visits, enquiries, and approvals all remain tied to the same property journey.</p>
-                </article>
-              </div>
-            {loading ? (
-              <div className="card-grid">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div className="skeleton-card" key={index} />
-                ))}
-              </div>
-            ) : properties.length ? (
-              <div className="card-grid">
-                {properties.map((property) => (
-                  <PropertyCard key={property.id} property={property} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="Siripuram Gardens is unavailable" body={error || "Please check back in a moment."} />
-            )}
-          </div>
-        </section>
-
-        <section className="section-block split-section" id="visits">
-          <div className="container split-grid">
-            <div className="surface-card visit-form-card">
-              <span className="section-label">Schedule a visit</span>
-              <h2 className="section-title">Book a visit without friction.</h2>
-              <VisitBookingPanel property={flagship} />
-            </div>
-            <div className="surface-card visit-info-card">
-              <span className="section-label">Visit readiness</span>
-              <h2 className="section-title">Everything a customer should understand before arriving.</h2>
-              <div className="visit-readiness-list">
-                <article className="visit-readiness-item">
-                  <strong>Property context</strong>
-                  <p>{flagship?.name || "Siripuram Gardens"} stays as the main project reference across the visit journey.</p>
-                </article>
-                <article className="visit-readiness-item">
-                  <strong>Location clarity</strong>
-                  <p>{flagship?.location || "Achutapuram"} stays visible so the visit, enquiry, and admin queue remain aligned.</p>
-                </article>
-                <article className="visit-readiness-item">
-                  <strong>Next action</strong>
-                  <p>After the request, the same account can continue with updates, approvals, support, and bookings.</p>
-                </article>
-              </div>
-              {flagship ? (
-                <Link className="text-link visit-link" to={`/property/${flagship.id}`}>
-                  Open property details
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="section-block section-white">
-          <div className="container">
-            <div className="section-head">
-              <div>
-                <span className="section-label">Experience</span>
-                <h2 className="section-title">A home experience that feels calmer, clearer, and more modern.</h2>
-              </div>
-              <p className="section-subtitle">The home journey now uses quieter cards, softer structure, and clearer actions inspired by the onboarding style.</p>
-            </div>
-            <div className="experience-grid">
-              <article className="experience-card">
-                <span className="workflow-step">A</span>
-                <h3>Less clutter</h3>
-                <p>Important actions are surfaced first, while secondary details stay easy to discover without overwhelming the screen.</p>
-              </article>
-              <article className="experience-card">
-                <span className="workflow-step">B</span>
-                <h3>Role-aware journeys</h3>
-                <p>Customers browse and book, agents guide and apply, and admins review live activity from a cleaner information hierarchy.</p>
-              </article>
-              <article className="experience-card">
-                <span className="workflow-step">C</span>
-                <h3>Responsive by default</h3>
-                <p>The same design language now scales more gracefully on phones, tablets, and desktops for a more polished feel.</p>
-              </article>
-            </div>
-          </div>
-        </section>
       </main>
 
       <Footer />
@@ -2336,6 +2529,14 @@ function PropertyPage() {
               </Link>
             ) : null}
           </div>
+          <section className="property-visit-card surface-card surface-card-soft">
+            <div className="property-visit-head">
+              <span className="section-label">Schedule a visit</span>
+              <h2>Book your Siripuram Gardens visit</h2>
+              <p>Choose your preferred date and continue from the same property details flow.</p>
+            </div>
+            <VisitBookingPanel property={property} />
+          </section>
         </div>
       </div>
       {property.layoutPlans.length ? (
@@ -2387,6 +2588,7 @@ function LayoutPage() {
   const { id = "" } = useParams();
   const [property, setProperty] = useState<NormalizedProperty | null>(() => getFallbackProperty(id));
   const [plotBlocks, setPlotBlocks] = useState<PropertyMapBlock[]>(() => getFallbackProperty(id)?.mapBlocks || []);
+  const [statusFilter, setStatusFilter] = useState<"all" | PropertyMapBlock["status"]>("all");
   const [selected, setSelected] = useState<PropertyMapBlock | null>(() => {
     const blocks = getFallbackProperty(id)?.mapBlocks || [];
     return blocks.find((block: PropertyMapBlock) => block.status === "available") || blocks[0] || null;
@@ -2421,32 +2623,74 @@ function LayoutPage() {
     };
   }, [id]);
 
+  const filteredBlocks = useMemo(
+    () => plotBlocks.filter((block) => (statusFilter === "all" ? true : block.status === statusFilter)),
+    [plotBlocks, statusFilter],
+  );
+
+  useEffect(() => {
+    if (!filteredBlocks.length) {
+      setSelected(null);
+      return;
+    }
+    if (!selected || !filteredBlocks.some((block) => block.id === selected.id)) {
+      setSelected(filteredBlocks[0]);
+    }
+  }, [filteredBlocks, selected]);
+
   if (!property || !isSiripuramProperty(property)) return <PageSection title="Layout view" body="Siripuram Gardens layout details are not available right now." />;
+
+  const statusOptions: Array<{ value: "all" | PropertyMapBlock["status"]; label: string }> = [
+    { value: "all", label: "All" },
+    { value: "available", label: "Available" },
+    { value: "reserved", label: "Reserved" },
+    { value: "booked", label: "Booked" },
+    { value: "sold", label: "Sold" },
+  ];
+
+  const statusCount = (value: "all" | PropertyMapBlock["status"]) =>
+    value === "all" ? plotBlocks.length : plotBlocks.filter((block) => block.status === value).length;
 
   return (
     <section className="page-section">
       <SubpageHeader label="Layout" title="Siripuram Gardens layout" body="Pick a plot to review size, facing, and current availability." />
       <div className="container layout-grid-page">
         <div className="surface-card surface-card-soft">
-          <span className="section-label">Layout explorer</span>
-          <h1>{property.name}</h1>
-          <p>{property.location}</p>
-          <div className="legend-row">
-            <span className="legend-item"><i className="dot available" /> Available</span>
-            <span className="legend-item"><i className="dot reserved" /> Reserved</span>
-            <span className="legend-item"><i className="dot booked" /> Booked</span>
-            <span className="legend-item"><i className="dot sold" /> Sold</span>
+          <div className="availability-page-head">
+            <div>
+              <span className="section-label">Availability</span>
+              <h1>{property.name}</h1>
+              <p>{property.location}</p>
+            </div>
+            <div className="availability-page-badge">{statusCount("available")} open</div>
           </div>
-          <div className="layout-block-grid">
-            {plotBlocks.map((block) => (
+          <div className="availability-filter-row">
+            {statusOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={cn("availability-filter-chip", statusFilter === option.value && "is-active")}
+                onClick={() => setStatusFilter(option.value)}
+              >
+                <span>{option.label}</span>
+                <strong>{statusCount(option.value)}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="layout-block-grid availability-square-grid">
+            {filteredBlocks.map((block) => (
               <button
                 type="button"
                 key={block.id}
-                className={cn("plot-block", block.status, selected?.id === block.id && "is-selected")}
+                className={cn("plot-block", "availability-square-block", block.status, selected?.id === block.id && "is-selected")}
                 onClick={() => setSelected(block)}
               >
-                <strong>{block.label}</strong>
-                <span>{block.sizeSqYd}</span>
+                <span className="availability-square-status">{formatStatusLabel(block.status)}</span>
+                <div className="availability-square-copy">
+                  <strong>{block.label}</strong>
+                  <span>{block.size}</span>
+                  <small>{block.facing}</small>
+                </div>
               </button>
             ))}
           </div>
@@ -2466,10 +2710,10 @@ function LayoutPage() {
                   <span>Facing</span>
                   <strong>{selected.facing}</strong>
                 </div>
-                <div>
-                  <span>Indicative price</span>
-                  <strong>{formatCurrency(selected.price)}</strong>
-                </div>
+              </div>
+              <div className="plot-sidebar-note">
+                <strong>Next step</strong>
+                <span>Review the unit and continue only when you are ready to send a real booking request.</span>
               </div>
               <Link className="btn-primary btn-block" to={`/booking/${selected.id}`}>
                 Continue to booking
@@ -2481,6 +2725,225 @@ function LayoutPage() {
         </aside>
       </div>
     </section>
+  );
+}
+
+function MyLandPage() {
+  const { isAuthed } = useAuth();
+  const [lands, setLands] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>({});
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    let active = true;
+    Promise.allSettled([api.myLand(), api.paymentsSummary(), api.notifications()]).then((results) => {
+      if (!active) return;
+      if (results[0].status === "fulfilled") setLands(arrayOf(results[0].value).filter((item) => !isLegacyMockUiRecord(item)));
+      if (results[1].status === "fulfilled") setSummary(results[1].value || {});
+      if (results[2].status === "fulfilled") setNotifications(arrayOf(results[2].value).filter((item) => !isLegacyMockUiRecord(item)).slice(0, 4));
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isAuthed]);
+
+  if (!isAuthed) {
+    return <CustomerProtectedMessage title="Customer sign in required" body="Sign in with your phone number to view owned properties, payment progress, and land records." />;
+  }
+
+  const completedCount = lands.filter((land) => land?.purchase_complete).length;
+  const nextDueCount = lands.filter((land) => land?.next_due && String(land?.next_due?.status || "").toLowerCase() !== "paid").length;
+
+  return (
+    <AccountShell label="My Land" title="My Land" body="Your owned and under-purchase Siripuram Gardens records, payment progress, and next actions in one place.">
+      <div className="account-section-head">
+        <div>
+          <span className="section-label">Ownership overview</span>
+          <h2>Land records and purchase progress</h2>
+        </div>
+        <p>Open the layout, check visit planning, review registration progress, and continue payments without switching flows.</p>
+      </div>
+      <div className="metrics-grid">
+        <MetricCard label="My properties" value={lands.length} />
+        <MetricCard label="Completed purchases" value={completedCount} />
+        <MetricCard label="Upcoming dues" value={nextDueCount} />
+      </div>
+
+      {loading ? (
+        <section className="surface-card surface-card-soft">
+          <EmptyState title="Loading your land records" body="Owned property details and payment progress are being prepared." />
+        </section>
+      ) : null}
+
+      {!loading && !lands.length ? (
+        <section className="surface-card surface-card-soft">
+          <EmptyState title="No booked properties yet" body="Once a Siripuram Gardens booking is confirmed, your land records, payments, and support actions will appear here." />
+          <div className="myland-empty-actions">
+            <Link className="btn-primary" to="/home#properties">Explore properties</Link>
+            <Link className="btn-secondary" to="/visits">Site visits</Link>
+            <Link className="btn-secondary" to="/services">Support</Link>
+          </div>
+        </section>
+      ) : null}
+
+      {!loading ? (
+        <div className="myland-grid">
+          {lands.map((land, index) => {
+            const propertyName = firstString(land?.property?.name, land?.property_name, "Siripuram Gardens");
+            const propertyLocation = firstString(land?.property?.location, land?.location, "Achutapuram, Visakhapatnam");
+            const propertyId = firstString(land?.property?.id, land?.property_id, "prop-1");
+            const progressPercent = Math.max(0, Math.min(100, Math.round(Number(land?.payment_progress || 0) * 100)));
+            const ownershipState = land?.purchase_complete ? "Purchase completed" : progressPercent > 0 ? "Purchase in progress" : "Booking confirmed";
+            return (
+              <article className="myland-card surface-card surface-card-soft" key={land?.id || index}>
+                <div className="myland-card-hero">
+                  <div>
+                    <span className="section-label">My land</span>
+                    <h3>{propertyName}</h3>
+                    <p>{propertyLocation}</p>
+                  </div>
+                  <span className={cn("myland-complete-badge", land?.purchase_complete && "is-complete")}>
+                    {land?.purchase_complete ? "Purchase completed" : "In progress"}
+                  </span>
+                </div>
+
+                <div className="myland-asset-meta">
+                  <div className="myland-meta-tile">
+                    <span className="myland-meta-icon"><UtilityGlyph type="layout" /></span>
+                    <div>
+                      <small>{land?.unit_type === "villa" ? "Villa no." : "Plot no."}</small>
+                      <strong>{firstString(land?.plot_number, land?.flat_number, land?.id, "Unit")}</strong>
+                    </div>
+                  </div>
+                  <div className="myland-meta-tile">
+                    <span className="myland-meta-icon"><UtilityGlyph type="size" /></span>
+                    <div>
+                      <small>Size</small>
+                      <strong>{firstString(land?.size, "On request")}</strong>
+                    </div>
+                  </div>
+                  <div className="myland-meta-tile">
+                    <span className="myland-meta-icon"><UtilityGlyph type="facing" /></span>
+                    <div>
+                      <small>Facing</small>
+                      <strong>{firstString(land?.facing, "On request")}</strong>
+                    </div>
+                  </div>
+                  <div className="myland-meta-tile">
+                    <span className="myland-meta-icon"><UtilityGlyph type="survey" /></span>
+                    <div>
+                      <small>Survey</small>
+                      <strong>{firstString(land?.survey_number, "Property record")}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="myland-ownership-banner">
+                  <span className="myland-ownership-icon"><UtilityGlyph type="timeline" /></span>
+                  <div>
+                    <strong>{ownershipState}</strong>
+                    <span>{land?.purchase_complete ? "Registration and possession can be tracked from this account." : "Payments and ownership milestones stay linked to this unit."}</span>
+                  </div>
+                  <div className="myland-ownership-price">
+                    <small>Property value</small>
+                    <strong>{formatCurrency(land?.price || land?.total_amount)}</strong>
+                  </div>
+                </div>
+
+                <div className="myland-action-grid">
+                  <Link className="myland-action-button" to={`/layout/${propertyId}`}>
+                    <span className="myland-action-icon"><UtilityGlyph type="layout" /></span>
+                    <strong>Open layout</strong>
+                  </Link>
+                  <a className="myland-action-button" href={`https://maps.google.com/?q=${encodeURIComponent(propertyLocation)}`} target="_blank" rel="noreferrer">
+                    <span className="myland-action-icon"><UtilityGlyph type="directions" /></span>
+                    <strong>Directions</strong>
+                  </a>
+                  <Link className="myland-action-button" to={`/centre/${propertyId}`}>
+                    <span className="myland-action-icon"><UtilityGlyph type="visit" /></span>
+                    <strong>Site visit</strong>
+                  </Link>
+                  <Link className="myland-action-button" to="/services">
+                    <span className="myland-action-icon"><UtilityGlyph type="support" /></span>
+                    <strong>Support</strong>
+                  </Link>
+                </div>
+
+                <div className="myland-payment-panel">
+                  <div className="myland-payment-head">
+                    <div>
+                      <span className="section-label">Payment summary</span>
+                      <h4>Current progress</h4>
+                    </div>
+                    <Link className="text-link" to="/payments">History</Link>
+                  </div>
+                  <div className="myland-payment-grid">
+                    <div>
+                      <span>Paid</span>
+                      <strong>{formatCurrency(land?.paid_amount)}</strong>
+                    </div>
+                    <div>
+                      <span>Balance</span>
+                      <strong>{formatCurrency(land?.balance_amount)}</strong>
+                    </div>
+                    <div>
+                      <span>Status</span>
+                      <strong>{progressPercent >= 100 ? "Fully paid" : `${progressPercent}% paid`}</strong>
+                    </div>
+                  </div>
+                  <div className="myland-progress-bar">
+                    <span style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  {land?.next_due ? (
+                    <p className="myland-next-due">Next due: {formatCurrency(land?.next_due?.amount)} on {formatDate(land?.next_due?.due_date)}</p>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+
+          <aside className="myland-side-stack">
+            <section className="surface-card surface-card-green">
+              <span className="section-label">Account totals</span>
+              <h3>Payment desk</h3>
+              <div className="myland-side-metrics">
+                <div>
+                  <span>Total paid</span>
+                  <strong>{formatCurrency(summary?.total_paid || summary?.paid)}</strong>
+                </div>
+                <div>
+                  <span>Outstanding</span>
+                  <strong>{formatCurrency(summary?.outstanding || summary?.balance)}</strong>
+                </div>
+              </div>
+              <Link className="btn-primary btn-block" to="/payments">Open payments</Link>
+            </section>
+            <section className="surface-card surface-card-soft">
+              <span className="section-label">Recent updates</span>
+              <h3>Notifications</h3>
+              {notifications.length ? (
+                <div className="list-stack">
+                  {notifications.map((item, index) => (
+                    <article className="list-item" key={item?.id || item?._id || index}>
+                      <div>
+                        <h3>{firstString(item?.title, item?.name, "Update")}</h3>
+                        <p>{firstString(item?.body, item?.message, "Notification details")}</p>
+                      </div>
+                      <StatusPill status={item?.status || (item?.read ? "Read" : "Unread")} />
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No updates yet" body="Visit, payment, and booking updates will appear here for your owned properties." />
+              )}
+            </section>
+          </aside>
+        </div>
+      ) : null}
+    </AccountShell>
   );
 }
 
@@ -3316,22 +3779,37 @@ function CustomerProtectedMessage({ title, body }: { title: string; body: string
   const navigate = useNavigate();
 
   return (
-    <section className="page-section">
-      <div className="container narrow-page">
-        <div className="surface-card">
-          <button
-            type="button"
-            className="page-back-button"
-            onClick={() => {
-              if (window.history.length > 1) navigate(-1);
-              else navigate(HOME_PATH);
-            }}
-          >
-            ← Go Back
-          </button>
-          <span className="section-label">Customer access</span>
-          <h1>{title}</h1>
-          <p>{body}</p>
+    <section className="page-section protected-page">
+      <div className="container narrow-page protected-page-wrap">
+        <div className="surface-card protected-card">
+          <div className="page-top-actions protected-top-actions">
+            <button
+              type="button"
+              className="page-back-button"
+              onClick={() => {
+                if (window.history.length > 1) navigate(-1);
+                else navigate(HOME_PATH);
+              }}
+            >
+              <span>Go Back</span>
+            </button>
+            <Link className="page-home-link" to={HOME_PATH}>
+              Home
+            </Link>
+          </div>
+          <div className="protected-copy">
+            <span className="section-label">Customer access</span>
+            <h1>{title}</h1>
+            <p>{body}</p>
+          </div>
+          <div className="protected-actions">
+            <Link className="btn-primary" to="/login">
+              Sign in
+            </Link>
+            <Link className="btn-secondary" to={`${HOME_PATH}#properties`}>
+              Explore properties
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -3576,21 +4054,7 @@ function AppRoutes() {
         path="/myland"
         element={
           <AppFrame openModal={handleModal} openProfile={() => setDrawerOpen(true)} drawerOpen={drawerOpen} closeProfile={() => setDrawerOpen(false)} forcedModal={forcedModal}>
-            <CollectionPage
-              title="My land"
-              subtitle="Ownership-linked Siripuram Gardens records."
-              loader={api.myLand}
-              requiresAuth
-              renderItem={(item, index) => (
-                <article className="list-item" key={item?.id || item?._id || index}>
-                  <div>
-                    <h3>{firstString(item?.property_name, item?.title, "Owned asset")}</h3>
-                    <p>{firstString(item?.plot_label, item?.location, "Customer land record")}</p>
-                  </div>
-                  <StatusPill status={item?.status || "Active"} />
-                </article>
-              )}
-            />
+            <MyLandPage />
           </AppFrame>
         }
       />
@@ -3906,4 +4370,7 @@ export function App() {
     </BrowserRouter>
   );
 }
+
+
+
 
