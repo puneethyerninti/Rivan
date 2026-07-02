@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && node scripts/build-web.mjs",
+    "build:web": "npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
