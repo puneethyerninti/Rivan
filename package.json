@@ -6,7 +6,8 @@
     "start": "node scripts/dev.js",
     "backend": "node scripts/dev.js --backend-only",
     "frontend": "npm --prefix frontend run start -- --lan -c",
-    "build:web": "npm --prefix frontend run build:web",
+    "build": "npm --prefix frontend run build",
+    "build:web": "npm --prefix frontend run build",
     "web": "npm --prefix frontend run web",
     "lint": "npm --prefix frontend run lint"
   },
