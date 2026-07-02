@@ -77,6 +77,7 @@ export async function apiRequest<T = any>(path: string, opts: RequestOptions = {
 
   const response = await fetch(url, {
     method,
+    credentials: "include",
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });

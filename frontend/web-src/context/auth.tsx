@@ -64,21 +64,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   async function loadFromServer() {
+    const token = await getToken();
+    const refreshToken = await getRefreshToken();
+    const cached = storage.get(USER_CACHE_KEY);
     try {
-      const token = await getToken();
-      if (!token) {
-        storage.remove(USER_CACHE_KEY);
-        setUser(null);
-        return;
-      }
-
-      const cached = storage.get(USER_CACHE_KEY);
       if (cached) {
         try {
           setUser(normalizeUser(JSON.parse(cached)));
         } catch {
           storage.remove(USER_CACHE_KEY);
         }
+      }
+
+      if (!token && !refreshToken && !cached) {
+        storage.remove(USER_CACHE_KEY);
+        setUser(null);
+        return;
       }
 
       const nextUser = normalizeUser((await api.me()) as UserRecord);

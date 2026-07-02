@@ -38,6 +38,7 @@ const firebaseApp = hasFirebaseConfig
   : null;
 
 let authInstance: Auth | null = null;
+const recaptchaVerifiers = new Map<string, RecaptchaVerifier>();
 
 export async function getFirebaseAuth() {
   if (!firebaseApp || !hasFirebaseConfig) {
@@ -50,11 +51,15 @@ export async function getFirebaseAuth() {
 }
 
 export async function createRecaptchaVerifier(containerId: string, normal = false) {
+  const existing = recaptchaVerifiers.get(containerId);
+  if (existing) return existing;
   const auth = await getFirebaseAuth();
   auth.languageCode = "en";
-  return new RecaptchaVerifier(auth, containerId, {
+  const verifier = new RecaptchaVerifier(auth, containerId, {
     size: normal ? "normal" : "invisible",
   });
+  recaptchaVerifiers.set(containerId, verifier);
+  return verifier;
 }
 
 export { GoogleAuthProvider, signInWithPhoneNumber, signInWithPopup };

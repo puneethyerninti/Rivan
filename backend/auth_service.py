@@ -43,6 +43,7 @@ def build_http_session() -> requests.Session:
 
 
 http_session = build_http_session()
+firebase_jwk_clients: dict[str, PyJWKClient] = {}
 
 
 def now_utc() -> datetime:
@@ -182,7 +183,10 @@ def verify_firebase_id_token(id_token: str, project_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Firebase project is not configured")
 
     issuer = f"https://securetoken.google.com/{project_id}"
-    jwk_client = PyJWKClient("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+    jwk_client = firebase_jwk_clients.get(project_id)
+    if jwk_client is None:
+        jwk_client = PyJWKClient("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
+        firebase_jwk_clients[project_id] = jwk_client
     try:
         signing_key = jwk_client.get_signing_key_from_jwt(id_token)
         payload = pyjwt.decode(
