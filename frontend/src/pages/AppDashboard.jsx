@@ -184,7 +184,7 @@ export default function AppDashboard() {
     textColor: extra.textColor || '#16231a',
     badge: !!extra.badge,
     badgeText: extra.badge || '',
-    go: goName ? () => go(goName) : () => {},
+    go: typeof goName === 'function' ? goName : (goName ? () => go(goName) : () => {}),
   });
   const profileMenuRaw = [
     pm('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5 20c0-3.5 3-6 7-6s7 2.5 7 6', 'Personal Details', 'personal'),
