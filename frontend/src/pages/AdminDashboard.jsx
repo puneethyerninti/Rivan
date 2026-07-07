@@ -45,6 +45,8 @@ export default function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminAudit, setAdminAudit] = useState([]);
   const [adminProperties, setAdminProperties] = useState([]);
+  const [adminBookings, setAdminBookings] = useState([]);
+  const [adminAgents, setAdminAgents] = useState([]);
 
   const [profileForm, setProfileForm] = useState({
     name: user.name || user.full_name || '',
@@ -79,17 +81,21 @@ export default function AdminDashboard() {
         if (!session?.access_token) return;
         
         // Parallel fetching
-        const [statsData, usersData, auditData, propsData] = await Promise.all([
+        const [statsData, usersData, auditData, propsData, bookingsData, agentsData] = await Promise.all([
           getJson('/api/admin/stats', session.access_token).catch(() => null),
           getJson('/api/admin/users', session.access_token).catch(() => []),
           getJson('/api/admin/audit-logs', session.access_token).catch(() => []),
           getJson('/api/admin/properties', session.access_token).catch(() => []),
+          getJson('/api/admin/bookings', session.access_token).catch(() => []),
+          getJson('/api/admin/agents', session.access_token).catch(() => []),
         ]);
         
         setAdminStats(statsData);
         setAdminUsers(usersData);
         setAdminAudit(auditData);
         setAdminProperties(propsData);
+        setAdminBookings(bookingsData);
+        setAdminAgents(agentsData);
         
       } catch (err) {
         console.error("Admin fetch error", err);
@@ -98,10 +104,27 @@ export default function AdminDashboard() {
     fetchData();
   }, [session]);
 
+  const pendingAgents = (adminAgents || []).filter(a => a.approval_status === 'pending');
+  const pendingAgentsCount = pendingAgents.length;
 
+  const handleApproveAgent = async (agentId, isApprove) => {
+    try {
+      const endpoint = isApprove ? `/api/admin/agents/${agentId}/approve` : `/api/admin/agents/${agentId}/status`;
+      const payload = isApprove ? {} : { status: 'rejected' };
+      const res = await putJson(endpoint, payload, session.access_token);
+      
+      alert(`Agent ${isApprove ? 'approved' : 'rejected'} successfully`);
+      const newData = await getJson('/api/admin/agents', session.access_token);
+      setAdminAgents(newData);
+    } catch (e) {
+      console.error(e);
+      alert('Error updating agent status');
+    }
+  };
 
   const NAV = [
     ['dashboard', 'Dashboard', 'M3 13h8V3H3zM13 21h8V3h-8zM3 21h8v-6H3z', 0],
+    ['approvals', 'Agent Approvals', 'M9 11l3 3L22 4', pendingAgentsCount],
     ['users', 'Users Management', 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M11 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6', 0],
     ['leads', 'Leads Management', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6', 0],
     ['properties', 'Properties', 'M6 21V4h9v17M9 8h3M9 12h3M9 16h3M6 21h13', 0],
@@ -125,7 +148,8 @@ export default function AdminDashboard() {
   }));
 
   const TITLES = {
-    dashboard: ['Admin Dashboard', 'Platform-wide overview and controls'],
+    dashboard: ['Dashboard Overview', 'Here is what\'s happening with your projects today'],
+    approvals: ['Agent Approvals', 'Review and approve new agent applications'],
     users: ['Users Management', 'Agents, sub agents and customers'],
     leads: ['Leads Management', 'All incoming leads across the platform'],
     properties: ['Properties', 'Projects, plots and inventory'],
@@ -192,10 +216,10 @@ export default function AdminDashboard() {
   ];
 
   const adminStatsData = [
-    { label: 'Total Customers', value: '2,456' }, { label: 'Total Agents', value: '186' }, { label: 'Total Sub Agents', value: '450' }, { label: 'Total Properties', value: '6,542' }, { label: 'Total Revenue', value: '₹45.67 Cr' },
+    { label: 'Total Users', value: adminStats?.users || 0 }, { label: 'Total Agents', value: adminAgents?.length || 0 }, { label: 'Total Bookings', value: adminStats?.bookings || 0 }, { label: 'Properties', value: adminStats?.properties || 0 }, { label: 'Site Visits', value: adminStats?.visits || 0 },
   ];
   const bd = (arr) => arr.map((x, i) => ({ label: x[0], value: x[1], border: i === arr.length - 1 ? 'none' : '1px solid #eef3ec' }));
-  const personalInfo = bd([['Full Name', adminName], ['Employee ID', 'RVN-ADM-001'], ['Designation', 'Super Admin'], ['Email', user.email || 'admin@rivanrealty.com'], ['Mobile', user.phone ? '+91 ' + user.phone : '+91 90000 12345'], ['Office Location', 'Head Office, Vizag'], ['Department', 'Administration'], ['Date Joined', '01 Jan 2022']]);
+  const personalInfo = bd([['Full Name', adminName], ['Employee ID', 'RVN-ADM-001'], ['Designation', 'Super Admin'], ['Email', user.email || 'admin@rivanrealty.com'], ['Mobile', user.phone || '+91 90000 12345'], ['Office Location', 'Head Office, Vizag'], ['Department', 'Administration'], ['Date Joined', '01 Jan 2022']]);
   const companyInfo = bd([['Company Name', 'Rivan Reality Pvt Ltd'], ['Registered Address', 'MVP Colony, Visakhapatnam'], ['GST Number', '37ABCDE1234F1Z5'], ['RERA Number', 'PRM/AP/2021/000842'], ['Website', 'www.rivanrealty.com'], ['Support Email', 'support@rivanrealty.com'], ['Support Phone', '+91 40 4000 1234']]);
 
   const roles = ['Super Admin', 'Admin', 'Finance Admin', 'Operations Admin', 'Marketing Admin'].map((r, i) => ({
@@ -268,73 +292,34 @@ export default function AdminDashboard() {
 
   const cC = (v, strong) => ({ v, style: strong ? { fontSize: '13px', fontWeight: '700', color: '#16231a' } : { fontSize: '13px', color: '#3d4f40' } });
   const cM = (v) => ({ v, style: { fontSize: '13px', fontWeight: '800', color: '#1a5e2e' } });
-  const cP = (v, t) => ({ v, style: { ...pill(v, t), display: 'inline-block' } });
+  const cP =  const usersRows = (adminUsers || []).map(u => [
+    cC(u.name || u.full_name || 'N/A', 1),
+    cC(u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'User'),
+    cC(u.email || 'N/A'),
+    cC(u.phone ? `+91 ${u.phone.replace('+91', '').trim()}` : 'N/A'),
+    cP(u.status === 'active' ? 'Active' : u.status === 'suspended' ? 'Suspended' : 'Pending KYC', u.status === 'active' ? 'success' : 'warn'),
+    cC(u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A')
+  ]);
+  
+  const bookingsRows = (adminBookings || []).map(b => [
+    cM(b.booking_id || b.id || 'N/A'),
+    cC(b.customer_name || 'N/A', 1),
+    cC(b.project_name || 'N/A'),
+    cC(b.plot_number || b.plot_id || 'N/A'),
+    cC(b.amount ? `₹${b.amount}` : 'N/A', 1),
+    cP(b.status === 'confirmed' ? 'Confirmed' : b.status === 'pending' ? 'Pending' : 'Cancelled', b.status === 'confirmed' ? 'success' : b.status === 'pending' ? 'warn' : 'danger')
+  ]);
+
   const TABLES = {
-    users: { title: 'All Users', cols: ['Name', 'Role', 'Email', 'Phone', 'Status', 'Joined'], rows: [
-      [cC('Ananya Sharma', 1), cC('Agent'), cC('ananya@rivan.com'), cC('+91 98765 43210'), cP('Active', 'success'), cC('12 Jan 2023')],
-      [cC('Karthik R', 1), cC('Sub Agent'), cC('karthik@rivan.com'), cC('+91 90123 45678'), cP('Active', 'success'), cC('04 Mar 2023')],
-      [cC('Rohan Verma', 1), cC('Customer'), cC('rohan.verma@gmail.com'), cC('+91 98765 43210'), cP('Active', 'success'), cC('18 May 2025')],
-      [cC('Vikram Reddy', 1), cC('Agent'), cC('vikram@rivan.com'), cC('+91 99887 66554'), cP('Active', 'success'), cC('22 Aug 2022')],
-      [cC('Anita Sharma', 1), cC('Customer'), cC('anita.sharma@gmail.com'), cC('+91 91234 56789'), cP('Pending KYC', 'warn'), cC('20 May 2025')],
-      [cC('Divya S', 1), cC('Sub Agent'), cC('divya@rivan.com'), cC('+91 90000 22222'), cP('Inactive', 'danger'), cC('11 Feb 2024')],
-    ]},
-    leads: { title: 'All Leads', cols: ['Name', 'Source', 'Project', 'Assigned To', 'Status', 'Date'], rows: [
-      [cC('Vijay Kumar', 1), cC('Website'), cC('Emerald Estate'), cC('Ananya Sharma'), cP('New', 'info'), cC('22 May 2025')],
-      [cC('Meera Iyer', 1), cC('Referral'), cC('Green City Enclave'), cC('Karthik R'), cP('Contacted', 'warn'), cC('22 May 2025')],
-      [cC('Sanjay Gupta', 1), cC('Social Media'), cC('Sunrise Valley'), cC('Vikram Reddy'), cP('Site Visit', 'info'), cC('21 May 2025')],
-      [cC('Latha Rao', 1), cC('Walk-in'), cC('Emerald Heights'), cC('Priya N'), cP('Booked', 'success'), cC('20 May 2025')],
-      [cC('Imran Khan', 1), cC('Website'), cC('Green Valley Farms'), cC('Manoj T'), cP('New', 'info'), cC('20 May 2025')],
-      [cC('Deepa Nair', 1), cC('Referral'), cC('Palm Grove'), cC('Ananya Sharma'), cP('Contacted', 'warn'), cC('19 May 2025')],
-    ]},
-    bookings: { title: 'All Bookings', cols: ['Booking #', 'Customer', 'Project', 'Plot', 'Amount', 'Status'], rows: [
-      [cM('RVN-0118'), cC('Rohan Verma', 1), cC('Emerald Estate'), cC('A-120'), cC('₹18,00,000', 1), cP('Confirmed', 'success')],
-      [cM('RVN-0117'), cC('Anita Sharma', 1), cC('Green City Enclave'), cC('B-45'), cC('₹12,50,000', 1), cP('Pending', 'warn')],
-      [cM('RVN-0116'), cC('Neha Patel', 1), cC('Emerald Heights'), cC('C-23'), cC('₹9,80,000', 1), cP('Confirmed', 'success')],
-      [cM('RVN-0115'), cC('Arjun Mehta', 1), cC('Green Valley Farms'), cC('F-08'), cC('₹7,20,000', 1), cP('Confirmed', 'success')],
-      [cM('RVN-0114'), cC('Vikram Reddy', 1), cC('Sunrise Valley'), cC('C-23'), cC('₹22,40,000', 1), cP('Pending', 'warn')],
-      [cM('RVN-0113'), cC('Priya Nair', 1), cC('Palm Grove'), cC('A-088'), cC('₹19,60,000', 1), cP('Confirmed', 'success')],
-    ]},
-    sitevisits: { title: 'All Site Visits', cols: ['Customer', 'Project', 'Plot', 'Date & Time', 'Agent', 'Status'], rows: [
-      [cC('Rohan Verma', 1), cC('Emerald Estate'), cC('A-120'), cC('23 May, 10:00 AM'), cC('Ananya Sharma'), cP('Pending', 'warn')],
-      [cC('Anita Sharma', 1), cC('Green City Enclave'), cC('B-45'), cC('23 May, 02:00 PM'), cC('Karthik R'), cP('Confirmed', 'success')],
-      [cC('Vikram Reddy', 1), cC('Sunrise Valley'), cC('C-23'), cC('24 May, 11:00 AM'), cC('Priya N'), cP('Pending', 'warn')],
-      [cC('Neha Patel', 1), cC('Emerald Heights'), cC('D-12'), cC('24 May, 04:00 PM'), cC('Manoj T'), cP('Confirmed', 'success')],
-      [cC('Arjun Mehta', 1), cC('Green Valley Farms'), cC('F-08'), cC('25 May, 10:30 AM'), cC('Divya S'), cP('Completed', 'info')],
-    ]},
-    payments: { title: 'Payments', cols: ['Customer', 'Project', 'Amount', 'Due Date', 'Method', 'Status'], rows: [
-      [cC('Rohan Verma', 1), cC('Emerald Estate'), cC('₹4,50,000', 1), cC('28 May 2025'), cC('Bank Transfer'), cP('Pending', 'warn')],
-      [cC('Anita Sharma', 1), cC('Green City Enclave'), cC('₹2,80,000', 1), cC('24 May 2025'), cC('UPI'), cP('Overdue', 'danger')],
-      [cC('Neha Patel', 1), cC('Emerald Heights'), cC('₹6,00,000', 1), cC('01 Jun 2025'), cC('Cheque'), cP('Paid', 'success')],
-      [cC('Arjun Mehta', 1), cC('Green Valley Farms'), cC('₹1,90,000', 1), cC('30 May 2025'), cC('UPI'), cP('Pending', 'warn')],
-      [cC('Vikram Reddy', 1), cC('Sunrise Valley'), cC('₹5,60,000', 1), cC('22 May 2025'), cC('Bank Transfer'), cP('Overdue', 'danger')],
-    ]},
-    commission: { title: 'Agent Commission', cols: ['Agent', 'Bookings', 'Sales', 'Commission', 'Payout', 'Status'], rows: [
-      [cC('Ananya Sharma', 1), cC('5'), cC('₹2.45 Cr'), cM('₹24,56,000'), cC('01 Jun 2025'), cP('Paid', 'success')],
-      [cC('Vikram Reddy', 1), cC('4'), cC('₹1.89 Cr'), cM('₹18,90,000'), cC('01 Jun 2025'), cP('Paid', 'success')],
-      [cC('Karthik R', 1), cC('5'), cC('₹56 L'), cM('₹2,80,000'), cC('01 Jun 2025'), cP('Pending', 'warn')],
-      [cC('Priya N', 1), cC('3'), cC('₹32.5 L'), cM('₹1,62,500'), cC('01 Jun 2025'), cP('Pending', 'warn')],
-      [cC('Manoj T', 1), cC('2'), cC('₹21 L'), cM('₹1,05,000'), cC('01 Jun 2025'), cP('Processing', 'info')],
-    ]},
-    reports: { title: 'Generated Reports', cols: ['Report', 'Period', 'Generated By', 'Format', 'Date'], rows: [
-      [cC('Leads Report', 1), cC('May 2025'), cC(adminName), cP('PDF', 'danger'), cC('22 May 2025')],
-      [cC('Sales Report', 1), cC('Q2 2025'), cC('Finance Admin'), cP('XLSX', 'success'), cC('21 May 2025')],
-      [cC('Site Visit Report', 1), cC('May 2025'), cC(adminName), cP('PDF', 'danger'), cC('20 May 2025')],
-      [cC('Commission Report', 1), cC('Apr 2025'), cC('Finance Admin'), cP('XLSX', 'success'), cC('01 May 2025')],
-      [cC('Revenue Report', 1), cC('FY 2024-25'), cC('Super Admin'), cP('PDF', 'danger'), cC('12 Apr 2025')],
-    ]},
-    marketing: { title: 'Campaigns & Offers', cols: ['Campaign', 'Channel', 'Reach', 'Leads', 'Status', 'Date'], rows: [
-      [cC('Summer Plot Fest', 1), cC('WhatsApp'), cC('12,400'), cM('340'), cP('Active', 'success'), cC('22 May 2025')],
-      [cC('Emerald Estate Launch', 1), cC('Instagram'), cC('45,000'), cM('890'), cP('Active', 'success'), cC('18 May 2025')],
-      [cC('Referral Bonus', 1), cC('Email'), cC('8,200'), cM('120'), cP('Scheduled', 'info'), cC('25 May 2025')],
-      [cC('Diwali Offer 2024', 1), cC('Facebook'), cC('62,000'), cM('1,240'), cP('Ended', 'danger'), cC('30 Oct 2024')],
-    ]},
-    content: { title: 'Content Management', cols: ['Title', 'Type', 'Section', 'Updated By', 'Status'], rows: [
-      [cC('Home Banner — Monsoon', 1), cC('Banner'), cC('App Home'), cC(adminName), cP('Published', 'success')],
-      [cC('Emerald Estate Brochure', 1), cC('PDF'), cC('Projects'), cC('Marketing Admin'), cP('Published', 'success')],
-      [cC('About Rivan Reality', 1), cC('Page'), cC('Website'), cC(adminName), cP('Draft', 'warn')],
-      [cC('Terms & Conditions', 1), cC('Page'), cC('Legal'), cC('Super Admin'), cP('Published', 'success')],
-      [cC('FAQ — Payments', 1), cC('Article'), cC('Support'), cC('Ops Admin'), cP('Review', 'info')],
-    ]},
+    users: { title: 'All Users', cols: ['Name', 'Role', 'Email', 'Phone', 'Status', 'Joined'], rows: usersRows },
+    leads: { title: 'All Leads', cols: ['Name', 'Source', 'Project', 'Assigned To', 'Status', 'Date'], rows: [] },
+    bookings: { title: 'All Bookings', cols: ['Booking #', 'Customer', 'Project', 'Plot', 'Amount', 'Status'], rows: bookingsRows },
+    sitevisits: { title: 'All Site Visits', cols: ['Customer', 'Project', 'Plot', 'Date & Time', 'Agent', 'Status'], rows: [] },
+    payments: { title: 'Payments', cols: ['Customer', 'Project', 'Amount', 'Due Date', 'Method', 'Status'], rows: [] },
+    commission: { title: 'Agent Commission', cols: ['Agent', 'Bookings', 'Sales', 'Commission', 'Payout', 'Status'], rows: [] },
+    reports: { title: 'Generated Reports', cols: ['Report', 'Period', 'Generated By', 'Format', 'Date'], rows: [] },
+    marketing: { title: 'Campaigns & Offers', cols: ['Campaign', 'Channel', 'Reach', 'Leads', 'Status', 'Date'], rows: [] },
+    content: { title: 'Content Management', cols: ['Title', 'Type', 'Section', 'Updated By', 'Status'], rows: [] },
     audit: { title: 'Audit Logs', cols: ['Date', 'Time', 'Action', 'User', 'Status'], rows: adminAudit.slice(0, 50).map(a => {
       const d = new Date(a.created_at || Date.now());
       return [
@@ -378,8 +363,9 @@ export default function AdminDashboard() {
   const isDashboard = page === 'dashboard';
   const isProfile = page === 'profile';
   const isProperties = page === 'properties';
+  const isApprovals = page === 'approvals';
   const isTable = !!tableCfg;
-  const isGeneric = page !== 'dashboard' && page !== 'profile' && page !== 'properties' && !tableCfg;
+  const isGeneric = page !== 'dashboard' && page !== 'profile' && page !== 'properties' && page !== 'approvals' && !tableCfg;
   const genericIcon = GEN[page] || 'M3 13h8V3H3z';
   const tableTitle = tableCfg ? tableCfg.title : '';
   const tableCols = tableCfg ? tableCfg.cols : [];
@@ -602,6 +588,49 @@ export default function AdminDashboard() {
       </div>
       )}
 
+      {/* ============ AGENT APPROVALS ============ */}
+      {isApprovals && (
+        <div className="ad-fade" style={{'display': 'flex', 'flexDirection': 'column', 'gap': '20px'}}>
+          <div style={{'background': '#fff', 'border': '1px solid #e7ede3', 'borderRadius': '18px', 'padding': '22px', 'boxShadow': '0 14px 34px -28px rgba(18,53,29,.55)'}}>
+            <h2 style={{'margin': '0 0 20px', 'fontSize': '17px', 'fontWeight': '800', 'color': '#12351d'}}>Pending Agent Approvals</h2>
+            {pendingAgents.length === 0 ? (
+              <p style={{'color': '#8a9a8c', 'fontSize': '14px', 'fontWeight': '600'}}>No pending agents for approval.</p>
+            ) : (
+              <div style={{'overflowX': 'auto'}}>
+                <table style={{'width': '100%', 'borderCollapse': 'collapse', 'minWidth': '700px'}}>
+                  <thead>
+                    <tr>
+                      {['Name', 'Email', 'Phone', 'Role', 'Status', 'Actions'].map((c, i) => (
+                        <th key={c} style={{'padding': '0 0 14px', 'textAlign': 'left', 'fontSize': '11.5px', 'fontWeight': '700', 'color': '#8a9a8c', 'textTransform': 'uppercase', 'letterSpacing': '.5px', 'borderBottom': '1px solid #eef3ec'}}>{c}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingAgents.map((a, i) => (
+                      <tr key={a.id} style={{'borderBottom': i === pendingAgents.length - 1 ? 'none' : '1px solid #eef3ec'}}>
+                        <td style={{'padding': '14px 0', 'fontSize': '13px', 'fontWeight': '700', 'color': '#16231a'}}>{a.name || a.full_name || 'N/A'}</td>
+                        <td style={{'padding': '14px 0', 'fontSize': '13px', 'color': '#3d4f40'}}>{a.email || 'N/A'}</td>
+                        <td style={{'padding': '14px 0', 'fontSize': '13px', 'color': '#3d4f40'}}>{a.phone || 'N/A'}</td>
+                        <td style={{'padding': '14px 0', 'fontSize': '13px', 'color': '#3d4f40', 'textTransform': 'capitalize'}}>{a.role || 'Agent'}</td>
+                        <td style={{'padding': '14px 0'}}>
+                           <span style={{'display': 'inline-block', 'padding': '4px 10px', 'borderRadius': '12px', 'fontSize': '11.5px', 'fontWeight': '700', 'background': '#fdf3e8', 'color': '#c2711f'}}>Pending</span>
+                        </td>
+                        <td style={{'padding': '14px 0'}}>
+                          <div style={{display: 'flex', gap: '8px'}}>
+                            <button onClick={() => handleApproveAgent(a.id, true)} style={{'padding': '6px 12px', 'background': '#e6f4ea', 'color': '#1a8a4a', 'border': 'none', 'borderRadius': '6px', 'fontWeight': '700', 'cursor': 'pointer', 'fontSize': '12px'}}>Approve</button>
+                            <button onClick={() => handleApproveAgent(a.id, false)} style={{'padding': '6px 12px', 'background': '#fdeaea', 'color': '#c93b3b', 'border': 'none', 'borderRadius': '6px', 'fontWeight': '700', 'cursor': 'pointer', 'fontSize': '12px'}}>Reject</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ============ ADMIN PROFILE ============ */}
       {isProfile && (
       <div className="ad-fade" style={{'display': 'flex', 'flexDirection': 'column', 'gap': '18px', 'maxWidth': '1400px'}}>
@@ -644,7 +673,7 @@ export default function AdminDashboard() {
               </div>
               <div style={{display: 'flex', justifyContent: 'space-between', gap: '12px', borderTop: '1px solid #e7ede3', paddingTop: '10px'}}>
                 <span style={{'fontSize': '12px', 'fontWeight': '600', 'color': '#8a9a8c'}}>Mobile</span>
-                <span style={{'fontSize': '12.5px', 'fontWeight': '700', 'color': '#16231a', 'textAlign': 'right'}}>{user.phone ? '+91 ' + user.phone : '+91 9491348973'}</span>
+                <span style={{'fontSize': '12.5px', 'fontWeight': '700', 'color': '#16231a', 'textAlign': 'right'}}>{user.phone || '+91 9491348973'}</span>
               </div>
               <div style={{display: 'flex', justifyContent: 'space-between', gap: '12px'}}>
                 <span style={{'fontSize': '12px', 'fontWeight': '600', 'color': '#8a9a8c'}}>Employee ID</span>
