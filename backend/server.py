@@ -779,7 +779,7 @@ def ensure_local_demo_users() -> None:
             "id": "agent-pending-001",
             "name": "Sandeep Kumar",
             "email": "pendingagent@rivaan.com",
-            "phone": "+916303210224",
+            "phone": "+919999999999",
             "role": "agent",
             "age": 31,
             "aadhaar_number": "1111 2222 3333",
@@ -925,7 +925,7 @@ async def sync_demo_auth_users_to_db() -> None:
             "id": "agent-pending-001",
             "name": "Puneeth Agent Test",
             "email": "pendingagent@rivaan.com",
-            "phone": "+916303210224",
+            "phone": "+919999999999",
             "role": "agent",
             "age": 31,
             "aadhaar_number": "1111 2222 3333",
@@ -6823,7 +6823,7 @@ async def seed_data():
 
     await db.users.insert_one({
         "id": "agent-pending-001",
-        "phone": "+916303210224",
+        "phone": "+919999999999",
         "name": "Puneeth Agent Test",
         "email": "pendingagent@rivaan.com",
         "address": "Kukatpally, Hyderabad",
