@@ -25,6 +25,18 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+function handle401(response) {
+  if (response.status === 401) {
+    clearSession();
+    // Only redirect if we're not already on the login page to avoid loops
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
+    return true;
+  }
+  return false;
+}
+
 export async function postJson(path, body, token) {
   const response = await fetch(`${getBackendUrl()}${path}`, {
     method: "POST",
@@ -35,6 +47,10 @@ export async function postJson(path, body, token) {
     credentials: "include",
     body: JSON.stringify(body),
   });
+
+  if (handle401(response)) {
+    throw new Error("Session expired");
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -52,6 +68,10 @@ export async function getJson(path, token) {
     },
     credentials: "include",
   });
+  if (handle401(response)) {
+    throw new Error("Session expired");
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail?.message || data.detail || "Request failed");
   return data;
@@ -67,6 +87,10 @@ export async function putJson(path, body, token) {
     credentials: "include",
     body: JSON.stringify(body),
   });
+  if (handle401(response)) {
+    throw new Error("Session expired");
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail?.message || data.detail || "Request failed");
   return data;
