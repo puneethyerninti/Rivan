@@ -432,7 +432,7 @@ export default function AgentDashboard() {
         <div>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
-            Live agent workspace powered by CRM, booking, visit, and notification APIs.
+            Manage your leads, visits, bookings, and customer follow-ups in one place.
           </p>
         </div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

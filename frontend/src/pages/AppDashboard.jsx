@@ -552,7 +552,7 @@ export default function AppDashboard() {
       border: idx === 0 ? 'none' : '1px solid #f0f4ee',
       track: on ? '#1a5e2e' : '#d4ddd0',
       knob: on ? '23px' : '3px',
-      toggle: () => openNotice('Backend Preference Pending', `${label} is not persisted by the current backend release yet, so it has been left unchanged instead of acting like fake local state.`),
+      toggle: () => openNotice('Preference Unavailable', `${label} will be available once this setting is connected to your live account preferences.`),
     };
   };
   const togglesArr = [
@@ -569,7 +569,7 @@ export default function AppDashboard() {
   ].map((x, idx) => ({ ...x, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
   settingLinks.forEach((item) => {
-    item.go = () => openNotice(item.label, `${item.label} is preserved for UI parity, but this release does not expose a separate backend flow for it yet.`);
+    item.go = () => openNotice(item.label, `${item.label} will be available once this section is connected to the live service.`);
   });
 
   const personalFields = [
