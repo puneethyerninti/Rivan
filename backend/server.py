@@ -3372,6 +3372,35 @@ async def resolve_primary_agent_user() -> Optional[Dict[str, Any]]:
     return await db.users.find_one({"id": PRIMARY_AGENT_USER_ID}, {"_id": 0})
 
 
+def build_primary_agent_payload(*, created_at: Optional[str] = None, updated_at: Optional[str] = None) -> Dict[str, Any]:
+    timestamp = now_utc().isoformat()
+    return {
+        "id": PRIMARY_AGENT_USER_ID,
+        "name": "Arjun Reddy",
+        "phone": PRIMARY_AGENT_PHONE,
+        "email": PRIMARY_AGENT_EMAIL,
+        "role": ROLE_AGENT,
+        "approval_status": APPROVAL_APPROVED,
+        "status": STATUS_ACTIVE,
+        "phone_verified": True,
+        "email_verified": True,
+        "auth_methods": ["phone", "agent_application"],
+        "kyc_status": "verified",
+        "agent_brand_name": "Rivan Crest Partners",
+        "address": "Visakhapatnam",
+        "age": 34,
+        "aadhaar_number": "5555 6666 7777",
+        "bank_details": "HDFC Bank · A/C XXXX1298 · IFSC HDFC0000456",
+        "manager_name": "Regional Sales Director",
+        "manager_id": None,
+        "sub_agent_ids": ["agent-sub-001"],
+        "approved_by_manager": ADMIN_DISPLAY_NAME,
+        "created_at": created_at or timestamp,
+        "updated_at": updated_at or timestamp,
+        "last_login_at": None,
+    }
+
+
 async def ensure_sirpuram_dataset() -> None:
     property_seed = build_sirpuram_property_seed()
     property_update = property_seed.copy()
@@ -3624,11 +3653,34 @@ async def agent_access_status(req: AgentAccessStatusReq, request: Request):
     phone = normalize_phone(req.phone)
     enforce_rate_limit(rate_limit_key(request, "auth_agent_status", phone), limit=20, window_seconds=300)
 
-    if await is_database_available():
-        if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+    if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+        if await is_database_available():
             user = await resolve_primary_agent_user()
-        else:
-            user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
+            if user:
+                return {
+                    "phone": user.get("phone") or PRIMARY_AGENT_PHONE,
+                    "exists": True,
+                    "role": ROLE_AGENT,
+                    "approval_status": APPROVAL_APPROVED,
+                    "can_login": True,
+                    "can_apply": False,
+                    "message": "This mobile number is approved for agent login.",
+                    "agent": clean_user(user),
+                }
+        primary_agent = build_primary_agent_payload()
+        return {
+            "phone": primary_agent["phone"],
+            "exists": True,
+            "role": ROLE_AGENT,
+            "approval_status": APPROVAL_APPROVED,
+            "can_login": True,
+            "can_apply": False,
+            "message": "This mobile number is approved for agent login.",
+            "agent": clean_user(primary_agent),
+        }
+
+    if await is_database_available():
+        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
@@ -3758,20 +3810,43 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request, respo
     if token_phone and token_phone != phone:
         raise HTTPException(status_code=401, detail="Firebase phone token does not match requested phone")
 
-    if await is_database_available():
-        if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+    if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+        if not await is_database_available():
+            raise HTTPException(status_code=503, detail="Authentication database is unavailable")
+        user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+        if not user:
+            await ensure_primary_agent_seed()
             user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
-            if not user:
-                await ensure_primary_agent_seed()
-                user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
-            if user and str(user.get("phone") or "").strip() != PRIMARY_AGENT_PHONE:
-                await db.users.update_one(
-                    {"_id": user["_id"]},
-                    {"$set": {"phone": PRIMARY_AGENT_PHONE, "updated_at": now_utc().isoformat()}},
-                )
-                user = await db.users.find_one({"_id": user["_id"]})
-        else:
-            user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+        if not user:
+            primary_agent = build_primary_agent_payload()
+            await db.users.insert_one(primary_agent)
+            user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+        if str(user.get("phone") or "").strip() != PRIMARY_AGENT_PHONE:
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"phone": PRIMARY_AGENT_PHONE, "updated_at": now_utc().isoformat()}},
+            )
+            user = await db.users.find_one({"_id": user["_id"]})
+
+        updates = {
+            "firebase_uid": payload.get("user_id") or payload.get("sub"),
+            "phone": PRIMARY_AGENT_PHONE,
+            "phone_verified": True,
+            "role": ROLE_AGENT,
+            "approval_status": APPROVAL_APPROVED,
+            "status": STATUS_ACTIVE,
+            "kyc_status": "verified",
+            "updated_at": now_utc().isoformat(),
+            "last_login_at": now_utc().isoformat(),
+            "auth_methods": auth_methods_union(user.get("auth_methods"), "phone"),
+        }
+        await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
+        refreshed = await db.users.find_one({"_id": user["_id"]}, {"_id": 0})
+        logger.info("Primary agent Firebase phone auth succeeded for user_id=%s", refreshed.get("id") if refreshed else PRIMARY_AGENT_USER_ID)
+        return await issue_token_response(refreshed, response, request, session_role="agent")
+
+    if await is_database_available():
+        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
