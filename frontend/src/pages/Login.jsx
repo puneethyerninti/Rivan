@@ -5,6 +5,7 @@ import { firebaseAuth } from "../lib/firebase";
 import { clearSession, loadSession, postJson, saveSession } from "../lib/auth";
 
 const RESEND_SECONDS = 30;
+const PRIMARY_AGENT_PHONE = "9052644345";
 const EMPTY_OTP = ["", "", "", "", "", ""];
 const EMPTY_CUSTOMER_ONBOARDING = {
   name: "",
@@ -29,6 +30,10 @@ function normalizePhone(value) {
 function formatPhoneLabel(digits) {
   if (!digits) return "+91";
   return `+91 ${digits.slice(0, 5)} ${digits.slice(5, 10)}`.trim();
+}
+
+function isPrimaryAgentPhone(digits) {
+  return normalizePhone(digits) === PRIMARY_AGENT_PHONE;
 }
 
 function startGuestBrowsing(navigate) {
@@ -175,6 +180,13 @@ export default function Login() {
         };
       }
       return { allowed: true, statusMessage: result.message };
+    }
+
+    if (isPrimaryAgentPhone(normalizedPhone)) {
+      return {
+        allowed: true,
+        statusMessage: "Continue with OTP to access your agent dashboard.",
+      };
     }
 
     const result = await postJson("/api/auth/agent/status", { phone: normalizedPhone });
@@ -676,7 +688,7 @@ export default function Login() {
 
               {role === "agent" && (
                 <p style={{ margin: "14px 0 0", fontSize: "13px", color: "#6d7d6f" }}>
-                  Approved agents can continue with OTP using the registered mobile number ending in 4345. New numbers can submit an application from here.
+                  Use your approved mobile number to continue with OTP. New agents can submit their details from here.
                 </p>
               )}
 
