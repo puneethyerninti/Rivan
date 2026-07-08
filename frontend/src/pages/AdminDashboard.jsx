@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ApiError, clearSession, getJson, getWebSocketUrl, loadSession, postJson, putJson, requestJson, saveSession } from '../lib/auth';
+import { ApiError, clearSession, getJson, getWebSocketUrl, loadSession, postJson, putJson, requestJson, saveSession, supportsLiveUpdates } from '../lib/auth';
 
 const cardStyle = {
   background: '#fff',
@@ -210,36 +210,9 @@ export default function AdminDashboard() {
     if (!session?.access_token) return undefined;
     let closed = false;
     let poller = null;
-    const ws = new WebSocket(getWebSocketUrl(session.access_token));
+    let ws = null;
 
-    ws.onopen = () => {
-      if (closed) return;
-      setLiveStatus('connected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        const type = message?.event;
-        const payload = message?.payload || {};
-
-        if (type === 'notification.created' && payload.notification) {
-          setNotifications((current) => [payload.notification, ...current]);
-        } else if (type === 'notification.read') {
-          setNotifications((current) =>
-            current.map((item) =>
-              payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
-            ),
-          );
-        } else if (
-          ['dashboard.metrics_updated', 'agent.status_updated', 'booking.updated', 'visit.updated', 'service_request.updated'].includes(type)
-        ) {
-          refreshAll(false);
-        }
-      } catch {}
-    };
-
-    ws.onerror = () => {
+    const beginPolling = () => {
       if (closed) return;
       setLiveStatus('polling');
       if (!poller) {
@@ -249,20 +222,57 @@ export default function AdminDashboard() {
       }
     };
 
-    ws.onclose = () => {
+    supportsLiveUpdates().then((enabled) => {
       if (closed) return;
-      setLiveStatus((current) => (current === 'connected' ? 'disconnected' : 'polling'));
-      if (!poller) {
-        poller = window.setInterval(() => {
-          refreshAll(false);
-        }, 15000);
+      if (!enabled) {
+        beginPolling();
+        return;
       }
-    };
+
+      ws = new WebSocket(getWebSocketUrl(session.access_token));
+
+      ws.onopen = () => {
+        if (closed) return;
+        setLiveStatus('connected');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          const type = message?.event;
+          const payload = message?.payload || {};
+
+          if (type === 'notification.created' && payload.notification) {
+            setNotifications((current) => [payload.notification, ...current]);
+          } else if (type === 'notification.read') {
+            setNotifications((current) =>
+              current.map((item) =>
+                payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
+              ),
+            );
+          } else if (
+            ['dashboard.metrics_updated', 'agent.status_updated', 'booking.updated', 'visit.updated', 'service_request.updated'].includes(type)
+          ) {
+            refreshAll(false);
+          }
+        } catch {}
+      };
+
+      ws.onerror = () => {
+        beginPolling();
+      };
+
+      ws.onclose = () => {
+        if (closed) return;
+        setLiveStatus((current) => (current === 'connected' ? 'disconnected' : 'polling'));
+        beginPolling();
+      };
+    });
 
     return () => {
       closed = true;
       if (poller) window.clearInterval(poller);
-      ws.close();
+      ws?.close();
     };
   }, [session?.access_token]);
 

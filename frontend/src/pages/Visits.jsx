@@ -156,6 +156,7 @@ export default function Visits() {
       const status = String(visit.status || '').toLowerCase();
       const visitAt = new Date(visit.visit_date || visit.updated_at || Date.now()).getTime();
       const isDone = ['completed', 'confirmed', 'approved'].includes(status) && visitAt < Date.now();
+      const isClosed = ['cancelled', 'rejected'].includes(status);
       return {
         id: visit.id || `visit-${index}`,
         name: visit.property_name || property.name || 'Sirpuram Gardens',
@@ -169,7 +170,7 @@ export default function Visits() {
         status: isDone ? 'Completed' : (status === 'cancelled' ? 'Cancelled' : status === 'rescheduled' ? 'Rescheduled' : status === 'pending_agent_approval' ? 'Upcoming' : 'Confirmed'),
         countdown: 'Visit status synced live',
         grad: G[index % G.length],
-        phase: isDone ? 'completed' : 'upcoming',
+        phase: isDone || isClosed ? 'completed' : 'upcoming',
         assignedAgentName: visit.assigned_agent_name || 'Assigned after approval',
         assignedAgentPhone: visit.assigned_agent_phone || '',
         specs: [

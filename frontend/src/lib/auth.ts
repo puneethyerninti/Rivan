@@ -13,6 +13,23 @@ export function getWebSocketUrl(token) {
   return `${base}/ws/live?token=${encodeURIComponent(token || "")}`;
 }
 
+let liveUpdatesCapabilityPromise = null;
+
+export async function supportsLiveUpdates() {
+  if (!liveUpdatesCapabilityPromise) {
+    liveUpdatesCapabilityPromise = fetch(`${getBackendUrl()}/api/health`, {
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) return false;
+        const data = await response.json().catch(() => ({}));
+        return data?.live_updates_enabled === true;
+      })
+      .catch(() => false);
+  }
+  return liveUpdatesCapabilityPromise;
+}
+
 export function saveSession(session) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }

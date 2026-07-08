@@ -8,6 +8,7 @@ import {
   postJson,
   putJson,
   saveSession,
+  supportsLiveUpdates,
 } from '../lib/auth';
 
 const G = [
@@ -237,27 +238,58 @@ export default function AppDashboard() {
 
   useEffect(() => {
     if (!session?.access_token || guestSession?.guest) return undefined;
-    const socket = new WebSocket(getWebSocketUrl(session.access_token));
-    socket.addEventListener('open', () => setLiveStatus('live'));
-    socket.addEventListener('close', () => setLiveStatus('offline'));
-    socket.addEventListener('error', () => setLiveStatus('offline'));
-    socket.addEventListener('message', async (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (['notification.created', 'notification.read', 'visit.updated', 'booking.updated', 'service_request.updated'].includes(data?.event)) {
-          const [notificationsApi, myLandApi] = await Promise.all([
-            getJson('/api/notifications', session.access_token).catch(() => []),
-            getJson('/api/myland', session.access_token).catch(() => []),
-          ]);
-          setNotificationRows(Array.isArray(notificationsApi) ? notificationsApi : []);
-          setLandRows(Array.isArray(myLandApi) ? myLandApi : []);
-        }
-      } catch {
-        setLiveStatus('offline');
+    let socket = null;
+    let closed = false;
+    let poller = null;
+
+    const syncDashboard = async () => {
+      const [notificationsApi, myLandApi] = await Promise.all([
+        getJson('/api/notifications', session.access_token).catch(() => []),
+        getJson('/api/myland', session.access_token).catch(() => []),
+      ]);
+      if (closed) return;
+      setNotificationRows(Array.isArray(notificationsApi) ? notificationsApi : []);
+      setLandRows(Array.isArray(myLandApi) ? myLandApi : []);
+    };
+
+    const beginPolling = () => {
+      if (closed) return;
+      setLiveStatus('offline');
+      if (!poller) {
+        poller = window.setInterval(() => {
+          syncDashboard();
+        }, 15000);
       }
+    };
+
+    supportsLiveUpdates().then((enabled) => {
+      if (closed) return;
+      if (!enabled) {
+        beginPolling();
+        return;
+      }
+
+      socket = new WebSocket(getWebSocketUrl(session.access_token));
+      socket.addEventListener('open', () => setLiveStatus('live'));
+      socket.addEventListener('close', () => beginPolling());
+      socket.addEventListener('error', () => beginPolling());
+      socket.addEventListener('message', async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (['notification.created', 'notification.read', 'visit.updated', 'booking.updated', 'service_request.updated'].includes(data?.event)) {
+            await syncDashboard();
+          }
+        } catch {
+          beginPolling();
+        }
+      });
     });
 
-    return () => socket.close();
+    return () => {
+      closed = true;
+      if (poller) window.clearInterval(poller);
+      socket?.close();
+    };
   }, [guestSession, session?.access_token]);
 
   const fmtL = (n) => {

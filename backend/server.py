@@ -4506,9 +4506,17 @@ async def health_check():
             "database": "connected",
             "mode": "mongo",
             "firebase_project_id_configured": bool(get_firebase_project_id()),
+            "live_updates_enabled": True,
+            "live_updates_path": "/ws/live",
         }
     if ALLOW_LOCAL_AUTH_FALLBACK:
-        return {"ok": True, "database": "offline", "mode": "local-auth-fallback"}
+        return {
+            "ok": True,
+            "database": "offline",
+            "mode": "local-auth-fallback",
+            "live_updates_enabled": True,
+            "live_updates_path": "/ws/live",
+        }
     raise HTTPException(status_code=503, detail="Database unavailable")
 
 
