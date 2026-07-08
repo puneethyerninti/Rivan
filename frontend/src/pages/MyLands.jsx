@@ -130,7 +130,7 @@ export default function MyLands() {
     name: land.property?.name || land.property_name || 'Sirpuram Gardens',
     code: land.plot_number ? `Plot ${land.plot_number}` : 'Allocated Plot',
     spec: `${land.area || land.plot_area || '—'} • ${land.facing || '—'} Facing`,
-    reg: land.property?.rera_number || land.rera_number || 'RERA linked to backend records',
+    reg: land.property?.rera_number || land.rera_number || 'RERA available on request',
     status: land.purchase_complete ? 'Completed' : 'Active',
     typeShort: String(land.property?.property_type || '').toLowerCase().includes('villa') ? 'Villa' : 'Plot',
     grad: G[index % G.length],
@@ -164,7 +164,7 @@ export default function MyLands() {
 
   const goHome = () => navigate('/app');
   const goVisitsPage = () => navigate('/visits');
-  const goPayments = () => navigate('/app#payments');
+  const goPayments = () => showNotice('Payments Unavailable', 'Payments are not part of this release yet.');
   const goProfile = () => navigate('/app#profile');
 
   const chipStyle = (c) => filter === c
@@ -195,7 +195,7 @@ export default function MyLands() {
       }
       showNotice('No live document is available for this property yet.');
     },
-    Payments: () => navigate('/app#payments'),
+    Payments: () => showNotice('Payments Unavailable', 'Payments are not part of this release yet.'),
     Contact: () => navigate('/app#contact'),
   };
 
@@ -466,7 +466,7 @@ export default function MyLands() {
                       description: `${sName} requested from My Lands`,
                       contact: session.user?.phone || '',
                     }, session.access_token);
-                    showNotice(`${sName} request submitted to the live backend.`);
+                    showNotice(`${sName} request submitted successfully.`);
                   } catch (error) {
                     showNotice(error?.message || 'Unable to submit the service request right now.');
                   }

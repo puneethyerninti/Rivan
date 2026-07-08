@@ -328,7 +328,7 @@ export default function AdminDashboard() {
       setSettings(response.settings || settings);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        setError('Settings endpoint is not live on the current backend deployment yet.');
+        setError('Settings are not available right now.');
         return;
       }
       setError(err?.message || 'Failed to save admin settings');

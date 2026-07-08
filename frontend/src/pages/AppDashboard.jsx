@@ -103,7 +103,7 @@ export default function AppDashboard() {
   const [liked, setLiked] = useState({});
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('Request Submitted');
-  const [modalMessage, setModalMessage] = useState('Your latest request has been recorded against the live backend workflow.');
+  const [modalMessage, setModalMessage] = useState('Your latest request has been recorded successfully.');
   const [amount, setAmount] = useState(2000000);
   const [rate, setRate] = useState(9);
   const [years, setYears] = useState(10);
@@ -470,10 +470,10 @@ export default function AppDashboard() {
   }
 
   const payLinks = [
-    { icon: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4', label: 'Payment History', go: () => go('payhistory') },
-    { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Upcoming Payments', go: () => tab('payments') },
-    { icon: 'M12 3v12M8 11l4 4 4-4M5 21h14', label: 'Download Receipts', go: () => tab('payments') },
-    { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
+    { icon: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4', label: 'Payment History', go: () => payNow() },
+    { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Upcoming Payments', go: () => payNow() },
+    { icon: 'M12 3v12M8 11l4 4 4-4M5 21h14', label: 'Download Receipts', go: () => payNow() },
+    { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => payNow() },
   ].map((p, idx) => ({ ...p, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
   const selData = sel || { name: 'Emerald Estate', loc: 'Visakhapatnam', price: '₹4,500', grad: G[0] };
@@ -687,7 +687,7 @@ export default function AppDashboard() {
     { icon: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5', label: 'Explore', go: () => tab('explore') },
     { icon: 'M4 20L20 4M4 9V4h5M20 15v5h-5', label: 'Interactive Layout', go: () => openFirstProject() },
     { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Schedule Visit', go: () => navigate('/visits') },
-    { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
+    { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => payNow() },
     { icon: 'M6 4h12v16l-6-3-6 3z', label: 'Contact Sales', go: () => go('contact') },
   ];
 
@@ -713,7 +713,7 @@ export default function AppDashboard() {
   const goHome = () => tab('home');
   const goExplore = () => tab('explore');
   const goProps = () => navigate('/my-lands');
-  const goPayments = () => tab('payments');
+  const goPayments = () => payNow();
   const goProfile = () => tab('profile');
   const goNotif = () => go('notif');
   const goVisitsPage = () => navigate('/visits');
@@ -801,7 +801,7 @@ export default function AppDashboard() {
       setNotificationRows(Array.isArray(nextNotifications) ? nextNotifications : []);
       setServiceRows(Array.isArray(nextServices) ? nextServices : []);
       setContactMessage('');
-      openNotice('Request Submitted', 'Your live sales request was submitted successfully and is now visible to the backend workflow.');
+      openNotice('Request Submitted', 'Your sales request was submitted successfully.');
     } catch (error) {
       openNotice('Request Failed', error?.message || 'We could not submit the request right now.');
     }
@@ -818,7 +818,7 @@ export default function AppDashboard() {
     },
     {
       label: 'Sales Inquiry',
-      sub: 'Create a live backend-tracked inquiry',
+      sub: 'Send a sales inquiry',
       color: '#e2822a',
       bg: '#fdefe0',
       icon: 'M4 6h16v12H4zM4 7l8 6 8-6',
@@ -1397,7 +1397,7 @@ export default function AppDashboard() {
         <div style={{'padding': '22px'}}>
           <div style={{'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'marginBottom': '8px'}}>
             <div style={{'width': '78px', 'height': '78px', 'borderRadius': '24px', 'background': 'linear-gradient(160deg,#1a5e2e,#124423)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '28px', 'fontWeight': '800', 'color': '#fff'}}>{initials}</div>
-            <button onClick={() => openNotice('Profile Photo', 'Profile photo upload is not connected to the backend yet, so this action stays disabled instead of pretending to save locally.')} style={{'marginTop': '12px', 'border': '1px solid #e2e8e0', 'background': '#fff', 'borderRadius': '20px', 'padding': '7px 16px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#1a5e2e', 'cursor': 'pointer'}}>Change Photo</button>
+            <button onClick={() => openNotice('Profile Photo', 'Profile photo upload will be available in an upcoming update.')} style={{'marginTop': '12px', 'border': '1px solid #e2e8e0', 'background': '#fff', 'borderRadius': '20px', 'padding': '7px 16px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#1a5e2e', 'cursor': 'pointer'}}>Change Photo</button>
           </div>
           { personalFields.map((p, index) => (
             <div style={{'marginTop': '15px'}}>
