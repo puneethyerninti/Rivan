@@ -3355,6 +3355,23 @@ async def ensure_primary_agent_seed() -> None:
     )
 
 
+async def resolve_primary_agent_user() -> Optional[Dict[str, Any]]:
+    await ensure_primary_agent_seed()
+    user = await db.users.find_one({"phone": {"$in": phone_identity_variants(PRIMARY_AGENT_PHONE)}}, {"_id": 0})
+    if user:
+        return user
+
+    by_id = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID}, {"_id": 0})
+    if not by_id:
+        return None
+
+    await db.users.update_one(
+        {"id": PRIMARY_AGENT_USER_ID},
+        {"$set": {"phone": PRIMARY_AGENT_PHONE, "updated_at": now_utc().isoformat()}},
+    )
+    return await db.users.find_one({"id": PRIMARY_AGENT_USER_ID}, {"_id": 0})
+
+
 async def ensure_sirpuram_dataset() -> None:
     property_seed = build_sirpuram_property_seed()
     property_update = property_seed.copy()
@@ -3609,8 +3626,9 @@ async def agent_access_status(req: AgentAccessStatusReq, request: Request):
 
     if await is_database_available():
         if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
-            await ensure_primary_agent_seed()
-        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
+            user = await resolve_primary_agent_user()
+        else:
+            user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
@@ -3742,8 +3760,18 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request, respo
 
     if await is_database_available():
         if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
-            await ensure_primary_agent_seed()
-        user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
+            user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+            if not user:
+                await ensure_primary_agent_seed()
+                user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+            if user and str(user.get("phone") or "").strip() != PRIMARY_AGENT_PHONE:
+                await db.users.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": {"phone": PRIMARY_AGENT_PHONE, "updated_at": now_utc().isoformat()}},
+                )
+                user = await db.users.find_one({"_id": user["_id"]})
+        else:
+            user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
 
