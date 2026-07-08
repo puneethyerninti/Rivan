@@ -91,7 +91,7 @@ PRIMARY_ADMIN_PHONE = normalize_phone("9491348973")
 PRIMARY_ADMIN_EMAIL = "admin@rivanreality.com"
 PRIMARY_ADMIN_USER_ID = "admin-user-001"
 PRIMARY_AGENT_PHONE = normalize_phone("9052644345")
-PRIMARY_AGENT_EMAIL = "agent@rivaan.com"
+PRIMARY_AGENT_EMAIL = ""
 PRIMARY_AGENT_USER_ID = "agent-main-001"
 ROLE_CUSTOMER = "customer"
 ROLE_AGENT = "agent"
@@ -3324,28 +3324,28 @@ async def ensure_primary_agent_seed() -> None:
         {"id": PRIMARY_AGENT_USER_ID},
         {
             "$set": {
-                "name": "Arjun Reddy",
+                "name": "Agent",
                 "phone": PRIMARY_AGENT_PHONE,
                 "email": PRIMARY_AGENT_EMAIL,
                 "role": ROLE_AGENT,
                 "approval_status": APPROVAL_APPROVED,
                 "status": STATUS_ACTIVE,
                 "phone_verified": True,
-                "email_verified": True,
+                "email_verified": False,
                 "auth_methods": ["phone", "agent_application"],
                 "kyc_status": "verified",
-                "agent_brand_name": "Rivan Crest Partners",
+                "agent_brand_name": "Rivan Realty",
                 "updated_at": timestamp,
             },
             "$setOnInsert": {
                 "id": PRIMARY_AGENT_USER_ID,
-                "address": "Visakhapatnam",
-                "age": 34,
-                "aadhaar_number": "5555 6666 7777",
+                "address": "",
+                "age": None,
+                "aadhaar_number": "",
                 "bank_details": "HDFC Bank · A/C XXXX1298 · IFSC HDFC0000456",
-                "manager_name": "Regional Sales Director",
+                "manager_name": "",
                 "manager_id": None,
-                "sub_agent_ids": ["agent-sub-001"],
+                "sub_agent_ids": [],
                 "approved_by_manager": ADMIN_DISPLAY_NAME,
                 "created_at": timestamp,
                 "last_login_at": None,
@@ -3376,24 +3376,24 @@ def build_primary_agent_payload(*, created_at: Optional[str] = None, updated_at:
     timestamp = now_utc().isoformat()
     return {
         "id": PRIMARY_AGENT_USER_ID,
-        "name": "Arjun Reddy",
+        "name": "Agent",
         "phone": PRIMARY_AGENT_PHONE,
         "email": PRIMARY_AGENT_EMAIL,
         "role": ROLE_AGENT,
         "approval_status": APPROVAL_APPROVED,
         "status": STATUS_ACTIVE,
         "phone_verified": True,
-        "email_verified": True,
+        "email_verified": False,
         "auth_methods": ["phone", "agent_application"],
         "kyc_status": "verified",
-        "agent_brand_name": "Rivan Crest Partners",
-        "address": "Visakhapatnam",
-        "age": 34,
-        "aadhaar_number": "5555 6666 7777",
+        "agent_brand_name": "Rivan Realty",
+        "address": "",
+        "age": None,
+        "aadhaar_number": "",
         "bank_details": "HDFC Bank · A/C XXXX1298 · IFSC HDFC0000456",
-        "manager_name": "Regional Sales Director",
+        "manager_name": "",
         "manager_id": None,
-        "sub_agent_ids": ["agent-sub-001"],
+        "sub_agent_ids": [],
         "approved_by_manager": ADMIN_DISPLAY_NAME,
         "created_at": created_at or timestamp,
         "updated_at": updated_at or timestamp,
