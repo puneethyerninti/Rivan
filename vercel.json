@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon.ico|icons/|manifest|robots.txt|sw.js).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
