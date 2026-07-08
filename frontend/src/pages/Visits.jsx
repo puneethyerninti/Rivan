@@ -39,6 +39,21 @@ export default function Visits() {
     setNotice(message);
     window.setTimeout(() => setNotice(''), 3000);
   };
+  const refreshVisits = async () => {
+    if (!session?.access_token) return [];
+    const latest = await getJson('/api/visits/mine', session.access_token).catch(() => []);
+    const rows = Array.isArray(latest) ? latest : [];
+    setVisitRows(rows);
+    return rows;
+  };
+  const buildVisitDate = () => {
+    const base = new Date();
+    const next = new Date(base.getFullYear(), base.getMonth(), Number(pickDate || base.getDate()));
+    if (next < base) {
+      next.setMonth(next.getMonth() + 1);
+    }
+    return next.toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'customer') {
@@ -227,6 +242,11 @@ export default function Visits() {
   const selData = sel ? decorate(sel) : (list[0] || decorate(emptyVisit));
 
   const propSpecs = (selData.specs || []).map(([k, v], idx) => ({ k, v, color: idx === 3 ? '#1a5e2e' : '#16231a' }));
+  const selectedVisitDateLabel = new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(buildVisitDate()));
   const visitInfo = [
     { k: 'Date', v: selData.date, icon: I.cal },
     { k: 'Time', v: selData.time, icon: I.clock },
@@ -263,7 +283,7 @@ export default function Visits() {
   }));
 
   const successRows = [
-    { k: 'Property', v: selData.name }, { k: 'Plot', v: selData.plot }, { k: 'Date', v: pickDate + ' May 2025' }, { k: 'Time', v: pickTime },
+    { k: 'Property', v: selData.name }, { k: 'Plot', v: selData.plot }, { k: 'Date', v: selectedVisitDateLabel }, { k: 'Time', v: pickTime },
   ].map((r, idx) => ({ ...r, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
   const showNav = cur === 'visits';
@@ -298,25 +318,42 @@ export default function Visits() {
   const goBook = () => { setMode('book'); setStack((st) => [...st, 'book']); setTimeout(top, 10); };
   const confirmBook = async () => {
     if (!session?.access_token) return;
+    const visitDate = buildVisitDate();
     const selectedProperty = propertyRows.find((item) => item.name === (sel?.name || selData?.name)) || propertyRows[0];
     if (!selectedProperty) {
-      setStack((st) => [...st, 'success']);
+      showNotice('No live property is attached to this visit yet.');
       return;
     }
-    await requestJson('/api/visits/site', {
-      method: 'POST',
-      body: {
-        property_id: selectedProperty.id,
-        visit_date: new Date(2026, 4, Number(pickedDate || 1)).toISOString().slice(0, 10),
-        visit_time: pickedTime,
-        name: session.user?.name || 'Customer',
-        mobile: session.user?.phone || '',
-      },
-    }, session.access_token).catch(() => null);
-    const latest = await getJson('/api/visits/mine', session.access_token).catch(() => []);
-    setVisitRows(Array.isArray(latest) ? latest : []);
-    setStack((st) => [...st, 'success']);
-    setTimeout(top, 10);
+    try {
+      if (mode === 'reschedule' && sel?.id) {
+        await requestJson(`/api/visits/${sel.id}`, {
+          method: 'PUT',
+          body: {
+            status: 'rescheduled',
+            visit_date: visitDate,
+            visit_time: pickedTime,
+          },
+        }, session.access_token);
+      } else {
+        await requestJson('/api/visits/site', {
+          method: 'POST',
+          body: {
+            property_id: selectedProperty.id,
+            visit_date: visitDate,
+            visit_time: pickedTime,
+            name: session.user?.name || 'Customer',
+            mobile: session.user?.phone || '',
+          },
+        }, session.access_token);
+      }
+      await refreshVisits();
+      setStack((st) => [...st, 'success']);
+      setTimeout(top, 10);
+    } catch (error) {
+      showNotice(error?.message || (mode === 'reschedule'
+        ? 'Unable to reschedule this visit right now.'
+        : 'Unable to schedule this visit right now.'));
+    }
   };
   const requestBookingFromVisit = async () => {
     if (!session?.access_token) return;
@@ -704,9 +741,14 @@ export default function Visits() {
           <button onClick={dismiss} style={{'flex': '1', 'height': '52px', 'borderRadius': '15px', 'border': '1.5px solid #e2e8e0', 'background': '#fff', 'color': '#3d4f40', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Keep Visit</button>
           <button onClick={async () => {
             if (sel?.id && session?.access_token) {
-              await requestJson(`/api/visits/${sel.id}`, { method: 'PUT', body: { status: 'cancelled' } }, session.access_token).catch(() => null);
-              const latest = await getJson('/api/visits/mine', session.access_token).catch(() => []);
-              setVisitRows(Array.isArray(latest) ? latest : []);
+              try {
+                await requestJson(`/api/visits/${sel.id}`, { method: 'PUT', body: { status: 'cancelled' } }, session.access_token);
+                await refreshVisits();
+                showNotice('Visit cancelled successfully.');
+              } catch (error) {
+                showNotice(error?.message || 'Unable to cancel this visit right now.');
+                return;
+              }
             }
             dismiss();
             reset('visits');
