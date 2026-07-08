@@ -90,6 +90,9 @@ ADMIN_DISPLAY_NAME = "Kollu Sravani"
 PRIMARY_ADMIN_PHONE = normalize_phone("9491348973")
 PRIMARY_ADMIN_EMAIL = "admin@rivanreality.com"
 PRIMARY_ADMIN_USER_ID = "admin-user-001"
+PRIMARY_AGENT_PHONE = normalize_phone("9052644345")
+PRIMARY_AGENT_EMAIL = "agent@rivaan.com"
+PRIMARY_AGENT_USER_ID = "agent-main-001"
 ROLE_CUSTOMER = "customer"
 ROLE_AGENT = "agent"
 ROLE_ADMIN = "admin"
@@ -727,7 +730,7 @@ def ensure_local_demo_users() -> None:
             "id": "agent-main-001",
             "name": "Arjun Reddy",
             "email": "agent@rivaan.com",
-            "phone": "+919900001111",
+            "phone": "+919052644345",
             "role": "agent",
             "age": 34,
             "aadhaar_number": "5555 6666 7777",
@@ -871,7 +874,7 @@ async def sync_demo_auth_users_to_db() -> None:
             "id": "agent-main-001",
             "name": "Arjun Reddy",
             "email": "agent@rivaan.com",
-            "phone": "+919900001111",
+            "phone": "+919052644345",
             "role": "agent",
             "age": 34,
             "aadhaar_number": "5555 6666 7777",
@@ -1076,6 +1079,9 @@ LOCAL_FALLBACK_PROPERTIES: List[Dict[str, Any]] = [
         "images": [
             "/Property Image 1.jpeg",
             "/Property Image 2.jpeg",
+            "/East Face.jpeg",
+            "/West Face.jpeg",
+            "/Features.jpeg",
             "/Map.jpeg",
         ],
         "description": "A compact independent-house offering anchored in the Siripuram Gardens layout at Achutapuram with live availability, east-face and west-face plans, and project approval details.",
@@ -3308,6 +3314,47 @@ async def ensure_primary_admin_seed() -> None:
     )
 
 
+async def ensure_primary_agent_seed() -> None:
+    timestamp = now_utc().isoformat()
+    await db.users.update_many(
+        {"phone": {"$in": ["9900001111", "9052644345", "+919900001111", "+919052644345"]}},
+        {"$set": {"phone": PRIMARY_AGENT_PHONE, "updated_at": timestamp}},
+    )
+    await db.users.update_one(
+        {"id": PRIMARY_AGENT_USER_ID},
+        {
+            "$set": {
+                "name": "Arjun Reddy",
+                "phone": PRIMARY_AGENT_PHONE,
+                "email": PRIMARY_AGENT_EMAIL,
+                "role": ROLE_AGENT,
+                "approval_status": APPROVAL_APPROVED,
+                "status": STATUS_ACTIVE,
+                "phone_verified": True,
+                "email_verified": True,
+                "auth_methods": ["phone", "agent_application"],
+                "kyc_status": "verified",
+                "agent_brand_name": "Rivan Crest Partners",
+                "updated_at": timestamp,
+            },
+            "$setOnInsert": {
+                "id": PRIMARY_AGENT_USER_ID,
+                "address": "Visakhapatnam",
+                "age": 34,
+                "aadhaar_number": "5555 6666 7777",
+                "bank_details": "HDFC Bank · A/C XXXX1298 · IFSC HDFC0000456",
+                "manager_name": "Regional Sales Director",
+                "manager_id": None,
+                "sub_agent_ids": ["agent-sub-001"],
+                "approved_by_manager": ADMIN_DISPLAY_NAME,
+                "created_at": timestamp,
+                "last_login_at": None,
+            },
+        },
+        upsert=True,
+    )
+
+
 async def ensure_sirpuram_dataset() -> None:
     property_seed = build_sirpuram_property_seed()
     property_update = property_seed.copy()
@@ -3365,6 +3412,7 @@ async def ensure_indexes() -> None:
         await db.users.update_many({"phone": {"$type": "string"}}, [{"$set": {"phone": {"$trim": {"input": "$phone"}}}}])
         await purge_demo_auth_users_from_db()
         await ensure_primary_admin_seed()
+        await ensure_primary_agent_seed()
 
         for index_name in ("email_1", "phone_1", "google_sub_1"):
             try:
@@ -3560,6 +3608,8 @@ async def agent_access_status(req: AgentAccessStatusReq, request: Request):
     enforce_rate_limit(rate_limit_key(request, "auth_agent_status", phone), limit=20, window_seconds=300)
 
     if await is_database_available():
+        if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+            await ensure_primary_agent_seed()
         user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}}, {"_id": 0})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
@@ -3691,6 +3741,8 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request, respo
         raise HTTPException(status_code=401, detail="Firebase phone token does not match requested phone")
 
     if await is_database_available():
+        if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
+            await ensure_primary_agent_seed()
         user = await db.users.find_one({"phone": {"$in": phone_identity_variants(phone)}})
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
@@ -7056,7 +7108,7 @@ async def seed_data():
 
     await db.users.insert_one({
         "id": "agent-main-001",
-        "phone": "+919900001111",
+        "phone": "+919052644345",
         "name": "Arjun Reddy",
         "email": "agent@rivaan.com",
         "address": "Banjara Hills, Hyderabad",

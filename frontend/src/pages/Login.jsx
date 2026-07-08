@@ -6,6 +6,10 @@ import { clearSession, loadSession, postJson, saveSession } from "../lib/auth";
 
 const RESEND_SECONDS = 30;
 const EMPTY_OTP = ["", "", "", "", "", ""];
+const EMPTY_CUSTOMER_ONBOARDING = {
+  name: "",
+  email: "",
+};
 const EMPTY_APPLICATION = {
   name: "",
   email: "",
@@ -37,6 +41,7 @@ export default function Login() {
   const [role, setRole] = useState("customer");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(EMPTY_OTP);
+  const [customerOnboarding, setCustomerOnboarding] = useState(EMPTY_CUSTOMER_ONBOARDING);
   const [application, setApplication] = useState(EMPTY_APPLICATION);
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -82,6 +87,7 @@ export default function Login() {
 
   const resetFlowState = () => {
     setOtp(EMPTY_OTP);
+    setCustomerOnboarding(EMPTY_CUSTOMER_ONBOARDING);
     setApplication(EMPTY_APPLICATION);
     setCountdown(0);
     confirmationRef.current = null;
@@ -93,7 +99,7 @@ export default function Login() {
     setRole(nextRole);
     setPhone("");
     resetFlowState();
-    setScreen("login");
+    setScreen(nextRole === "customer" ? "customer-onboarding" : "login");
   };
 
   const backToSplash = () => {
@@ -127,7 +133,7 @@ export default function Login() {
     if (roleRef.current === "customer") {
       session = await postCustomerExchange({
         ...payload,
-        name: application.name?.trim() || normalizedPhone,
+        name: customerOnboarding.name?.trim() || normalizedPhone,
       });
     } else if (roleRef.current === "agent") {
       session = await postJson("/api/auth/agent/firebase", payload);
@@ -183,6 +189,11 @@ export default function Login() {
     resetMessages();
     setLoading(true);
     try {
+      if (roleRef.current === "customer" && !customerOnboarding.name.trim()) {
+        setScreen("customer-onboarding");
+        setError("Complete onboarding details before requesting OTP.");
+        return;
+      }
       const precheck = await runAccessPrecheck(normalizedPhone);
       if (!precheck.allowed) {
         if (precheck.statusMessage) setStatus(precheck.statusMessage);
@@ -447,6 +458,109 @@ export default function Login() {
             </div>
           )}
 
+          {screen === "customer-onboarding" && (
+            <div
+              className="rv-screen"
+              style={{
+                minHeight: "100vh",
+                display: "flex",
+                flexDirection: "column",
+                padding: "50px 30px 34px",
+                background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 28%)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <button
+                  onClick={backToSplash}
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "13px",
+                    border: "1px solid #e4ece0",
+                    background: "#fff",
+                    color: "#12351d",
+                    fontSize: "19px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ←
+                </button>
+                <img src="/assets/logo-mark.png" alt="Rivan" style={{ height: "38px", width: "auto" }} />
+              </div>
+
+              <h1
+                style={{
+                  margin: "26px 0 8px",
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  color: "#12351d",
+                  letterSpacing: "-.5px",
+                }}
+              >
+                Customer Onboarding
+              </h1>
+              <p style={{ margin: "0", fontSize: "14.5px", color: "#6d7d6f", lineHeight: "1.55" }}>
+                Start with your details first, then continue with phone OTP login for your customer account.
+              </p>
+
+              <div style={{ marginTop: "24px", display: "grid", gap: "14px" }}>
+                <input
+                  value={customerOnboarding.name}
+                  onChange={(event) =>
+                    setCustomerOnboarding((current) => ({ ...current, name: event.target.value }))
+                  }
+                  placeholder="Full name"
+                  style={inputStyle}
+                />
+                <input
+                  value={customerOnboarding.email}
+                  onChange={(event) =>
+                    setCustomerOnboarding((current) => ({ ...current, email: event.target.value }))
+                  }
+                  placeholder="Email address (optional)"
+                  style={inputStyle}
+                />
+              </div>
+
+              {error && (
+                <p style={{ margin: "16px 0 0", fontSize: "13px", fontWeight: "700", color: "#c93b3b" }}>
+                  {error}
+                </p>
+              )}
+
+              <button
+                onClick={() => {
+                  if (!customerOnboarding.name.trim()) {
+                    setError("Enter your name to continue.");
+                    return;
+                  }
+                  resetMessages();
+                  setScreen("login");
+                }}
+                style={{
+                  marginTop: "24px",
+                  width: "100%",
+                  height: "58px",
+                  border: "none",
+                  borderRadius: "18px",
+                  background: "linear-gradient(180deg,#1a5e2e,#124423)",
+                  color: "#fff",
+                  fontFamily: "inherit",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  boxShadow: "0 14px 26px -10px rgba(18,68,35,.75)",
+                }}
+              >
+                Continue to Login <span style={{ fontSize: "19px" }}>→</span>
+              </button>
+            </div>
+          )}
+
           {screen === "login" && (
             <div
               className="rv-screen"
@@ -525,7 +639,7 @@ export default function Login() {
                     value={phone}
                     onChange={(event) => setPhone(normalizePhone(event.target.value))}
                     inputMode="numeric"
-                    placeholder="9876543210"
+                    placeholder="Enter your mobile number"
                     style={{
                       flex: "1",
                       border: "none",
@@ -547,7 +661,7 @@ export default function Login() {
 
               {role === "agent" && (
                 <p style={{ margin: "14px 0 0", fontSize: "13px", color: "#6d7d6f" }}>
-                  If this number is not approved yet, we will open the application form instead of sending OTP.
+                  Approved agent login is enabled for the registered number ending in 4345. Other numbers open the real application flow instead of fake OTP access.
                 </p>
               )}
 

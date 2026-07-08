@@ -437,6 +437,11 @@ export default function AppDashboard() {
     || featuredRows[0]
     || null;
   const selectedImage = selectedProperty?.images?.[0] || selectedProperty?.image || '';
+  const selectedGallery = Array.isArray(selectedProperty?.images) && selectedProperty.images.length
+    ? selectedProperty.images
+    : selectedImage
+    ? [selectedImage]
+    : [];
   if (selectedProperty) {
     selData.name = selectedProperty.name || selData.name;
     selData.loc = selectedProperty.location || selectedProperty.address || selData.loc;
@@ -818,7 +823,7 @@ export default function AppDashboard() {
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '13px'}}>
             { featured.map((f, index) => (
               <div onClick={f.open} style={{'background': '#fff', 'borderRadius': '18px', 'overflow': 'hidden', 'border': '1px solid #eef3ec', 'boxShadow': '0 10px 28px -20px rgba(18,53,29,.5)', 'cursor': 'pointer'}}>
-                <div style={{height: '96px', background: f.grad, position: 'relative'}}>
+                <div style={{height: '96px', background: f.property?.image ? `center / cover no-repeat url(${f.property.image})` : f.grad, position: 'relative'}}>
                   <span style={{'position': 'absolute', 'top': '8px', 'left': '8px', 'background': 'rgba(9,32,16,.55)', 'color': '#fff', 'fontSize': '10px', 'fontWeight': '700', 'padding': '3px 8px', 'borderRadius': '20px', 'backdropFilter': 'blur(4px)'}}>📍 {f.tag}</span>
                 </div>
                 <div style={{'padding': '11px 12px 13px'}}>
@@ -1174,6 +1179,17 @@ export default function AppDashboard() {
               <span style={{'fontSize': '12.5px', 'fontWeight': '600', 'color': '#3d4f40', 'background': '#fff', 'border': '1px solid #e6ede2', 'padding': '9px 14px', 'borderRadius': '12px'}}>{a}</span>
             ))}
           </div>
+
+          {selectedGallery.length > 0 && (
+            <>
+              <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#12351d', 'margin': '22px 0 10px'}}>Project Gallery</p>
+              <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '10px'}}>
+                {selectedGallery.map((image, index) => (
+                  <div key={image + index} style={{'height': '96px', 'borderRadius': '16px', 'overflow': 'hidden', 'border': '1px solid #eef3ec', 'background': `center / cover no-repeat url(${image})`}}></div>
+                ))}
+              </div>
+            </>
+          )}
           <div style={{'height': '20px'}}></div>
         </div>
 
