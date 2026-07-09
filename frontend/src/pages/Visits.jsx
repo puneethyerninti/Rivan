@@ -91,7 +91,7 @@ export default function Visits() {
   const statusStyle = (status, big) => {
     const m = {
       Upcoming: ['#b5760f', '#fdefd6'],
-      Confirmed: ['#5fa772', '#e8f3e3'],
+      Confirmed: ['#2b6d3d', '#e8f3e3'],
       Rescheduled: ['#b5760f', '#fdefd6'],
       Completed: ['#4a6b4a', '#eef3ec'],
       Cancelled: ['#c0392b', '#fdecec'],
@@ -106,7 +106,7 @@ export default function Visits() {
     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', height: '40px',
     borderRadius: '12px', fontFamily: 'inherit', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer',
     border: danger ? '1px solid #f3d3d0' : '1px solid #cfe6c6',
-    background: '#fff', color: danger ? '#c0392b' : '#5fa772'
+    background: '#fff', color: danger ? '#c0392b' : '#2b6d3d'
   });
 
   const openVisit = (v) => {
@@ -179,23 +179,23 @@ export default function Visits() {
     label: l,
     pick: () => setTab(l),
     style: tab === l
-      ? { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: '#fff', color: '#4f8f61', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer' }
+      ? { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: '#fff', color: '#1f5a31', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer' }
       : { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: 'transparent', color: '#cfe0cd', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' },
   });
   const tabs = [getTab('Upcoming'), getTab('Completed')];
 
   const cardActions = (v) => v.phase === 'upcoming' ? [
-    { label: 'Directions', icon: I.nav, go: (e) => { e.stopPropagation(); dir(); }, style: actStyle(false), stroke: '#5fa772' },
-    { label: 'Reschedule', icon: I.reschedule, go: (e) => { e.stopPropagation(); setSel(v); setMode('reschedule'); setStack((st) => [...st, 'book']); setTimeout(top, 10); }, style: actStyle(false), stroke: '#5fa772' },
+    { label: 'Directions', icon: I.nav, go: (e) => { e.stopPropagation(); dir(); }, style: actStyle(false), stroke: '#2b6d3d' },
+    { label: 'Reschedule', icon: I.reschedule, go: (e) => { e.stopPropagation(); setSel(v); setMode('reschedule'); setStack((st) => [...st, 'book']); setTimeout(top, 10); }, style: actStyle(false), stroke: '#2b6d3d' },
     { label: 'Cancel', icon: 'M6 6l12 12M18 6 6 18', go: (e) => { e.stopPropagation(); setSel(v); setShowCancel(true); }, style: actStyle(true), stroke: '#c0392b' },
   ] : [
-    { label: 'View Again', icon: I.eye, go: (e) => { e.stopPropagation(); openVisit(v); }, style: actStyle(false), stroke: '#5fa772' },
-    { label: 'Book Again', icon: I.cal, go: (e) => { e.stopPropagation(); setSel(v); setMode('book'); setStack((st) => [...st, 'book']); setTimeout(top, 10); }, style: actStyle(false), stroke: '#5fa772' },
+    { label: 'View Again', icon: I.eye, go: (e) => { e.stopPropagation(); openVisit(v); }, style: actStyle(false), stroke: '#2b6d3d' },
+    { label: 'Book Again', icon: I.cal, go: (e) => { e.stopPropagation(); setSel(v); setMode('book'); setStack((st) => [...st, 'book']); setTimeout(top, 10); }, style: actStyle(false), stroke: '#2b6d3d' },
   ];
 
   const decorate = (v) => {
     const up = v.phase === 'upcoming';
-    const cdColor = v.status === 'Confirmed' ? '#5fa772' : '#b5760f';
+    const cdColor = v.status === 'Confirmed' ? '#2b6d3d' : '#b5760f';
     const cdBg = v.status === 'Confirmed' ? '#e8f3e3' : '#fdefd6';
     return {
       ...v, showCountdown: up, cdColor, cdBg,
@@ -231,7 +231,7 @@ export default function Visits() {
   };
   const selData = sel ? decorate(sel) : (list[0] || decorate(emptyVisit));
 
-  const propSpecs = (selData.specs || []).map(([k, v], idx) => ({ k, v, color: idx === 3 ? '#5fa772' : '#16231a' }));
+  const propSpecs = (selData.specs || []).map(([k, v], idx) => ({ k, v, color: idx === 3 ? '#2b6d3d' : '#16231a' }));
   const selectedVisitDateLabel = new Intl.DateTimeFormat('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -274,7 +274,7 @@ export default function Visits() {
         label: isPast ? '' : String(dayNumber),
         pick: isPast ? undefined : () => setPickDate(dayNumber),
         style: isSelected
-          ? { height: '38px', borderRadius: '11px', border: 'none', background: '#5fa772', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }
+          ? { height: '38px', borderRadius: '11px', border: 'none', background: '#2b6d3d', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }
           : isPast
           ? { height: '38px', border: 'none', background: 'transparent', color: 'transparent', cursor: 'default' }
           : { height: '38px', borderRadius: '11px', border: '1px solid #edf2ea', background: '#fff', color: '#3d4f40', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }
@@ -285,7 +285,7 @@ export default function Visits() {
   const slots = slotList.map((l) => ({
     label: l, pick: () => setPickTime(l),
     style: pickTime === l
-      ? { height: '46px', borderRadius: '13px', border: 'none', background: '#5fa772', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }
+      ? { height: '46px', borderRadius: '13px', border: 'none', background: '#2b6d3d', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }
       : { height: '46px', borderRadius: '13px', border: '1px solid #e2e8e0', background: '#fff', color: '#3d4f40', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }
   }));
 
@@ -300,7 +300,7 @@ export default function Visits() {
     Completed: ['No completed visits', 'Your finished site visits will appear here.']
   };
 
-  const statusColor = (cur === 'detail' || cur === 'success') ? (cur === 'success' ? '#4f8f61' : '#ffffff') : (green ? '#ffffff' : '#4f8f61');
+  const statusColor = (cur === 'detail' || cur === 'success') ? (cur === 'success' ? '#1f5a31' : '#ffffff') : (green ? '#ffffff' : '#1f5a31');
   const isVisits = cur === 'visits';
   const isDetail = cur === 'detail';
   const isBook = cur === 'book';
@@ -416,7 +416,7 @@ export default function Visits() {
       else { setStack((st) => [...st, 'success']); setTimeout(top, 10); }
     },
     style: (cur === id || (id === 'detailU' && cur === 'detail' && selData.phase === 'upcoming') || (id === 'detailC' && cur === 'detail' && selData.phase === 'completed'))
-      ? { padding: '6px 11px', borderRadius: '9px', border: 'none', background: '#4f8f61', color: '#fff', fontFamily: 'inherit', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }
+      ? { padding: '6px 11px', borderRadius: '9px', border: 'none', background: '#1f5a31', color: '#fff', fontFamily: 'inherit', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }
       : { padding: '6px 11px', borderRadius: '9px', border: 'none', background: 'rgba(18,53,29,.06)', color: '#3d4f40', fontFamily: 'inherit', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }
   }));
 
@@ -432,7 +432,7 @@ export default function Visits() {
 
     <div className="rv-scroll with-nav" style={{'position': 'absolute', 'inset': '0', 'overflowY': 'auto'}}>
       {notice && (
-        <div style={{ position: 'sticky', top: '12px', zIndex: 20, margin: '12px 22px 0', background: '#4f8f61', color: '#fff', borderRadius: '14px', padding: '12px 14px', fontSize: '12.5px', fontWeight: 600, boxShadow: '0 12px 24px -18px rgba(18,53,29,.75)' }}>
+        <div style={{ position: 'sticky', top: '12px', zIndex: 20, margin: '12px 22px 0', background: '#1f5a31', color: '#fff', borderRadius: '14px', padding: '12px 14px', fontSize: '12.5px', fontWeight: 600, boxShadow: '0 12px 24px -18px rgba(18,53,29,.75)' }}>
           {notice}
         </div>
       )}
@@ -440,7 +440,7 @@ export default function Visits() {
       {/* ===================== VISITS HOME ===================== */}
       {isVisits && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 20px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', 'padding': '56px 22px 20px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '10px'}}>
               <img src="assets/logo-mark-white.png" alt="Rivan" style={{'height': '26px', 'opacity': '.95'}} />
@@ -465,7 +465,7 @@ export default function Visits() {
             <div style={{'width': '90px', 'height': '90px', 'borderRadius': '28px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
               <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#8fae8c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>
             </div>
-            <p style={{'margin': '20px 0 6px', 'fontSize': '16px', 'fontWeight': '800', 'color': '#4f8f61'}}>{emptyTitle}</p>
+            <p style={{'margin': '20px 0 6px', 'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31'}}>{emptyTitle}</p>
             <p style={{'margin': '0 0 22px', 'fontSize': '13px', 'color': '#8a988c', 'maxWidth': '230px', 'lineHeight': '1.5'}}>{emptyText}</p>
             <button onClick={goBook} style={{'height': '50px', 'padding': '0 28px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 12px 24px -10px rgba(226,130,42,.6)'}}>Book a Site Visit</button>
           </div>
@@ -499,7 +499,7 @@ export default function Visits() {
                         <span style={{'fontSize': '11.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>{v.location}</span>
                       </div>
                       <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '6px'}}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg>
                         <span style={{'fontSize': '11.5px', 'color': '#3d4f40', 'fontWeight': '700'}}>{v.date} · {v.time}</span>
                       </div>
                     </div>
@@ -532,10 +532,10 @@ export default function Visits() {
           <div style={{position: 'relative', height: '230px', background: selData.grad}}>
           <div style={{'position': 'absolute', 'inset': '0', 'background': 'linear-gradient(180deg,rgba(9,32,16,.3),transparent 40%,rgba(9,32,16,.5))'}}></div>
           <div style={{'position': 'absolute', 'top': '52px', 'left': '20px', 'right': '20px', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
-            <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.92)', 'color': '#4f8f61', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
+            <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.92)', 'color': '#1f5a31', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
             <span style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#fff', 'textShadow': '0 1px 6px rgba(0,0,0,.4)'}}>Visit Details</span>
             <button onClick={share} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.92)', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f8f61" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f5a31" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
             </button>
           </div>
           <div style={{'position': 'absolute', 'bottom': '16px', 'left': '20px', 'display': 'flex', 'gap': '8px'}}>
@@ -559,7 +559,7 @@ export default function Visits() {
 
           {/* property info */}
           <p style={{'margin': '0 0 10px', 'fontSize': '12px', 'fontWeight': '800', 'color': '#8a988c', 'letterSpacing': '.5px', 'textTransform': 'uppercase'}}>Property Information</p>
-          <p style={{'margin': '0', 'fontSize': '21px', 'fontWeight': '800', 'color': '#4f8f61'}}>{selData.name}</p>
+          <p style={{'margin': '0', 'fontSize': '21px', 'fontWeight': '800', 'color': '#1f5a31'}}>{selData.name}</p>
           <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'color': '#6d7d6f', 'fontWeight': '500'}}>{selData.project}</p>
           <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '6px', 'marginTop': '8px'}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a988c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg>
@@ -579,7 +579,7 @@ export default function Visits() {
           <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '6px 16px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
             { visitInfo.map((r, index) => (
               <div style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 0', borderTop: r.border}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={r.icon}/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={r.icon}/></svg>
                 <span style={{'flex': '1', 'fontSize': '12.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>{r.k}</span>
                 <span style={{'fontSize': '13px', 'color': '#16231a', 'fontWeight': '700'}}>{r.v}</span>
               </div>
@@ -588,10 +588,10 @@ export default function Visits() {
 
           {/* sales executive */}
           <div style={{'marginTop': '14px', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '16px', 'display': 'flex', 'alignItems': 'center', 'gap': '13px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
-            <div style={{'width': '50px', 'height': '50px', 'borderRadius': '15px', 'background': 'linear-gradient(160deg,#5fa772,#74b986)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '17px', 'fontWeight': '800', 'color': '#fff'}}>{String(selData.assignedAgentName || 'AG').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'AG'}</div>
+            <div style={{'width': '50px', 'height': '50px', 'borderRadius': '15px', 'background': 'linear-gradient(160deg,#2b6d3d,#3f8a54)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '17px', 'fontWeight': '800', 'color': '#fff'}}>{String(selData.assignedAgentName || 'AG').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'AG'}</div>
             <div style={{'flex': '1'}}><p style={{'margin': '0', 'fontSize': '11px', 'color': '#8a988c', 'fontWeight': '600'}}>Assigned Agent</p><p style={{'margin': '4px 0 0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{selData.assignedAgentName || 'Assigned after approval'}</p><p style={{'margin': '2px 0 0', 'fontSize': '11.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>{selData.assignedAgentPhone || 'Live number will appear after assignment'}</p></div>
             <button onClick={call} style={{'width': '44px', 'height': '44px', 'borderRadius': '13px', 'border': 'none', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'cursor': 'pointer'}}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>
             </button>
           </div>
 
@@ -603,8 +603,8 @@ export default function Visits() {
               <div style={{'position': 'absolute', 'top': '20px', 'left': '20%', 'right': '30%', 'height': '2px', 'background': '#c2a06a', 'opacity': '.7'}}></div>
               <div style={{'position': 'absolute', 'top': '44px', 'left': 'calc(44% - 12px)', 'width': '26px', 'height': '26px', 'borderRadius': '50% 50% 50% 0', 'transform': 'rotate(-45deg)', 'background': '#e2822a', 'boxShadow': '0 4px 10px -2px rgba(226,130,42,.6)'}}></div>
             </div>
-            <button onClick={directions} style={{'width': '100%', 'height': '50px', 'border': 'none', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'gap': '8px', 'borderTop': '1px solid #f0f4ee'}}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg>
+            <button onClick={directions} style={{'width': '100%', 'height': '50px', 'border': 'none', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'gap': '8px', 'borderTop': '1px solid #f0f4ee'}}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/></svg>
               Get Directions
             </button>
           </div>
@@ -614,7 +614,7 @@ export default function Visits() {
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '11px'}}>
             { quickActions.map((q, index) => (
               <button onClick={q.go} style={{'display': 'flex', 'alignItems': 'center', 'gap': '11px', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '15px', 'padding': '14px', 'cursor': 'pointer', 'fontFamily': 'inherit', 'textAlign': 'left'}}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style={{'flex': 'none'}}><path d={q.icon}/></svg>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style={{'flex': 'none'}}><path d={q.icon}/></svg>
                 <span style={{'fontSize': '12.5px', 'fontWeight': '700', 'color': '#16231a', 'lineHeight': '1.25'}}>{q.label}</span>
               </button>
             ))}
@@ -623,7 +623,7 @@ export default function Visits() {
           {/* primary actions */}
           {selData.isUpcoming && (
           <div style={{'display': 'flex', 'gap': '12px', 'margin': '20px 0'}}>
-            <button onClick={goReschedule} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #5fa772', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'cursor': 'pointer'}}>Reschedule</button>
+            <button onClick={goReschedule} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #2b6d3d', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'cursor': 'pointer'}}>Reschedule</button>
             <button onClick={askCancel} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #f3d3d0', 'background': '#fff', 'color': '#c0392b', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'cursor': 'pointer'}}>Cancel Visit</button>
           </div>
           )}
@@ -637,8 +637,8 @@ export default function Visits() {
             )}
             <button onClick={goBook} style={{'width': '100%', 'height': '54px', 'borderRadius': '16px', 'border': 'none', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 12px 24px -12px rgba(226,130,42,.55)', 'marginBottom': '12px'}}>Book Another Visit</button>
             <div style={{'display': 'flex', 'gap': '12px'}}>
-              <button onClick={requestBookingFromVisit} style={{'flex': '1', 'height': '50px', 'borderRadius': '15px', 'border': '1.5px solid #cfe6c6', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>♡ Mark Interested</button>
-              <button onClick={call} style={{'flex': '1', 'height': '50px', 'borderRadius': '15px', 'border': '1.5px solid #cfe6c6', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Request Callback</button>
+              <button onClick={requestBookingFromVisit} style={{'flex': '1', 'height': '50px', 'borderRadius': '15px', 'border': '1.5px solid #cfe6c6', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>♡ Mark Interested</button>
+              <button onClick={call} style={{'flex': '1', 'height': '50px', 'borderRadius': '15px', 'border': '1.5px solid #cfe6c6', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Request Callback</button>
             </div>
           </div>
           )}
@@ -649,7 +649,7 @@ export default function Visits() {
       {/* ===================== BOOK / RESCHEDULE ===================== */}
       {isBook && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 20px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', 'padding': '56px 22px 20px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>{bookTitle}</span>
         </div>
@@ -660,7 +660,7 @@ export default function Visits() {
             <div style={{'flex': '1'}}><p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{selData.name}</p><p style={{'margin': '3px 0 0', 'fontSize': '11.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{selData.plot} · {selData.location}</p></div>
           </div>
 
-          <p style={{'margin': '22px 0 12px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#4f8f61'}}>{`Select Date · ${monthLabel}`}</p>
+          <p style={{'margin': '22px 0 12px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#1f5a31'}}>{`Select Date · ${monthLabel}`}</p>
           <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(7,1fr)', 'gap': '6px'}}>
             { weekdays.map((w, index) => (<span style={{'textAlign': 'center', 'fontSize': '10.5px', 'fontWeight': '700', 'color': '#9aa89c'}}>{w}</span>))}
             { calendar.map((d, index) => (
@@ -668,7 +668,7 @@ export default function Visits() {
             ))}
           </div>
 
-          <p style={{'margin': '22px 0 12px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#4f8f61'}}>Select Time Slot</p>
+          <p style={{'margin': '22px 0 12px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#1f5a31'}}>Select Time Slot</p>
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr 1fr', 'gap': '9px'}}>
             { slots.map((s, index) => (
               <button onClick={s.pick} style={s.style}>{s.label}</button>
@@ -681,7 +681,7 @@ export default function Visits() {
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'padding': '6px 0'}}><span style={{'fontSize': '12.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>Mobile</span><span style={{'fontSize': '13px', 'color': '#16231a', 'fontWeight': '700'}}>{session?.user?.phone ? `+${String(session.user.phone).replace(/^\+/, '')}` : '—'}</span></div>
           </div>
 
-          <button onClick={confirmBook} style={{'margin': '20px 0', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{confirmLabel} · {selectedVisitDateLabel}, {pickedTime}</button>
+          <button onClick={confirmBook} style={{'margin': '20px 0', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{confirmLabel} · {selectedVisitDateLabel}, {pickedTime}</button>
         </div>
       </div>
       )}
@@ -690,20 +690,20 @@ export default function Visits() {
       {isSuccess && (
       <div className="rv-screen" style={{'minHeight': '820px', 'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'justifyContent': 'center', 'textAlign': 'center', 'padding': '40px 34px'}}>
         <div style={{'position': 'relative', 'width': '110px', 'height': '110px', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-          <span style={{'position': 'absolute', 'inset': '0', 'borderRadius': '50%', 'background': '#5fa772', 'animation': 'rvRing 1.6s ease-out infinite'}}></span>
-          <div style={{'position': 'relative', 'width': '100px', 'height': '100px', 'borderRadius': '50%', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'boxShadow': '0 18px 40px -14px rgba(18,68,35,.8)'}}>
+          <span style={{'position': 'absolute', 'inset': '0', 'borderRadius': '50%', 'background': '#2b6d3d', 'animation': 'rvRing 1.6s ease-out infinite'}}></span>
+          <div style={{'position': 'relative', 'width': '100px', 'height': '100px', 'borderRadius': '50%', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'boxShadow': '0 18px 40px -14px rgba(18,68,35,.8)'}}>
             <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
           </div>
         </div>
-        <p style={{'margin': '26px 0 8px', 'fontSize': '23px', 'fontWeight': '800', 'color': '#4f8f61'}}>Site Visit Confirmed!</p>
+        <p style={{'margin': '26px 0 8px', 'fontSize': '23px', 'fontWeight': '800', 'color': '#1f5a31'}}>Site Visit Confirmed!</p>
         <p style={{'margin': '0', 'fontSize': '14px', 'color': '#6d7d6f', 'lineHeight': '1.55', 'maxWidth': '270px'}}>We've scheduled your visit. Our sales executive will meet you at the site.</p>
         <div style={{'marginTop': '26px', 'width': '100%', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '6px 18px', 'boxShadow': '0 14px 34px -24px rgba(18,53,29,.55)'}}>
           { successRows.map((r, index) => (
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderTop: r.border}}><span style={{'fontSize': '12.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{r.k}</span><span style={{'fontSize': '13.5px', 'color': '#16231a', 'fontWeight': '700'}}>{r.v}</span></div>
           ))}
         </div>
-        <button onClick={goVisits} style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>View My Visits</button>
-        <button onClick={goVisits} style={{'marginTop': '12px', 'width': '100%', 'height': '56px', 'border': '1.5px solid #cfe6c6', 'borderRadius': '16px', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer'}}>Back to Home</button>
+        <button onClick={goVisits} style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>View My Visits</button>
+        <button onClick={goVisits} style={{'marginTop': '12px', 'width': '100%', 'height': '56px', 'border': '1.5px solid #cfe6c6', 'borderRadius': '16px', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer'}}>Back to Home</button>
       </div>
       )}
 
@@ -742,7 +742,7 @@ export default function Visits() {
         <div style={{'width': '64px', 'height': '64px', 'borderRadius': '20px', 'background': '#fdecec', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16h.01M10.3 3.8 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/></svg>
         </div>
-        <p style={{'margin': '16px 0 6px', 'fontSize': '18px', 'fontWeight': '800', 'color': '#4f8f61', 'textAlign': 'center'}}>Cancel this visit?</p>
+        <p style={{'margin': '16px 0 6px', 'fontSize': '18px', 'fontWeight': '800', 'color': '#1f5a31', 'textAlign': 'center'}}>Cancel this visit?</p>
         <p style={{'margin': '0', 'fontSize': '13px', 'color': '#6d7d6f', 'textAlign': 'center', 'lineHeight': '1.55'}}>This will cancel your visit to {selData.name} on {selData.date}. You can rebook anytime.</p>
         <div style={{'display': 'flex', 'gap': '12px', 'marginTop': '22px'}}>
           <button onClick={dismiss} style={{'flex': '1', 'height': '52px', 'borderRadius': '15px', 'border': '1.5px solid #e2e8e0', 'background': '#fff', 'color': '#3d4f40', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Keep Visit</button>

@@ -48,17 +48,17 @@ const SPEC_ROWS = [
   { k: 'Plot Area', v: '200 Sq.Yd', color: '#16231a', arrow: '' },
   { k: 'Facing', v: 'East', color: '#16231a', arrow: '' },
   { k: 'Registration Date', v: '15 Jan 2025', color: '#16231a', arrow: '' },
-  { k: 'RERA Number', v: 'RERA/AP/000023', color: '#5fa772', arrow: '↗' },
+  { k: 'RERA Number', v: 'RERA/AP/000023', color: '#2b6d3d', arrow: '↗' },
   { k: 'Guideline Value', v: '₹3,200/Sq.Yd', color: '#16231a', arrow: '' },
   { k: 'Market Value', v: '₹4,500/Sq.Yd', color: '#e2822a', arrow: '↑' },
 ];
 
 const MAP_PLOTS = [
-  { label: 'A-118', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#5fa772', border: '1px solid #b5d9a8' } },
-  { label: 'A-119', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#5fa772', border: '1px solid #b5d9a8' } },
-  { label: 'A-120', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#5fa772', color: '#fff', border: '1px solid #5fa772' } },
-  { label: 'A-121', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#5fa772', border: '1px solid #b5d9a8' } },
-  { label: 'A-122', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#5fa772', border: '1px solid #b5d9a8' } },
+  { label: 'A-118', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#2b6d3d', border: '1px solid #b5d9a8' } },
+  { label: 'A-119', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#2b6d3d', border: '1px solid #b5d9a8' } },
+  { label: 'A-120', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#2b6d3d', color: '#fff', border: '1px solid #2b6d3d' } },
+  { label: 'A-121', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#2b6d3d', border: '1px solid #b5d9a8' } },
+  { label: 'A-122', style: { fontSize: '9px', fontWeight: '700', padding: '5px 8px', borderRadius: '7px', background: '#cfe6c6', color: '#2b6d3d', border: '1px solid #b5d9a8' } },
 ];
 
 const CATEGORIES_PLOT = [
@@ -180,7 +180,7 @@ export default function MyLands() {
   const goProfile = () => navigate('/app#profile');
 
   const chipStyle = (c) => filter === c
-    ? { padding: '8px 17px', borderRadius: '20px', border: 'none', background: '#5fa772', color: '#fff', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }
+    ? { padding: '8px 17px', borderRadius: '20px', border: 'none', background: '#2b6d3d', color: '#fff', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }
     : { padding: '8px 17px', borderRadius: '20px', border: '1px solid #e0ebe4', background: '#fff', color: '#4a5c4d', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 };
 
   const selD = sel || sourceLands[0] || null;
@@ -216,7 +216,7 @@ export default function MyLands() {
 
       <div className="ml-scroll rv-scroll with-nav" style={{ position: 'absolute', inset: '0', overflowY: 'auto' }}>
         {notice && (
-          <div style={{ position: 'sticky', top: '12px', zIndex: 20, margin: '12px 22px 0', background: '#4f8f61', color: '#fff', borderRadius: '14px', padding: '12px 14px', fontSize: '12.5px', fontWeight: 600, boxShadow: '0 12px 24px -18px rgba(18,53,29,.75)' }}>
+          <div style={{ position: 'sticky', top: '12px', zIndex: 20, margin: '12px 22px 0', background: '#1f5a31', color: '#fff', borderRadius: '14px', padding: '12px 14px', fontSize: '12.5px', fontWeight: 600, boxShadow: '0 12px 24px -18px rgba(18,53,29,.75)' }}>
             {notice}
           </div>
         )}
@@ -224,14 +224,14 @@ export default function MyLands() {
         {/* ===================== MY LANDS LIST ===================== */}
         {isLands && (
           <div className="rv-screen">
-            <div style={{ background: 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', padding: '56px 22px 22px', borderRadius: '0 0 26px 26px' }}>
+            <div style={{ background: 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', padding: '56px 22px 22px', borderRadius: '0 0 26px 26px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '19px', fontWeight: '800', color: '#fff' }}>My Lands</span>
                 </div>
                 <button style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
                   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0" /></svg>
-                  <span style={{ position: 'absolute', top: '9px', right: '10px', width: '7px', height: '7px', borderRadius: '50%', background: '#eb9236', border: '1.5px solid #6fb581' }}></span>
+                  <span style={{ position: 'absolute', top: '9px', right: '10px', width: '7px', height: '7px', borderRadius: '50%', background: '#eb9236', border: '1.5px solid #377e4b' }}></span>
                 </button>
               </div>
               <div style={{ marginTop: '16px', background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.16)', borderRadius: '18px', padding: '16px', display: 'flex' }}>
@@ -258,7 +258,7 @@ export default function MyLands() {
                   <div style={{ width: '96px', height: '96px', borderRadius: '30px', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#8fae8c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5M10 21v-6h4v6" /></svg>
                   </div>
-                  <p style={{ margin: '22px 0 6px', fontSize: '17px', fontWeight: '800', color: '#4f8f61' }}>No properties yet</p>
+                  <p style={{ margin: '22px 0 6px', fontSize: '17px', fontWeight: '800', color: '#1f5a31' }}>No properties yet</p>
                   <p style={{ margin: '0 0 22px', fontSize: '13.5px', color: '#8a988c', maxWidth: '250px', lineHeight: '1.55' }}>Start your investment journey with Rivan Reality — explore premium plots, villas and farmlands.</p>
                   <button onClick={() => navigate('/app')} style={{ height: '52px', padding: '0 32px', border: 'none', borderRadius: '15px', background: 'linear-gradient(180deg,#eb9236,#e2822a)', color: '#fff', fontFamily: 'inherit', fontSize: '15px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 12px 24px -10px rgba(226,130,42,.6)' }}>Explore Properties</button>
                 </div>
@@ -274,7 +274,7 @@ export default function MyLands() {
                           <div style={{ flex: '1', minWidth: '0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                               <p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#16231a' }}>{p.name}</p>
-                              <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#5fa772', background: '#e8f3e3', padding: '3px 9px', borderRadius: '20px', flexShrink: 0 }}>{p.status}</span>
+                              <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#2b6d3d', background: '#e8f3e3', padding: '3px 9px', borderRadius: '20px', flexShrink: 0 }}>{p.status}</span>
                             </div>
                             <p style={{ margin: '4px 0 5px', fontSize: '13px', fontWeight: '700', color: '#3d4f40' }}>{p.code}</p>
                             <p style={{ margin: '0', fontSize: '11.5px', color: '#8a988c', fontWeight: '500' }}>{p.spec}</p>
@@ -286,12 +286,12 @@ export default function MyLands() {
                         <div style={{ display: 'flex', gap: '6px', flex: '1' }}>
                           {SVC_PREVIEW_ICONS.map((icon, i) => (
                             <span key={i} style={{ width: '32px', height: '32px', borderRadius: '10px', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
                             </span>
                           ))}
                           <span style={{ fontSize: '11px', fontWeight: '600', color: '#6d7d6f', alignSelf: 'center' }}>{serviceCatalog.length ? `${serviceCatalog.length} live services` : 'Live services'}</span>
                         </div>
-                        <button onClick={() => { setSel(p); openAddons(); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid #cfe6c6', background: '#fff', color: '#5fa772', borderRadius: '11px', padding: '8px 13px', fontFamily: 'inherit', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>＋ Add Services</button>
+                        <button onClick={() => { setSel(p); openAddons(); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid #cfe6c6', background: '#fff', color: '#2b6d3d', borderRadius: '11px', padding: '8px 13px', fontFamily: 'inherit', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>＋ Add Services</button>
                       </div>
                     </div>
                   ))}
@@ -308,10 +308,10 @@ export default function MyLands() {
             <div style={{ position: 'relative', height: '210px', background: selD.grad }}>
               <div style={{ position: 'absolute', inset: '0', background: 'linear-gradient(180deg,rgba(9,32,16,.25),transparent 40%,rgba(9,32,16,.35))' }}></div>
               <div style={{ position: 'absolute', top: '52px', left: '20px', right: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <button onClick={back} style={{ width: '40px', height: '40px', borderRadius: '13px', border: 'none', background: 'rgba(255,255,255,.92)', color: '#4f8f61', fontSize: '18px', cursor: 'pointer' }}>←</button>
+                <button onClick={back} style={{ width: '40px', height: '40px', borderRadius: '13px', border: 'none', background: 'rgba(255,255,255,.92)', color: '#1f5a31', fontSize: '18px', cursor: 'pointer' }}>←</button>
                 <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff', textShadow: '0 1px 6px rgba(0,0,0,.4)' }}>{selD.name}</span>
                 <button style={{ width: '40px', height: '40px', borderRadius: '13px', border: 'none', background: 'rgba(255,255,255,.92)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f8f61" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f5a31" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
                 </button>
               </div>
             </div>
@@ -319,20 +319,20 @@ export default function MyLands() {
             <div style={{ padding: '20px 22px 0', marginTop: '-24px', background: '#f8fbf6', borderRadius: '24px 24px 0 0', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <p style={{ margin: '0', fontSize: '20px', fontWeight: '800', color: '#4f8f61' }}>{selD.code}</p>
+                  <p style={{ margin: '0', fontSize: '20px', fontWeight: '800', color: '#1f5a31' }}>{selD.code}</p>
                   <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#6d7d6f', fontWeight: '500' }}>{selD.spec}</p>
                   <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#8a988c', fontWeight: '500' }}>Reg. No. {selD.reg}</p>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#5fa772', background: '#e8f3e3', padding: '5px 12px', borderRadius: '20px' }}>{selD.status}</span>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#2b6d3d', background: '#e8f3e3', padding: '5px 12px', borderRadius: '20px' }}>{selD.status}</span>
               </div>
 
               <div style={{ marginTop: '18px', background: '#fff', border: '1px solid #eef3ec', borderRadius: '18px', padding: '16px', boxShadow: '0 12px 30px -24px rgba(18,53,29,.5)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '13px', fontWeight: '700', color: '#3d4f40' }}>Progress Overview</span>
-                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#5fa772' }}>{selD.progress}</span>
+                  <span style={{ fontSize: '20px', fontWeight: '800', color: '#2b6d3d' }}>{selD.progress}</span>
                 </div>
                 <div style={{ height: '9px', borderRadius: '6px', background: '#eef3ec', overflow: 'hidden', margin: '12px 0 14px' }}>
-                  <div style={{ height: '100%', borderRadius: '6px', background: 'linear-gradient(90deg,#5fa772,#74b986)', width: selD.progress }}></div>
+                  <div style={{ height: '100%', borderRadius: '6px', background: 'linear-gradient(90deg,#2b6d3d,#3f8a54)', width: selD.progress }}></div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div><p style={{ margin: '0', fontSize: '11px', color: '#8a988c', fontWeight: '600' }}>Paid Amount</p><p style={{ margin: '5px 0 0', fontSize: '15px', fontWeight: '800', color: '#16231a' }}>{selD.paid}</p></div>
@@ -343,14 +343,14 @@ export default function MyLands() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '9px', marginTop: '16px' }}>
                 {QUICK_ACTIONS_DETAIL.map((q, i) => (
                   <button key={i} onClick={() => quickActionHandlers[q.label]?.()} style={{ background: '#fff', border: '1px solid #eef3ec', borderRadius: '15px', padding: '13px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', fontFamily: 'inherit', cursor: 'pointer' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={q.icon} /></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={q.icon} /></svg>
                     <span style={{ fontSize: '10.5px', fontWeight: '600', color: '#4a5c4d', textAlign: 'center' }}>{q.label}</span>
                   </button>
                 ))}
               </div>
 
               <div style={{ marginTop: '16px', background: '#fff', border: '1px solid #eef3ec', borderRadius: '18px', padding: '16px', boxShadow: '0 12px 30px -24px rgba(18,53,29,.5)' }}>
-                <p style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '800', color: '#4f8f61' }}>About this Property</p>
+                <p style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '800', color: '#1f5a31' }}>About this Property</p>
                 {selD.aboutRows.map((a, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0' }}>
                     <span style={{ fontSize: '12.5px', color: '#8a988c', fontWeight: '500' }}>{a.k}</span>
@@ -359,7 +359,7 @@ export default function MyLands() {
                 ))}
               </div>
 
-              <button onClick={() => go('plotInfo')} style={{ margin: '18px 0', width: '100%', height: '56px', border: 'none', borderRadius: '16px', background: 'linear-gradient(180deg,#5fa772,#74b986)', color: '#fff', fontFamily: 'inherit', fontSize: '15px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 14px 26px -12px rgba(18,68,35,.7)' }}>View {selD.infoLabel}</button>
+              <button onClick={() => go('plotInfo')} style={{ margin: '18px 0', width: '100%', height: '56px', border: 'none', borderRadius: '16px', background: 'linear-gradient(180deg,#2b6d3d,#3f8a54)', color: '#fff', fontFamily: 'inherit', fontSize: '15px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 14px 26px -12px rgba(18,68,35,.7)' }}>View {selD.infoLabel}</button>
             </div>
           </div>
         )}
@@ -367,7 +367,7 @@ export default function MyLands() {
         {/* ===================== PLOT INFO ===================== */}
         {isPlotInfo && selD && (
           <div className="rv-screen">
-            <div style={{ background: 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', padding: '56px 22px 22px', borderRadius: '0 0 26px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', padding: '56px 22px 22px', borderRadius: '0 0 26px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button onClick={back} style={{ width: '38px', height: '38px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: '18px', cursor: 'pointer' }}>←</button>
                 <span style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>{selD.infoLabel}</span>
@@ -386,7 +386,7 @@ export default function MyLands() {
                     <span key={i} style={mp.style}>{mp.label}</span>
                   ))}
                 </div>
-                <span style={{ position: 'absolute', bottom: '12px', right: '14px', background: '#5fa772', color: '#fff', fontSize: '10px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px' }}>📍 Your Plot</span>
+                <span style={{ position: 'absolute', bottom: '12px', right: '14px', background: '#2b6d3d', color: '#fff', fontSize: '10px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px' }}>📍 Your Plot</span>
               </div>
 
               <div style={{ marginTop: '16px', background: '#fff', border: '1px solid #eef3ec', borderRadius: '20px', padding: '6px 16px', boxShadow: '0 12px 30px -24px rgba(18,53,29,.5)' }}>
@@ -401,13 +401,13 @@ export default function MyLands() {
 
               {/* Add-on features preview */}
               <div style={{ marginTop: '16px', background: '#fff', border: '1px solid #eef3ec', borderRadius: '20px', padding: '18px', boxShadow: '0 12px 30px -24px rgba(18,53,29,.5)' }}>
-                <p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#4f8f61' }}>Add-on Features</p>
+                <p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#1f5a31' }}>Add-on Features</p>
                 <p style={{ margin: '6px 0 14px', fontSize: '12.5px', color: '#8a988c', fontWeight: '500', lineHeight: '1.5' }}>Add services to secure, improve and maintain your property.</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                   {ADDON_PREVIEW.map((c, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px', border: '1px solid #f0f4ee', borderRadius: '13px' }}>
                       <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon} /></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon} /></svg>
                       </span>
                       <div style={{ flex: '1' }}><p style={{ margin: '0', fontSize: '13.5px', fontWeight: '700', color: '#16231a' }}>{c.name}</p><p style={{ margin: '2px 0 0', fontSize: '11px', color: '#9aa89c', fontWeight: '500' }}>{c.count} services</p></div>
                     </div>
@@ -423,7 +423,7 @@ export default function MyLands() {
         {/* ===================== ADD-ON FEATURES ===================== */}
         {isAddons && (
           <div className="rv-screen">
-            <div style={{ background: 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', padding: '56px 22px 20px', borderRadius: '0 0 26px 26px' }}>
+            <div style={{ background: 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', padding: '56px 22px 20px', borderRadius: '0 0 26px 26px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button onClick={back} style={{ width: '38px', height: '38px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: '18px', cursor: 'pointer' }}>←</button>
                 <span style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>Add-on Features</span>
@@ -436,7 +436,7 @@ export default function MyLands() {
                 <div key={i} onClick={() => openCat(c)} style={{ background: '#fff', border: '1px solid #eef3ec', borderRadius: '20px', padding: '18px', boxShadow: '0 12px 30px -24px rgba(18,53,29,.5)', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ width: '44px', height: '44px', borderRadius: '13px', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon} /></svg>
+                      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon} /></svg>
                     </span>
                     <div style={{ flex: '1' }}><p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#16231a' }}>{c.name}</p><p style={{ margin: '3px 0 0', fontSize: '11.5px', color: '#8a988c', fontWeight: '500' }}>{c.desc}</p></div>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2cdc0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -450,8 +450,8 @@ export default function MyLands() {
               ))}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '11px', background: '#f2f7ef', border: '1px solid #e0ebd9', borderRadius: '16px', padding: '14px 16px' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4M12 8h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z" /></svg>
-                <p style={{ margin: '0', fontSize: '12px', color: '#4a5c4d', fontWeight: '600' }}>Services shown are based on <strong style={{ color: '#5fa772' }}>{selD?.typeShort || 'Plot'}</strong> type</p>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16v-4M12 8h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z" /></svg>
+                <p style={{ margin: '0', fontSize: '12px', color: '#4a5c4d', fontWeight: '600' }}>Services shown are based on <strong style={{ color: '#2b6d3d' }}>{selD?.typeShort || 'Plot'}</strong> type</p>
               </div>
               <div style={{ height: '12px' }}></div>
             </div>
@@ -461,7 +461,7 @@ export default function MyLands() {
         {/* ===================== CHOOSE SERVICE (Category Detail) ===================== */}
         {isChoose && cat && (
           <div className="rv-screen">
-            <div style={{ background: 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', padding: '56px 22px 20px', borderRadius: '0 0 26px 26px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ background: 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', padding: '56px 22px 20px', borderRadius: '0 0 26px 26px', display: 'flex', alignItems: 'center', gap: '14px' }}>
               <button onClick={back} style={{ width: '38px', height: '38px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: '18px', cursor: 'pointer' }}>←</button>
               <span style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>{cat.name}</span>
             </div>
@@ -489,10 +489,10 @@ export default function MyLands() {
                   <div style={{ flex: '1', minWidth: '0' }}>
                     <p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#16231a' }}>{sName}</p>
                     <p style={{ margin: '4px 0 8px', fontSize: '11.5px', color: '#8a988c', fontWeight: '500', lineHeight: '1.45' }}>Professional {sName.toLowerCase()} service</p>
-                    <p style={{ margin: '0', fontSize: '11px', color: '#6d7d6f', fontWeight: '600' }}>Starts from <span style={{ fontSize: '14px', fontWeight: '800', color: '#5fa772' }}>₹{(3 + i) * 1000}</span></p>
+                    <p style={{ margin: '0', fontSize: '11px', color: '#6d7d6f', fontWeight: '600' }}>Starts from <span style={{ fontSize: '14px', fontWeight: '800', color: '#2b6d3d' }}>₹{(3 + i) * 1000}</span></p>
                   </div>
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', flexShrink: 0 }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                   </div>
                 </div>
               ))}
@@ -505,7 +505,7 @@ export default function MyLands() {
                   { icon: 'M4 20V8l4-2 4 2 4-2 4 2v12M4 20h16', label: 'Warranty' },
                 ].map((t, i) => (
                   <div key={i} style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '7px', textAlign: 'center' }}>
-                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
                     <span style={{ fontSize: '9.5px', fontWeight: '600', color: '#6d7d6f', lineHeight: '1.25' }}>{t.label}</span>
                   </div>
                 ))}
