@@ -375,7 +375,7 @@ export default function Login() {
                 display: "flex",
                 flexDirection: "column",
                 background:
-                  "linear-gradient(180deg,#f3f8f0 0%,#e7f0e2 46%,#6baa7a 46%,#5f9b6d 100%)",
+                  "linear-gradient(180deg,#f3f8f0 0%,#e7f0e2 46%,#4f8f61 46%,#447f56 100%)",
               }}
             >
               <div
@@ -509,7 +509,7 @@ export default function Login() {
                     borderRadius: "13px",
                     border: "1px solid #e4ece0",
                     background: "#fff",
-                    color: "#6baa7a",
+                    color: "#4f8f61",
                     fontSize: "19px",
                     cursor: "pointer",
                   }}
@@ -524,7 +524,7 @@ export default function Login() {
                   margin: "26px 0 8px",
                   fontSize: "28px",
                   fontWeight: "800",
-                  color: "#6baa7a",
+                  color: "#4f8f61",
                   letterSpacing: "-.5px",
                 }}
               >
@@ -574,7 +574,7 @@ export default function Login() {
                   height: "58px",
                   border: "none",
                   borderRadius: "18px",
-                  background: "linear-gradient(180deg,#7fbe8f,#91cda0)",
+                  background: "linear-gradient(180deg,#5fa772,#74b986)",
                   color: "#fff",
                   fontFamily: "inherit",
                   fontSize: "16px",
@@ -612,7 +612,7 @@ export default function Login() {
                     borderRadius: "13px",
                     border: "1px solid #e4ece0",
                     background: "#fff",
-                    color: "#6baa7a",
+                    color: "#4f8f61",
                     fontSize: "19px",
                     cursor: "pointer",
                   }}
@@ -627,7 +627,7 @@ export default function Login() {
                   margin: "26px 0 6px",
                   fontSize: "28px",
                   fontWeight: "800",
-                  color: "#6baa7a",
+                  color: "#4f8f61",
                   letterSpacing: "-.5px",
                 }}
               >
@@ -659,7 +659,7 @@ export default function Login() {
                       gap: "6px",
                       fontSize: "15px",
                       fontWeight: "700",
-                      color: "#6baa7a",
+                      color: "#4f8f61",
                       borderRight: "1.5px solid #e2e8e0",
                       paddingRight: "12px",
                     }}
@@ -702,7 +702,7 @@ export default function Login() {
                 </p>
               )}
               {status && (
-                <p style={{ margin: "16px 0 0", fontSize: "13px", fontWeight: "700", color: "#7fbe8f" }}>
+                <p style={{ margin: "16px 0 0", fontSize: "13px", fontWeight: "700", color: "#5fa772" }}>
                   {status}
                 </p>
               )}
@@ -716,7 +716,7 @@ export default function Login() {
                   height: "58px",
                   border: "none",
                   borderRadius: "18px",
-                  background: "linear-gradient(180deg,#7fbe8f,#91cda0)",
+                  background: "linear-gradient(180deg,#5fa772,#74b986)",
                   color: "#fff",
                   fontFamily: "inherit",
                   fontSize: "16px",
@@ -754,7 +754,7 @@ export default function Login() {
                   borderRadius: "13px",
                   border: "1px solid #e4ece0",
                   background: "#fff",
-                  color: "#6baa7a",
+                  color: "#4f8f61",
                   fontSize: "19px",
                   cursor: "pointer",
                 }}
@@ -762,7 +762,7 @@ export default function Login() {
                 ←
               </button>
 
-              <h1 style={{ margin: "24px 0 8px", fontSize: "26px", fontWeight: "800", color: "#6baa7a" }}>
+              <h1 style={{ margin: "24px 0 8px", fontSize: "26px", fontWeight: "800", color: "#4f8f61" }}>
                 Agent Application
               </h1>
               <p style={{ margin: 0, fontSize: "14px", color: "#6d7d6f", lineHeight: "1.55" }}>
@@ -844,7 +844,7 @@ export default function Login() {
                 </p>
               )}
               {status && (
-                <p style={{ margin: "16px 0 0", fontSize: "13px", fontWeight: "700", color: "#7fbe8f" }}>
+                <p style={{ margin: "16px 0 0", fontSize: "13px", fontWeight: "700", color: "#5fa772" }}>
                   {status}
                 </p>
               )}
@@ -858,7 +858,7 @@ export default function Login() {
                   height: "58px",
                   border: "none",
                   borderRadius: "18px",
-                  background: "linear-gradient(180deg,#7fbe8f,#91cda0)",
+                  background: "linear-gradient(180deg,#5fa772,#74b986)",
                   color: "#fff",
                   fontFamily: "inherit",
                   fontSize: "16px",
@@ -895,14 +895,14 @@ export default function Login() {
                   background: "#eef6ea",
                   display: "grid",
                   placeItems: "center",
-                  color: "#7fbe8f",
+                  color: "#5fa772",
                   fontSize: "34px",
                   fontWeight: "800",
                 }}
               >
                 ✓
               </div>
-              <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "800", color: "#6baa7a" }}>
+              <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "800", color: "#4f8f61" }}>
                 Application Submitted
               </h1>
               <p style={{ margin: "12px 0 0", fontSize: "14.5px", color: "#6d7d6f", lineHeight: "1.6" }}>
@@ -916,7 +916,7 @@ export default function Login() {
                   height: "58px",
                   border: "none",
                   borderRadius: "18px",
-                  background: "linear-gradient(180deg,#7fbe8f,#91cda0)",
+                  background: "linear-gradient(180deg,#5fa772,#74b986)",
                   color: "#fff",
                   fontFamily: "inherit",
                   fontSize: "16px",
@@ -948,7 +948,7 @@ export default function Login() {
                   borderRadius: "13px",
                   border: "1px solid #e4ece0",
                   background: "#fff",
-                  color: "#6baa7a",
+                  color: "#4f8f61",
                   fontSize: "19px",
                   cursor: "pointer",
                 }}
@@ -975,7 +975,7 @@ export default function Login() {
                   margin: "24px 0 8px",
                   fontSize: "26px",
                   fontWeight: "800",
-                  color: "#6baa7a",
+                  color: "#4f8f61",
                   textAlign: "center",
                   letterSpacing: "-.5px",
                 }}
@@ -1005,7 +1005,7 @@ export default function Login() {
                       fontFamily: "inherit",
                       fontSize: "22px",
                       fontWeight: "800",
-                      color: "#6baa7a",
+                      color: "#4f8f61",
                       border: "1.5px solid #d7e0d3",
                       borderRadius: "15px",
                       background: "#fbfdfa",
@@ -1020,7 +1020,7 @@ export default function Login() {
                 </p>
               )}
               {status && (
-                <p style={{ margin: "18px 0 0", fontSize: "13px", fontWeight: "700", color: "#7fbe8f", textAlign: "center" }}>
+                <p style={{ margin: "18px 0 0", fontSize: "13px", fontWeight: "700", color: "#5fa772", textAlign: "center" }}>
                   {status}
                 </p>
               )}
@@ -1054,7 +1054,7 @@ export default function Login() {
                   height: "58px",
                   border: "none",
                   borderRadius: "18px",
-                  background: "linear-gradient(180deg,#7fbe8f,#91cda0)",
+                  background: "linear-gradient(180deg,#5fa772,#74b986)",
                   color: "#fff",
                   fontFamily: "inherit",
                   fontSize: "16px",

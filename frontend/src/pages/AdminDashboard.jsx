@@ -20,8 +20,8 @@ const statusTone = {
   resolved: ['#eef2fb', '#2a6fdb'],
   completed: ['#eef2fb', '#2a6fdb'],
   booked: ['#eef2fb', '#2a6fdb'],
-  reserved: ['#e9f4e6', '#7fbe8f'],
-  sold: ['#e9f4e6', '#7fbe8f'],
+  reserved: ['#e9f4e6', '#5fa772'],
+  sold: ['#e9f4e6', '#5fa772'],
 };
 
 function tone(label) {
@@ -399,7 +399,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#eef2ec', color: '#16231a' }}>
-      <aside style={{ width: '260px', background: '#6baa7a', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <aside style={{ width: '260px', background: '#4f8f61', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
         <div>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
@@ -421,7 +421,7 @@ export default function AdminDashboard() {
                 fontSize: '13px',
                 fontWeight: 700,
                 background: page === id ? '#fff' : 'rgba(255,255,255,.08)',
-                color: page === id ? '#6baa7a' : '#fff',
+                color: page === id ? '#4f8f61' : '#fff',
               }}
             >
               {label}
@@ -439,7 +439,7 @@ export default function AdminDashboard() {
       <main style={{ flex: 1, padding: '24px' }}>
         <div style={{ ...cardStyle, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '32px', color: '#6baa7a' }}>
+            <h1 style={{ margin: 0, fontSize: '32px', color: '#4f8f61' }}>
               {page === 'dashboard' ? 'Admin Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Admin'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
               )}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff' }}>
-              <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#7fbe8f,#91cda0)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#5fa772,#74b986)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
                 {initialsOf(user.name)}
               </div>
               <div>
@@ -479,7 +479,7 @@ export default function AdminDashboard() {
               {dashboardCards.map((item) => (
                 <div key={item.label} style={cardStyle}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>
-                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#6baa7a' }}>{item.value}</div>
+                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#4f8f61' }}>{item.value}</div>
                 </div>
               ))}
             </div>
@@ -510,7 +510,7 @@ export default function AdminDashboard() {
                         <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{agent.phone ? `+91 ${agent.phone}` : 'No phone'}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => updateAgentStatus(agent.id, 'approved')} style={{ border: 'none', borderRadius: '10px', background: '#7fbe8f', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                        <button onClick={() => updateAgentStatus(agent.id, 'approved')} style={{ border: 'none', borderRadius: '10px', background: '#5fa772', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
                         <button onClick={() => updateAgentStatus(agent.id, 'rejected')} style={{ border: '1px solid #f0c8c8', borderRadius: '10px', background: '#fff', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Reject</button>
                       </div>
                     </div>
@@ -624,7 +624,7 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ margin: 0 }}>Notifications</h3>
-              <button onClick={markAllRead} style={{ border: '1px solid #d7e4d4', background: '#fff', color: '#7fbe8f', borderRadius: '10px', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Mark all read</button>
+              <button onClick={markAllRead} style={{ border: '1px solid #d7e4d4', background: '#fff', color: '#5fa772', borderRadius: '10px', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Mark all read</button>
             </div>
             {notifications.length === 0 ? (
               <p style={{ margin: 0, color: '#6d7d6f' }}>No notifications yet.</p>
@@ -706,7 +706,7 @@ export default function AdminDashboard() {
                   </label>
                 ))}
               </div>
-              <button onClick={saveSettings} disabled={savingSettings} style={{ marginTop: '16px', height: '44px', border: 'none', borderRadius: '12px', background: '#7fbe8f', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: savingSettings ? 0.7 : 1 }}>
+              <button onClick={saveSettings} disabled={savingSettings} style={{ marginTop: '16px', height: '44px', border: 'none', borderRadius: '12px', background: '#5fa772', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: savingSettings ? 0.7 : 1 }}>
                 {savingSettings ? 'Saving...' : 'Save Settings'}
               </button>
             </section>
@@ -721,7 +721,7 @@ export default function AdminDashboard() {
               <input name="email" value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={formatPhoneDisplay(user.phone)} readOnly style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit', background: '#f6faf4' }} />
               <input name="address" value={profileForm.address} onChange={(event) => setProfileForm((current) => ({ ...current, address: event.target.value }))} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#7fbe8f', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
+              <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#5fa772', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>
             </div>

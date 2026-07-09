@@ -360,7 +360,7 @@ export function DcPage({ sourcePath, title }: DcPageProps) {
           placeItems: "center",
           padding: "24px",
           background: "radial-gradient(140% 100% at 50% 0%, #eef4ea 0%, #e0ece0 55%, #d4e8d4 100%)",
-          color: "#6baa7a",
+          color: "#4f8f61",
           fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
         }}
       >

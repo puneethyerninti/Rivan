@@ -428,7 +428,7 @@ export default function AgentDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#eef2ec', color: '#16231a' }}>
-      <aside style={{ width: '260px', background: '#6baa7a', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <aside style={{ width: '260px', background: '#4f8f61', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
         <div>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
@@ -450,7 +450,7 @@ export default function AgentDashboard() {
                 fontSize: '13px',
                 fontWeight: 700,
                 background: page === id ? '#fff' : 'rgba(255,255,255,.08)',
-                color: page === id ? '#6baa7a' : '#fff',
+                color: page === id ? '#4f8f61' : '#fff',
               }}
             >
               {label}
@@ -468,7 +468,7 @@ export default function AgentDashboard() {
       <main style={{ flex: 1, padding: '24px' }}>
         <div style={{ ...cardStyle, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '32px', color: '#6baa7a' }}>
+            <h1 style={{ margin: 0, fontSize: '32px', color: '#4f8f61' }}>
               {page === 'dashboard' ? 'Agent Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Agent'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
@@ -488,7 +488,7 @@ export default function AgentDashboard() {
               )}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff' }}>
-              <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#7fbe8f,#91cda0)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#5fa772,#74b986)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
                 {initialsOf(user.name)}
               </div>
               <div>
@@ -508,7 +508,7 @@ export default function AgentDashboard() {
               {topCards.map((item) => (
                 <div key={item.label} style={cardStyle}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>
-                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#6baa7a' }}>{item.value}</div>
+                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#4f8f61' }}>{item.value}</div>
                 </div>
               ))}
             </div>
@@ -591,7 +591,7 @@ export default function AgentDashboard() {
                 item.status === 'completed' ? (
                   <span style={{ color: '#1a8a4a', fontWeight: 800 }}>Done</span>
                 ) : (
-                  <button onClick={() => completeTask(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#7fbe8f', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>
+                  <button onClick={() => completeTask(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#5fa772', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>
                     Complete
                   </button>
                 ),
@@ -624,7 +624,7 @@ export default function AgentDashboard() {
                 <input value={visitForm.visit_time} onChange={(event) => setVisitForm((current) => ({ ...current, visit_time: event.target.value }))} placeholder="Visit time" style={{ height: '46px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
                 <input value={visitForm.notes} onChange={(event) => setVisitForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes" style={{ height: '46px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
               </div>
-              <button onClick={submitVisit} disabled={submittingVisit} style={{ marginTop: '14px', height: '44px', border: 'none', borderRadius: '12px', background: '#7fbe8f', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: submittingVisit ? 0.7 : 1 }}>
+              <button onClick={submitVisit} disabled={submittingVisit} style={{ marginTop: '14px', height: '44px', border: 'none', borderRadius: '12px', background: '#5fa772', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: submittingVisit ? 0.7 : 1 }}>
                 {submittingVisit ? 'Scheduling...' : 'Schedule Visit'}
               </button>
             </section>
@@ -639,7 +639,7 @@ export default function AgentDashboard() {
                   `${formatDateOnly(item.visit_date)} ${item.visit_time ? `• ${item.visit_time}` : ''}`,
                   <span style={badgeTone(item.status || 'scheduled')}>{String(item.status || 'scheduled').replaceAll('_', ' ')}</span>,
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={() => updateVisitStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#7fbe8f', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                    <button onClick={() => updateVisitStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#5fa772', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
                     <button onClick={() => updateVisitStatus(item.id, 'rescheduled')} style={{ border: 'none', borderRadius: '10px', background: '#f3eefb', color: '#7a4fce', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Reschedule</button>
                     <button onClick={() => updateVisitStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Complete</button>
                   </div>,
@@ -667,7 +667,7 @@ export default function AgentDashboard() {
                 <input value={bookingForm.visit_time} onChange={(event) => setBookingForm((current) => ({ ...current, visit_time: event.target.value }))} placeholder="Visit time" style={{ height: '46px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
                 <input value={bookingForm.notes} onChange={(event) => setBookingForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes" style={{ height: '46px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
               </div>
-              <button onClick={submitBooking} disabled={submittingBooking} style={{ marginTop: '14px', height: '44px', border: 'none', borderRadius: '12px', background: '#7fbe8f', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: submittingBooking ? 0.7 : 1 }}>
+              <button onClick={submitBooking} disabled={submittingBooking} style={{ marginTop: '14px', height: '44px', border: 'none', borderRadius: '12px', background: '#5fa772', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: submittingBooking ? 0.7 : 1 }}>
                 {submittingBooking ? 'Creating...' : 'Create Booking'}
               </button>
             </section>
@@ -682,7 +682,7 @@ export default function AgentDashboard() {
                   item.plot_number || item.plot_id || 'Plot',
                   <span style={badgeTone(item.status || 'pending')}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={() => updateBookingStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#7fbe8f', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                    <button onClick={() => updateBookingStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#5fa772', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
                     <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Complete</button>
                     <button onClick={() => updateBookingStatus(item.id, 'cancelled')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
                   </div>,
@@ -712,7 +712,7 @@ export default function AgentDashboard() {
           <section style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ margin: 0 }}>Notifications</h3>
-              <button onClick={markAllRead} style={{ border: '1px solid #d7e4d4', background: '#fff', color: '#7fbe8f', borderRadius: '10px', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>
+              <button onClick={markAllRead} style={{ border: '1px solid #d7e4d4', background: '#fff', color: '#5fa772', borderRadius: '10px', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>
                 Mark all read
               </button>
             </div>
@@ -743,7 +743,7 @@ export default function AgentDashboard() {
               <input value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={formatPhoneDisplay(user.phone)} readOnly style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit', background: '#f6faf4' }} />
               <input value={profileForm.address} onChange={(event) => setProfileForm((current) => ({ ...current, address: event.target.value }))} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#7fbe8f', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
+              <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#5fa772', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>
             </div>

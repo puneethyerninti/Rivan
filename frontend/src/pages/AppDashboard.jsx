@@ -369,7 +369,7 @@ export default function AppDashboard() {
     pick: () => setChip(l),
     style:
       chip === l
-        ? { flex: 'none', padding: '9px 18px', borderRadius: '12px', border: 'none', background: '#7fbe8f', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }
+        ? { flex: 'none', padding: '9px 18px', borderRadius: '12px', border: 'none', background: '#5fa772', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }
         : { flex: 'none', padding: '9px 18px', borderRadius: '12px', border: '1px solid #e2e8e0', background: '#fff', color: '#3d4f40', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   });
   const chips = ['All', 'Plots', 'Villas', 'Apartments'].map(getChip);
@@ -387,7 +387,7 @@ export default function AppDashboard() {
     pick: () => setMyTab(l),
     style:
       myTab === l
-        ? { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: '#7fbe8f', color: '#fff', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer' }
+        ? { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: '#5fa772', color: '#fff', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer' }
         : { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: 'transparent', color: '#7c8c7e', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' },
   });
   const myTabs = ['All', 'Active', 'Completed'].map(getMyTab);
@@ -477,7 +477,7 @@ export default function AppDashboard() {
     icon,
     label,
     iconBg: extra.iconBg || iconBg,
-    iconColor: extra.iconColor || '#7fbe8f',
+    iconColor: extra.iconColor || '#5fa772',
     textColor: extra.textColor || '#16231a',
     badge: !!extra.badge,
     badgeText: extra.badge || '',
@@ -571,9 +571,9 @@ export default function AppDashboard() {
 
   const notifs = [
     { title: 'Payment Due Reminder', body: 'Your next installment of ₹1,00,000 is due on 12 Jun 2025.', time: '2 hours ago', unread: true, icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', iconColor: '#e2822a', iconBg: '#fdefe0' },
-    { title: 'New Project Launched', body: 'Emerald Springs at Yendada is now open for bookings.', time: 'Yesterday', unread: true, icon: 'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5', iconColor: '#7fbe8f', iconBg: '#eef6ea' },
-    { title: 'Payment Received', body: 'We received your installment #6 of ₹1,00,000. Thank you!', time: '2 days ago', unread: false, icon: 'M5 12l4 4 10-10', iconColor: '#7fbe8f', iconBg: '#eef6ea' },
-    { title: 'KYC Verified', body: 'Your identity documents have been successfully verified.', time: '5 days ago', unread: false, icon: 'M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z', iconColor: '#7fbe8f', iconBg: '#eef6ea' },
+    { title: 'New Project Launched', body: 'Emerald Springs at Yendada is now open for bookings.', time: 'Yesterday', unread: true, icon: 'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5', iconColor: '#5fa772', iconBg: '#eef6ea' },
+    { title: 'Payment Received', body: 'We received your installment #6 of ₹1,00,000. Thank you!', time: '2 days ago', unread: false, icon: 'M5 12l4 4 10-10', iconColor: '#5fa772', iconBg: '#eef6ea' },
+    { title: 'KYC Verified', body: 'Your identity documents have been successfully verified.', time: '5 days ago', unread: false, icon: 'M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z', iconColor: '#5fa772', iconBg: '#eef6ea' },
   ].map((n) => ({ ...n, bg: n.unread ? '#f4faf1' : '#fff' }));
 
   notifs.splice(0, notifs.length);
@@ -584,7 +584,7 @@ export default function AppDashboard() {
       label,
       icon,
       border: idx === 0 ? 'none' : '1px solid #f0f4ee',
-      track: on ? '#7fbe8f' : '#d4ddd0',
+      track: on ? '#5fa772' : '#d4ddd0',
       knob: on ? '23px' : '3px',
       toggle: () => openNotice('Preference Unavailable', `${label} will be available once this setting is connected to your live account preferences.`),
     };
@@ -634,10 +634,10 @@ export default function AppDashboard() {
       const type = String(item.type || '').toLowerCase();
       const iconMap = {
         booking: ['M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', '#e2822a', '#fdefe0'],
-        service: ['M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z', '#7fbe8f', '#eef6ea'],
-        visit: ['M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 14l2 2 4-4', '#7fbe8f', '#eef6ea'],
+        service: ['M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z', '#5fa772', '#eef6ea'],
+        visit: ['M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 14l2 2 4-4', '#5fa772', '#eef6ea'],
       };
-      const [icon, iconColor, iconBg] = iconMap[type] || ['M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z', '#7fbe8f', '#eef6ea'];
+      const [icon, iconColor, iconBg] = iconMap[type] || ['M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z', '#5fa772', '#eef6ea'];
       return {
         ...item,
         time: formatRelativeTime(item.updated_at || item.created_at),
@@ -713,7 +713,7 @@ export default function AppDashboard() {
     go: () => (id === 'propDetail' ? openProject(selData) : mainTabs.includes(id) ? tab(id) : go(id)),
     style:
       cur === id
-        ? { padding: '6px 11px', borderRadius: '9px', border: 'none', background: '#6baa7a', color: '#fff', fontFamily: 'inherit', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }
+        ? { padding: '6px 11px', borderRadius: '9px', border: 'none', background: '#4f8f61', color: '#fff', fontFamily: 'inherit', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }
         : { padding: '6px 11px', borderRadius: '9px', border: 'none', background: 'rgba(18,53,29,.06)', color: '#3d4f40', fontFamily: 'inherit', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
   }));
 
@@ -727,7 +727,7 @@ export default function AppDashboard() {
 
   const userName = String(session?.user?.name || profileForm.name || 'Customer').trim();
   const initials = initialsFromName(userName);
-  const statusColor = greenHeader && cur !== 'propDetail' ? '#ffffff' : cur === 'propDetail' ? '#ffffff' : '#6baa7a';
+  const statusColor = greenHeader && cur !== 'propDetail' ? '#ffffff' : cur === 'propDetail' ? '#ffffff' : '#4f8f61';
   const scrollPad = showNav ? '86px' : '0px';
 
   const isHome = cur === 'home';
@@ -845,7 +845,7 @@ export default function AppDashboard() {
     {
       label: 'Request Callback',
       sub: session?.user?.phone ? `Use ${String(session.user.phone).replace(/^\+/, '+')}` : 'Create a live callback request',
-      color: '#7fbe8f',
+      color: '#5fa772',
       bg: '#eef6ea',
       icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12 19.79 19.79 0 0 1 1.07 3.18 2 2 0 0 1 3.05 1h3a2 2 0 0 1 2 1.72c.13 1.01.36 2 .71 2.96a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.35 1.95.58 2.96.71A2 2 0 0 1 21 16z',
       action: () => submitContactSales('callback', `Please call me back regarding ${selectedProperty?.name || 'the property'} .`),
@@ -878,7 +878,7 @@ export default function AppDashboard() {
       {/* ===================== HOME ===================== */}
       {isHome && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '58px 22px 22px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '58px 22px 22px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <div>
               <p style={{'margin': '0', 'fontSize': '19px', 'fontWeight': '800', 'color': '#fff'}}>Hello, {userName} 👋</p>
@@ -890,7 +890,7 @@ export default function AppDashboard() {
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7c8c7e" stroke-width="1.8" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5"/></svg>
             <input value={homeSearch} onChange={(event) => setHomeSearch(event.target.value)} placeholder="Search by location, project or plot no." style={{'flex': '1', 'border': 'none', 'background': 'transparent', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '500', 'color': '#16231a'}}/>
             <div style={{'width': '34px', 'height': '34px', 'borderRadius': '10px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
             </div>
           </div>
         </div>
@@ -904,13 +904,13 @@ export default function AppDashboard() {
                 <p style={{'margin': '0', 'fontSize': '19px', 'fontWeight': '800', 'color': '#fff'}}>{selectedProperty?.name || 'Sirpuram Gardens'}</p>
                 <p style={{'margin': '3px 0 0', 'fontSize': '12.5px', 'color': '#eaf3e4', 'fontWeight': '500'}}>{selectedProperty?.property_type || selectedProperty?.category || 'Live property details'}</p>
               </div>
-              <span style={{'alignSelf': 'flex-start', 'background': '#fff', 'color': '#6baa7a', 'fontSize': '12.5px', 'fontWeight': '700', 'padding': '9px 16px', 'borderRadius': '11px'}}>Explore Now →</span>
+              <span style={{'alignSelf': 'flex-start', 'background': '#fff', 'color': '#4f8f61', 'fontSize': '12.5px', 'fontWeight': '700', 'padding': '9px 16px', 'borderRadius': '11px'}}>Explore Now →</span>
             </div>
           </div>
 
           {/* featured */}
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'margin': '24px 0 12px'}}>
-            <span style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#6baa7a'}}>Featured Projects</span>
+            <span style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#4f8f61'}}>Featured Projects</span>
             <a onClick={goExplore} style={{'fontSize': '13px', 'fontWeight': '700', 'color': '#e2822a', 'cursor': 'pointer'}}>View All</a>
           </div>
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '13px'}}>
@@ -922,7 +922,7 @@ export default function AppDashboard() {
                 <div style={{'padding': '11px 12px 13px'}}>
                   <p style={{'margin': '0', 'fontSize': '13.5px', 'fontWeight': '700', 'color': '#16231a'}}>{f.name}</p>
                   <p style={{'margin': '3px 0 8px', 'fontSize': '11.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{f.loc}</p>
-                  <p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{f.price} <span style={{'fontSize': '10.5px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
+                  <p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '800', 'color': '#5fa772'}}>{f.price} <span style={{'fontSize': '10.5px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
                 </div>
               </div>
             ))}
@@ -932,12 +932,12 @@ export default function AppDashboard() {
           )}
 
           {/* quick actions */}
-          <p style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#6baa7a', 'margin': '24px 0 13px'}}>Quick Actions</p>
+          <p style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#4f8f61', 'margin': '24px 0 13px'}}>Quick Actions</p>
           <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(5,1fr)', 'gap': '8px'}}>
             { quickActions.map((q, index) => (
               <button onClick={q.go} style={{'border': 'none', 'background': 'transparent', 'cursor': 'pointer', 'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'gap': '7px', 'fontFamily': 'inherit'}}>
                 <span style={{'width': '50px', 'height': '50px', 'borderRadius': '16px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={q.icon}/></svg>
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={q.icon}/></svg>
                 </span>
                 <span style={{'fontSize': '10px', 'fontWeight': '600', 'color': '#4a5c4d', 'textAlign': 'center', 'lineHeight': '1.2'}}>{q.label}</span>
               </button>
@@ -950,7 +950,7 @@ export default function AppDashboard() {
       {/* ===================== EXPLORE ===================== */}
       {isExplore && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '58px 22px 20px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '58px 22px 20px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
             <button onClick={goHome} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
             <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Explore Properties</span>
@@ -972,7 +972,7 @@ export default function AppDashboard() {
             { filterIcons.map((fi, index) => (
               <button onClick={fi.go} style={{'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'gap': '6px', 'border': 'none', 'background': 'transparent', 'padding': '0', 'cursor': 'pointer', 'fontFamily': 'inherit'}}>
                 <span style={{'width': '44px', 'height': '44px', 'borderRadius': '14px', 'border': '1px solid #e6ede2', 'background': '#fff', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={fi.icon}/></svg>
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={fi.icon}/></svg>
                 </span>
                 <span style={{'fontSize': '10.5px', 'fontWeight': '600', 'color': '#6d7d6f'}}>{fi.label}</span>
               </button>
@@ -980,7 +980,7 @@ export default function AppDashboard() {
           </div>
 
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'margin': '18px 0 12px'}}>
-            <span style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#6baa7a'}}>Projects Near You</span>
+            <span style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#4f8f61'}}>Projects Near You</span>
             <a onClick={refreshExplore} style={{'fontSize': '12.5px', 'fontWeight': '700', 'color': '#e2822a', 'cursor': 'pointer'}}>↻ Refresh</a>
           </div>
 
@@ -1009,7 +1009,7 @@ export default function AppDashboard() {
                 <div style={{'flex': '1', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'center'}}>
                   <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '700', 'color': '#16231a'}}>{n.name}</p>
                   <p style={{'margin': '3px 0 8px', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '500'}}>{n.loc}</p>
-                  <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{n.price} <span style={{'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
+                  <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#5fa772'}}>{n.price} <span style={{'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
                 </div>
                 <button onClick={n.like} style={{'alignSelf': 'flex-start', 'border': 'none', 'background': 'transparent', 'cursor': 'pointer', 'padding': '2px'}}>
                   <svg width="21" height="21" viewBox="0 0 24 24" fill={n.heartFill} stroke={n.heartStroke} stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
@@ -1028,7 +1028,7 @@ export default function AppDashboard() {
       {/* ===================== MY PROPERTIES ===================== */}
       {isProps && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '58px 22px 22px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '58px 22px 22px', 'borderRadius': '0 0 26px 26px'}}>
           <p style={{'margin': '0 0 16px', 'fontSize': '19px', 'fontWeight': '800', 'color': '#fff'}}>My Properties</p>
           <div style={{'display': 'flex', 'gap': '12px'}}>
             <div style={{'flex': '1', 'background': 'rgba(255,255,255,.1)', 'border': '1px solid rgba(255,255,255,.16)', 'borderRadius': '16px', 'padding': '14px'}}>
@@ -1054,7 +1054,7 @@ export default function AppDashboard() {
             <div style={{'width': '82px', 'height': '82px', 'borderRadius': '26px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8fae8c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4h9v17M9 8h3M9 12h3M9 16h3M6 21h13"/></svg>
             </div>
-            <p style={{'margin': '20px 0 6px', 'fontSize': '16px', 'fontWeight': '800', 'color': '#6baa7a'}}>No completed properties yet</p>
+            <p style={{'margin': '20px 0 6px', 'fontSize': '16px', 'fontWeight': '800', 'color': '#4f8f61'}}>No completed properties yet</p>
             <p style={{'margin': '0', 'fontSize': '13px', 'color': '#8a988c', 'maxWidth': '220px', 'lineHeight': '1.5'}}>Your fully-paid properties will appear here once the payments are complete.</p>
           </div>
           )}
@@ -1074,13 +1074,13 @@ export default function AppDashboard() {
                 </div>
                 <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'margin': '14px 0 7px'}}>
                   <span style={{'fontSize': '12px', 'fontWeight': '600', 'color': '#6d7d6f'}}>Payment Progress</span>
-                  <span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#7fbe8f', 'background': '#e8f3e3', 'padding': '4px 11px', 'borderRadius': '20px'}}>{m.status}</span>
+                  <span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#5fa772', 'background': '#e8f3e3', 'padding': '4px 11px', 'borderRadius': '20px'}}>{m.status}</span>
                 </div>
                 <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '10px'}}>
                   <div style={{'flex': '1', 'height': '8px', 'borderRadius': '5px', 'background': '#eef3ec', 'overflow': 'hidden'}}>
-                    <div style={{height: '100%', borderRadius: '5px', background: 'linear-gradient(90deg,#7fbe8f,#91cda0)', width: m.width}}></div>
+                    <div style={{height: '100%', borderRadius: '5px', background: 'linear-gradient(90deg,#5fa772,#74b986)', width: m.width}}></div>
                   </div>
-                  <span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{m.pct}</span>
+                  <span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#5fa772'}}>{m.pct}</span>
                 </div>
               </div>
             ))}
@@ -1094,7 +1094,7 @@ export default function AppDashboard() {
       {/* ===================== PAYMENTS ===================== */}
       {isPayments && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '58px 22px 24px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '58px 22px 24px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
               <button onClick={goHome} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
@@ -1130,7 +1130,7 @@ export default function AppDashboard() {
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '14px'}}>
               <div>
                 <p style={{'margin': '0', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '600'}}>Paid So Far</p>
-                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#7fbe8f'}}>Unavailable</p>
+                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#5fa772'}}>Unavailable</p>
               </div>
               <div style={{'textAlign': 'right'}}>
                 <p style={{'margin': '0', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '600'}}>Balance Due</p>
@@ -1139,28 +1139,28 @@ export default function AppDashboard() {
             </div>
             {/* Segmented progress bar */}
             <div style={{'height': '10px', 'borderRadius': '6px', 'background': '#eef3ec', 'overflow': 'hidden', 'display': 'flex'}}>
-              <div style={{'height': '100%', 'width': '100%', 'background': 'linear-gradient(90deg,#7fbe8f,#91cda0)', 'borderRadius': '6px'}}></div>
+              <div style={{'height': '100%', 'width': '100%', 'background': 'linear-gradient(90deg,#5fa772,#74b986)', 'borderRadius': '6px'}}></div>
             </div>
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginTop': '10px'}}>
-              <span style={{'fontSize': '11px', 'color': '#7fbe8f', 'fontWeight': '700'}}>● Bookings, visits, and updates sync automatically</span>
+              <span style={{'fontSize': '11px', 'color': '#5fa772', 'fontWeight': '700'}}>● Bookings, visits, and updates sync automatically</span>
               <span style={{'fontSize': '11px', 'color': '#e2822a', 'fontWeight': '700'}}>● Payment collection is excluded from this release</span>
             </div>
             {/* Milestone markers */}
             <div style={{'marginTop': '14px', 'display': 'grid', 'gridTemplateColumns': 'repeat(4,1fr)', 'gap': '8px'}}>
               <div style={{'textAlign': 'center', 'padding': '10px 6px', 'borderRadius': '12px', 'background': '#e8f3e3', 'border': '1px solid #cfe6c6'}}>
-                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#7fbe8f'}}>10%</p>
+                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#5fa772'}}>10%</p>
                 <p style={{'margin': '3px 0 0', 'fontSize': '9.5px', 'color': '#4a6b4a', 'fontWeight': '600'}}>Token</p>
-                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#7fbe8f', 'fontWeight': '700'}}>✓ Done</p>
+                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#5fa772', 'fontWeight': '700'}}>✓ Done</p>
               </div>
               <div style={{'textAlign': 'center', 'padding': '10px 6px', 'borderRadius': '12px', 'background': '#e8f3e3', 'border': '1px solid #cfe6c6'}}>
-                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#7fbe8f'}}>20%</p>
+                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#5fa772'}}>20%</p>
                 <p style={{'margin': '3px 0 0', 'fontSize': '9.5px', 'color': '#4a6b4a', 'fontWeight': '600'}}>Booking</p>
-                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#7fbe8f', 'fontWeight': '700'}}>✓ Done</p>
+                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#5fa772', 'fontWeight': '700'}}>✓ Done</p>
               </div>
               <div style={{'textAlign': 'center', 'padding': '10px 6px', 'borderRadius': '12px', 'background': '#e8f3e3', 'border': '1px solid #cfe6c6'}}>
-                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#7fbe8f'}}>40%</p>
+                <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#5fa772'}}>40%</p>
                 <p style={{'margin': '3px 0 0', 'fontSize': '9.5px', 'color': '#4a6b4a', 'fontWeight': '600'}}>Milestone 1</p>
-                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#7fbe8f', 'fontWeight': '700'}}>✓ Done</p>
+                <p style={{'margin': '3px 0 0', 'fontSize': '9px', 'color': '#5fa772', 'fontWeight': '700'}}>✓ Done</p>
               </div>
               <div style={{'textAlign': 'center', 'padding': '10px 6px', 'borderRadius': '12px', 'background': '#fff8f0', 'border': '1px solid #f5d9b4'}}>
                 <p style={{'margin': '0', 'fontSize': '13px', 'fontWeight': '800', 'color': '#e2822a'}}>70%</p>
@@ -1180,14 +1180,14 @@ export default function AppDashboard() {
               </div>
               <p style={{'margin': '5px 0 0', 'fontSize': '11.5px', 'color': '#e2822a', 'fontWeight': '700'}}>Use live booking, visit scheduling, documents, and service requests for production testing</p>
             </div>
-            <button onClick={payNow} style={{'border': 'none', 'borderRadius': '14px', 'background': 'linear-gradient(180deg,#7fbe8f,#91cda0)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'padding': '13px 22px', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(18,68,35,.7)'}}>Why Unavailable?</button>
+            <button onClick={payNow} style={{'border': 'none', 'borderRadius': '14px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'padding': '13px 22px', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(18,68,35,.7)'}}>Why Unavailable?</button>
           </div>
 
           <div style={{'marginTop': '14px', 'background': '#fff', 'borderRadius': '20px', 'border': '1px solid #eef3ec', 'overflow': 'hidden', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
             { payLinks.map((p, index) => (
               <button onClick={p.go} style={{width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '16px 18px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', borderTop: p.border}}>
                 <span style={{'width': '38px', 'height': '38px', 'borderRadius': '11px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={p.icon}/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={p.icon}/></svg>
                 </span>
                 <span style={{'flex': '1', 'textAlign': 'left', 'fontSize': '14px', 'fontWeight': '600', 'color': '#16231a'}}>{p.label}</span>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2cdc0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
@@ -1202,7 +1202,7 @@ export default function AppDashboard() {
       {/* ===================== PROFILE ===================== */}
       {isProfile && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 24px', 'borderRadius': '0 0 26px 26px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 24px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Profile</span>
             <img src="assets/logo-mark-white.png" alt="Rivan" style={{'height': '30px', 'opacity': '.9'}} />
@@ -1225,7 +1225,7 @@ export default function AppDashboard() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={i.iconColor} stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={i.icon}/></svg>
                 </span>
                 <span style={{flex: '1', textAlign: 'left', fontSize: '14.5px', fontWeight: '600', color: i.textColor}}>{i.label}</span>
-                {i.badge && (<span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#7fbe8f', 'background': '#e8f3e3', 'padding': '4px 10px', 'borderRadius': '20px', 'marginRight': '6px'}}>✓ {i.badgeText}</span>)}
+                {i.badge && (<span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#5fa772', 'background': '#e8f3e3', 'padding': '4px 10px', 'borderRadius': '20px', 'marginRight': '6px'}}>✓ {i.badgeText}</span>)}
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#c2cdc0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
               </button>
             ))}
@@ -1241,9 +1241,9 @@ export default function AppDashboard() {
         <div style={{position: 'relative', height: '300px', background: selectedImage ? `center / cover no-repeat url(${selectedImage})` : sel.grad}}>
           <div style={{'position': 'absolute', 'inset': '0', 'background': 'linear-gradient(180deg,rgba(9,32,16,.28),transparent 30%,rgba(9,32,16,.5))'}}></div>
           <div style={{'position': 'absolute', 'top': '52px', 'left': '20px', 'right': '20px', 'display': 'flex', 'justifyContent': 'space-between'}}>
-            <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'color': '#6baa7a', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
+            <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'color': '#4f8f61', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
             <button style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6baa7a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4f8f61" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
             </button>
           </div>
           <div style={{'position': 'absolute', 'bottom': '18px', 'left': '20px'}}>
@@ -1254,10 +1254,10 @@ export default function AppDashboard() {
         <div style={{'padding': '20px 22px 0', 'marginTop': '-22px', 'background': '#f8fbf6', 'borderRadius': '24px 24px 0 0', 'position': 'relative'}}>
           <div style={{'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'flex-start'}}>
             <div>
-              <p style={{'margin': '0', 'fontSize': '21px', 'fontWeight': '800', 'color': '#6baa7a'}}>{sel.name}</p>
+              <p style={{'margin': '0', 'fontSize': '21px', 'fontWeight': '800', 'color': '#4f8f61'}}>{sel.name}</p>
               <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'color': '#8a988c', 'fontWeight': '500'}}>📍 {sel.loc}</p>
             </div>
-            <div style={{'textAlign': 'right'}}><p style={{'margin': '0', 'fontSize': '20px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{sel.price}</p><p style={{'margin': '2px 0 0', 'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>per sq.yd</p></div>
+            <div style={{'textAlign': 'right'}}><p style={{'margin': '0', 'fontSize': '20px', 'fontWeight': '800', 'color': '#5fa772'}}>{sel.price}</p><p style={{'margin': '2px 0 0', 'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>per sq.yd</p></div>
           </div>
 
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '11px', 'marginTop': '18px'}}>
@@ -1269,10 +1269,10 @@ export default function AppDashboard() {
             ))}
           </div>
 
-          <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#6baa7a', 'margin': '22px 0 8px'}}>About this project</p>
+          <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#4f8f61', 'margin': '22px 0 8px'}}>About this project</p>
           <p style={{'margin': '0', 'fontSize': '13px', 'lineHeight': '1.65', 'color': '#5c6c5e'}}>A premium gated community of villa plots surrounded by landscaped greenery, wide internal roads and modern amenities — designed for families who value space, privacy and long-term appreciation.</p>
 
-          <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#6baa7a', 'margin': '22px 0 10px'}}>Amenities</p>
+          <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#4f8f61', 'margin': '22px 0 10px'}}>Amenities</p>
           <div style={{'display': 'flex', 'flexWrap': 'wrap', 'gap': '8px'}}>
             { amenities.map((a, index) => (
               <span style={{'fontSize': '12.5px', 'fontWeight': '600', 'color': '#3d4f40', 'background': '#fff', 'border': '1px solid #e6ede2', 'padding': '9px 14px', 'borderRadius': '12px'}}>{a}</span>
@@ -1281,7 +1281,7 @@ export default function AppDashboard() {
 
           {selectedGallery.length > 0 && (
             <>
-              <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#6baa7a', 'margin': '22px 0 10px'}}>Project Gallery</p>
+              <p style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#4f8f61', 'margin': '22px 0 10px'}}>Project Gallery</p>
               <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '10px'}}>
                 {selectedGallery.map((image, index) => (
                   <div key={image + index} style={{'height': '96px', 'borderRadius': '16px', 'overflow': 'hidden', 'border': '1px solid #eef3ec', 'background': `center / cover no-repeat url(${image})`}}></div>
@@ -1293,7 +1293,7 @@ export default function AppDashboard() {
         </div>
 
         <div style={{'position': 'sticky', 'bottom': '0', 'background': '#fff', 'borderTop': '1px solid #eef3ec', 'padding': '14px 22px', 'display': 'flex', 'gap': '12px'}}>
-          <button onClick={() => navigate('/visits')} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #7fbe8f', 'background': '#fff', 'color': '#7fbe8f', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Schedule Visit</button>
+          <button onClick={() => navigate('/visits')} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #5fa772', 'background': '#fff', 'color': '#5fa772', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Schedule Visit</button>
           <button onClick={requestBooking} style={{'flex': '1.3', 'height': '54px', 'borderRadius': '16px', 'border': 'none', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(226,130,42,.6)'}}>Book Now</button>
         </div>
       </div>
@@ -1302,7 +1302,7 @@ export default function AppDashboard() {
       {/* ===================== PAYMENT HISTORY ===================== */}
       {isPayHistory && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Payment History</span>
         </div>
@@ -1310,7 +1310,7 @@ export default function AppDashboard() {
           { history.map((h, index) => (
             <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '13px', 'background': '#fff', 'borderRadius': '16px', 'padding': '15px', 'border': '1px solid #eef3ec', 'boxShadow': '0 10px 26px -22px rgba(18,53,29,.5)'}}>
               <span style={{'width': '42px', 'height': '42px', 'borderRadius': '12px', 'background': '#e8f3e3', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
               </span>
               <div style={{'flex': '1'}}>
                 <p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '700', 'color': '#16231a'}}>{h.title}</p>
@@ -1318,7 +1318,7 @@ export default function AppDashboard() {
               </div>
               <div style={{'textAlign': 'right'}}>
                 <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{h.amt}</p>
-                <p style={{'margin': '3px 0 0', 'fontSize': '10.5px', 'color': '#7fbe8f', 'fontWeight': '700'}}>Paid</p>
+                <p style={{'margin': '3px 0 0', 'fontSize': '10.5px', 'color': '#5fa772', 'fontWeight': '700'}}>Paid</p>
               </div>
             </div>
           ))}
@@ -1329,12 +1329,12 @@ export default function AppDashboard() {
       {/* ===================== EMI CALCULATOR ===================== */}
       {isEMI && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>EMI Calculator</span>
         </div>
         <div style={{'padding': '22px'}}>
-          <div style={{'background': 'linear-gradient(160deg,#7fbe8f,#91cda0)', 'borderRadius': '22px', 'padding': '22px', 'textAlign': 'center', 'boxShadow': '0 16px 34px -20px rgba(18,68,35,.8)'}}>
+          <div style={{'background': 'linear-gradient(160deg,#5fa772,#74b986)', 'borderRadius': '22px', 'padding': '22px', 'textAlign': 'center', 'boxShadow': '0 16px 34px -20px rgba(18,68,35,.8)'}}>
             <p style={{'margin': '0', 'fontSize': '12.5px', 'color': '#bcd6bd', 'fontWeight': '600'}}>Monthly EMI</p>
             <p style={{'margin': '10px 0 0', 'fontSize': '34px', 'fontWeight': '800', 'color': '#fff'}}>{emi}</p>
             <div style={{'display': 'flex', 'justifyContent': 'center', 'gap': '26px', 'marginTop': '16px'}}>
@@ -1346,15 +1346,15 @@ export default function AppDashboard() {
 
           <div style={{'marginTop': '22px', 'display': 'flex', 'flexDirection': 'column', 'gap': '24px'}}>
             <div>
-              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Loan Amount</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{amountLabel}</span></div>
+              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Loan Amount</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#5fa772'}}>{amountLabel}</span></div>
               <input type="range" min="500000" max="10000000" step="100000" value={amount} onInput={setAmount} style={{'width': '100%'}}/>
             </div>
             <div>
-              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Interest Rate</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{rate}%</span></div>
+              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Interest Rate</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#5fa772'}}>{rate}%</span></div>
               <input type="range" min="6" max="15" step="0.25" value={rate} onInput={setRate} style={{'width': '100%'}}/>
             </div>
             <div>
-              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Tenure</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#7fbe8f'}}>{years} yrs</span></div>
+              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Tenure</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#5fa772'}}>{years} yrs</span></div>
               <input type="range" min="1" max="30" step="1" value={years} onInput={setYears} style={{'width': '100%'}}/>
             </div>
           </div>
@@ -1366,7 +1366,7 @@ export default function AppDashboard() {
       {/* ===================== NOTIFICATIONS ===================== */}
       {isNotif && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Notifications</span>
         </div>
@@ -1390,7 +1390,7 @@ export default function AppDashboard() {
       {/* ===================== SETTINGS ===================== */}
       {isSettings && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Settings</span>
         </div>
@@ -1400,7 +1400,7 @@ export default function AppDashboard() {
             { togglesArr.map((t, index) => (
               <div key={index} style={{display: 'flex', alignItems: 'center', gap: '13px', padding: '15px 18px', borderTop: t.border}}>
                 <span style={{'width': '36px', 'height': '36px', 'borderRadius': '11px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon}/></svg>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5fa772" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon}/></svg>
                 </span>
                 <span style={{'flex': '1', 'fontSize': '14px', 'fontWeight': '600', 'color': '#16231a'}}>{t.label}</span>
                 <button onClick={t.toggle} style={{width: '48px', height: '28px', borderRadius: '16px', border: 'none', cursor: 'pointer', position: 'relative', background: t.track, transition: 'background .2s'}}>
@@ -1415,7 +1415,7 @@ export default function AppDashboard() {
             { settingLinks.map((s, index) => (
               <button onClick={s.go} style={{width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '15px 18px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', borderTop: s.border}}>
                 <span style={{'width': '36px', 'height': '36px', 'borderRadius': '11px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={s.icon}/></svg>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={s.icon}/></svg>
                 </span>
                 <span style={{'flex': '1', 'textAlign': 'left', 'fontSize': '14px', 'fontWeight': '600', 'color': '#16231a'}}>{s.label}</span>
                 <span style={{'fontSize': '12.5px', 'color': '#a3b0a4', 'fontWeight': '600', 'marginRight': '6px'}}>{s.value}</span>
@@ -1430,14 +1430,14 @@ export default function AppDashboard() {
       {/* ===================== PERSONAL DETAILS ===================== */}
       {isPersonal && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Personal Details</span>
         </div>
         <div style={{'padding': '22px'}}>
           <div style={{'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'marginBottom': '8px'}}>
-            <div style={{'width': '78px', 'height': '78px', 'borderRadius': '24px', 'background': 'linear-gradient(160deg,#7fbe8f,#91cda0)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '28px', 'fontWeight': '800', 'color': '#fff'}}>{initials}</div>
-            <button onClick={() => openNotice('Profile Photo', 'Profile photo upload will be available in an upcoming update.')} style={{'marginTop': '12px', 'border': '1px solid #e2e8e0', 'background': '#fff', 'borderRadius': '20px', 'padding': '7px 16px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#7fbe8f', 'cursor': 'pointer'}}>Change Photo</button>
+            <div style={{'width': '78px', 'height': '78px', 'borderRadius': '24px', 'background': 'linear-gradient(160deg,#5fa772,#74b986)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '28px', 'fontWeight': '800', 'color': '#fff'}}>{initials}</div>
+            <button onClick={() => openNotice('Profile Photo', 'Profile photo upload will be available in an upcoming update.')} style={{'marginTop': '12px', 'border': '1px solid #e2e8e0', 'background': '#fff', 'borderRadius': '20px', 'padding': '7px 16px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#5fa772', 'cursor': 'pointer'}}>Change Photo</button>
           </div>
           { personalFields.map((p, index) => (
             <div style={{'marginTop': '15px'}}>
@@ -1452,7 +1452,7 @@ export default function AppDashboard() {
               </div>
             </div>
           ))}
-          <button onClick={saveProfile} style={{'marginTop': '26px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#7fbe8f,#91cda0)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
+          <button onClick={saveProfile} style={{'marginTop': '26px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
         </div>
       </div>
       )}
@@ -1460,27 +1460,27 @@ export default function AppDashboard() {
       {/* ===================== KYC ===================== */}
       {isKYC && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>KYC Verification</span>
         </div>
         <div style={{'padding': '22px'}}>
           <div style={{'background': '#e8f3e3', 'border': '1px solid #cfe6c6', 'borderRadius': '20px', 'padding': '22px', 'textAlign': 'center'}}>
-            <div style={{'width': '64px', 'height': '64px', 'borderRadius': '20px', 'background': '#7fbe8f', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
+            <div style={{'width': '64px', 'height': '64px', 'borderRadius': '20px', 'background': '#5fa772', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z M9 12l2 2 4-4"/></svg>
             </div>
-            <p style={{'margin': '14px 0 4px', 'fontSize': '17px', 'fontWeight': '800', 'color': '#6baa7a'}}>Verification Complete</p>
+            <p style={{'margin': '14px 0 4px', 'fontSize': '17px', 'fontWeight': '800', 'color': '#4f8f61'}}>Verification Complete</p>
             <p style={{'margin': '0', 'fontSize': '12.5px', 'color': '#4a6b4a', 'fontWeight': '500'}}>Your identity has been verified successfully</p>
           </div>
-          <p style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#6baa7a', 'margin': '24px 0 12px'}}>Submitted Documents</p>
+          <p style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#4f8f61', 'margin': '24px 0 12px'}}>Submitted Documents</p>
           <div style={{'display': 'flex', 'flexDirection': 'column', 'gap': '12px'}}>
             { kycDocs.map((d, index) => (
               <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '13px', 'background': '#fff', 'borderRadius': '16px', 'padding': '15px', 'border': '1px solid #eef3ec', 'boxShadow': '0 10px 26px -22px rgba(18,53,29,.5)'}}>
                 <span style={{'width': '42px', 'height': '42px', 'borderRadius': '12px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7fbe8f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg>
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5fa772" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg>
                 </span>
                 <div style={{'flex': '1'}}><p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '700', 'color': '#16231a'}}>{d.name}</p><p style={{'margin': '3px 0 0', 'fontSize': '11.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{d.num}</p></div>
-                <span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#7fbe8f', 'background': '#e8f3e3', 'padding': '5px 11px', 'borderRadius': '20px'}}>✓ Verified</span>
+                <span style={{'fontSize': '11px', 'fontWeight': '700', 'color': '#5fa772', 'background': '#e8f3e3', 'padding': '5px 11px', 'borderRadius': '20px'}}>✓ Verified</span>
               </div>
             ))}
           </div>
@@ -1491,16 +1491,16 @@ export default function AppDashboard() {
       {/* ===================== CONTACT SALES ===================== */}
       {isContact && (
       <div className="rv-screen">
-        <div style={{'background': 'linear-gradient(160deg,#7fbe8f 0%,#8ac799 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+        <div style={{'background': 'linear-gradient(160deg,#5fa772 0%,#6fb581 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
           <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Contact Sales</span>
         </div>
         <div style={{'padding': '22px'}}>
           <div style={{'background': '#e8f3e3', 'border': '1px solid #cfe6c6', 'borderRadius': '20px', 'padding': '22px', 'textAlign': 'center', 'marginBottom': '22px'}}>
-            <div style={{'width': '64px', 'height': '64px', 'borderRadius': '20px', 'background': '#7fbe8f', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
+            <div style={{'width': '64px', 'height': '64px', 'borderRadius': '20px', 'background': '#5fa772', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
             </div>
-            <p style={{'margin': '14px 0 4px', 'fontSize': '17px', 'fontWeight': '800', 'color': '#6baa7a'}}>Talk to Our Sales Team</p>
+            <p style={{'margin': '14px 0 4px', 'fontSize': '17px', 'fontWeight': '800', 'color': '#4f8f61'}}>Talk to Our Sales Team</p>
             <p style={{'margin': '0', 'fontSize': '12.5px', 'color': '#4a6b4a', 'fontWeight': '500'}}>Available Mon–Sat, 9 AM – 7 PM</p>
           </div>
           {contactActions.map((c, i) => (
@@ -1516,9 +1516,9 @@ export default function AppDashboard() {
             </div>
           ))}
           <div style={{'marginTop': '10px', 'background': '#f8fbf6', 'border': '1px solid #e6ede2', 'borderRadius': '18px', 'padding': '18px'}}>
-            <p style={{'margin': '0 0 14px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#6baa7a'}}>Send a Message</p>
+            <p style={{'margin': '0 0 14px', 'fontSize': '14px', 'fontWeight': '800', 'color': '#4f8f61'}}>Send a Message</p>
             <textarea value={contactMessage} onChange={(event) => setContactMessage(event.target.value)} placeholder="Tell us what you're looking for..." style={{'width': '100%', 'height': '100px', 'border': '1.5px solid #e2e8e0', 'borderRadius': '14px', 'padding': '12px 14px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'color': '#16231a', 'resize': 'none', 'background': '#fff', 'boxSizing': 'border-box'}}/>
-            <button onClick={() => submitContactSales('contact_sales')} style={{'marginTop': '12px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#7fbe8f,#91cda0)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>Send Message</button>
+            <button onClick={() => submitContactSales('contact_sales')} style={{'marginTop': '12px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>Send Message</button>
           </div>
         </div>
       </div>
@@ -1560,10 +1560,10 @@ export default function AppDashboard() {
     {showPaidModal && (
     <div onClick={closeModal} style={{'position': 'absolute', 'inset': '0', 'background': 'rgba(9,32,16,.5)', 'backdropFilter': 'blur(3px)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'zIndex': '70', 'padding': '30px'}}>
       <div style={{'background': '#fff', 'borderRadius': '26px', 'padding': '30px 26px', 'textAlign': 'center', 'width': '100%', 'animation': 'rvPop .3s cubic-bezier(.22,1.2,.5,1) both'}}>
-        <div style={{'width': '84px', 'height': '84px', 'borderRadius': '28px', 'background': 'linear-gradient(180deg,#7fbe8f,#91cda0)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
+        <div style={{'width': '84px', 'height': '84px', 'borderRadius': '28px', 'background': 'linear-gradient(180deg,#5fa772,#74b986)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'margin': '0 auto'}}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>
         </div>
-        <p style={{'margin': '18px 0 6px', 'fontSize': '20px', 'fontWeight': '800', 'color': '#6baa7a'}}>{modalTitle}</p>
+        <p style={{'margin': '18px 0 6px', 'fontSize': '20px', 'fontWeight': '800', 'color': '#4f8f61'}}>{modalTitle}</p>
         <p style={{'margin': '0', 'fontSize': '13.5px', 'color': '#6d7d6f', 'lineHeight': '1.55'}}>{modalMessage}</p>
         <button onClick={closeModal} style={{'marginTop': '22px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer'}}>Done</button>
       </div>
