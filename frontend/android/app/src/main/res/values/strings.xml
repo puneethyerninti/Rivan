@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">rivan-realty-web</string>
+    <string name="title_activity_main">rivan-realty-web</string>
+    <string name="package_name">com.rivan.reality</string>
+    <string name="custom_url_scheme">com.rivan.reality</string>
+</resources>

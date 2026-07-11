@@ -92,6 +92,7 @@ export default function AdminDashboard() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState({ permissions: {}, notification_preferences: {}, role_label: 'Admin' });
+  const [selectedApprovalId, setSelectedApprovalId] = useState(null);
   const [profileForm, setProfileForm] = useState({
     name: session?.user?.name || '',
     email: session?.user?.email || '',
@@ -277,18 +278,40 @@ export default function AdminDashboard() {
   }, [session?.access_token]);
 
   const pendingAgents = agents.filter((item) => item.approval_status === 'pending');
+  const selectedApproval = agents.find((item) => item.id === selectedApprovalId) || pendingAgents[0] || null;
+  const commissionDefaults = settings.commission_defaults || { enabled: true, model: 'percentage', percentage: 2, flat_amount: 0 };
+  const normalizedBookings = bookings.map((item) => ({
+    ...item,
+    booking_value: Number(item.booking_value || item.total_amount || item.sale_value || 0),
+  }));
+  const closedBookings = normalizedBookings.filter((item) => ['completed', 'closed'].includes(String(item.status || '').toLowerCase()));
+  const commissionTotal = closedBookings.reduce((sum, item) => sum + Number(item.commission_amount || 0), 0);
+  const areaSales = normalizedBookings.reduce((acc, item) => {
+    const key = item.location || item.property_location || item.property_name || item.property_id || 'Unassigned';
+    acc[key] = (acc[key] || 0) + (['completed', 'closed'].includes(String(item.status || '').toLowerCase()) ? 1 : 0);
+    return acc;
+  }, {});
+  const topSellingArea = Object.entries(areaSales).sort((a, b) => b[1] - a[1])[0]?.[0] || 'No closed sales yet';
+  const agentApprovalCounts = agents.reduce((acc, item) => {
+    const key = String(item.approval_status || item.status || 'pending').toLowerCase();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const latestVisits = visits.slice(0, 6);
+  const assignableAgents = agents.filter((item) => String(item.approval_status || '').toLowerCase() === 'approved');
 
   const dashboardCards = [
     { label: 'Users', value: stats?.users ?? users.length },
     { label: 'Agents', value: stats?.agents ?? agents.length },
+    { label: 'Closed Sales', value: closedBookings.length },
+    { label: 'Commission Total', value: `₹${Math.round(commissionTotal).toLocaleString('en-IN')}` },
     { label: 'Bookings', value: stats?.bookings ?? bookings.length },
     { label: 'Visits', value: stats?.visits ?? visits.length },
-    { label: 'Service Requests', value: stats?.service_requests ?? supportTickets.length },
+    { label: 'Top Area', value: topSellingArea },
     { label: 'Properties', value: stats?.properties ?? properties.length },
   ];
 
   const latestBookings = bookings.slice(0, 6);
-  const latestVisits = visits.slice(0, 6);
   const latestTickets = supportTickets.slice(0, 6);
   const latestAudit = auditLogs.slice(0, 8);
 
@@ -334,6 +357,19 @@ export default function AdminDashboard() {
       setError(err?.message || 'Failed to save admin settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const updateVisitWorkflow = async (visitId, payload) => {
+    try {
+      await requestJson(
+        `/api/admin/visits/${visitId}/status`,
+        { method: 'POST', body: payload },
+        session.access_token,
+      );
+      refreshAll(false);
+    } catch (err) {
+      setError(err?.message || 'Failed to update visit workflow');
     }
   };
 
@@ -488,10 +524,11 @@ export default function AdminDashboard() {
               <section style={cardStyle}>
                 <h3 style={{ marginTop: 0 }}>Latest Bookings</h3>
                 {renderTable(
-                  ['Customer', 'Property', 'Plot', 'Status', 'Created'],
+                  ['Customer', 'Property', 'Code', 'Plot', 'Status', 'Created'],
                   latestBookings.map((item) => [
                     item.name || item.customer?.name || 'Customer',
                     item.property_name || item.property_id || 'Property',
+                    item.property_code || '—',
                     item.plot_number || item.plot_id || 'Plot',
                     <span style={tone(item.status)}>{String(item.status || 'pending').replace('_', ' ')}</span>,
                     formatDateTime(item.created_at),
@@ -500,6 +537,11 @@ export default function AdminDashboard() {
               </section>
               <section style={cardStyle}>
                 <h3 style={{ marginTop: 0 }}>Pending Agent Approvals</h3>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  {Object.entries(agentApprovalCounts).map(([key, value]) => (
+                    <span key={key} style={tone(key)}>{key.replace('_', ' ')}: {value}</span>
+                  ))}
+                </div>
                 {pendingAgents.length === 0 ? (
                   <p style={{ margin: 0, color: '#6d7d6f' }}>No pending applications right now.</p>
                 ) : (
@@ -507,9 +549,11 @@ export default function AdminDashboard() {
                     <div key={agent.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '12px 0', borderTop: '1px solid #eef3ec' }}>
                       <div>
                         <div style={{ fontWeight: 800 }}>{agent.name}</div>
+                        <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{agent.id}</div>
                         <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{agent.phone ? `+91 ${agent.phone}` : 'No phone'}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => { setSelectedApprovalId(agent.id); setPage('approvals'); }} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Review</button>
                         <button onClick={() => updateAgentStatus(agent.id, 'approved')} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
                         <button onClick={() => updateAgentStatus(agent.id, 'rejected')} style={{ border: '1px solid #f0c8c8', borderRadius: '10px', background: '#fff', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Reject</button>
                       </div>
@@ -705,6 +749,27 @@ export default function AdminDashboard() {
                     />
                   </label>
                 ))}
+              </div>
+              <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' }}>
+                <label style={{ display: 'grid', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700 }}>Commission Enabled</span>
+                  <input type="checkbox" checked={!!commissionDefaults.enabled} onChange={(event) => setSettings((current) => ({ ...current, commission_defaults: { ...commissionDefaults, enabled: event.target.checked } }))} />
+                </label>
+                <label style={{ display: 'grid', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700 }}>Commission Model</span>
+                  <select value={commissionDefaults.model || 'percentage'} onChange={(event) => setSettings((current) => ({ ...current, commission_defaults: { ...commissionDefaults, model: event.target.value } }))} style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }}>
+                    <option value="percentage">Percentage</option>
+                    <option value="flat">Flat Amount</option>
+                  </select>
+                </label>
+                <label style={{ display: 'grid', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700 }}>Percentage</span>
+                  <input value={commissionDefaults.percentage ?? 0} onChange={(event) => setSettings((current) => ({ ...current, commission_defaults: { ...commissionDefaults, percentage: Number(event.target.value || 0) } }))} style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
+                </label>
+                <label style={{ display: 'grid', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700 }}>Flat Amount</span>
+                  <input value={commissionDefaults.flat_amount ?? 0} onChange={(event) => setSettings((current) => ({ ...current, commission_defaults: { ...commissionDefaults, flat_amount: Number(event.target.value || 0) } }))} style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit' }} />
+                </label>
               </div>
               <button onClick={saveSettings} disabled={savingSettings} style={{ marginTop: '16px', height: '44px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', padding: '0 18px', fontWeight: 800, cursor: 'pointer', opacity: savingSettings ? 0.7 : 1 }}>
                 {savingSettings ? 'Saving...' : 'Save Settings'}

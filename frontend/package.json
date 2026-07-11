@@ -10,6 +10,9 @@
     "preview": "vite preview --host 127.0.0.1 --port 8082"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "firebase": "^10.14.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

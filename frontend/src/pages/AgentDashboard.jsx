@@ -304,6 +304,8 @@ export default function AgentDashboard() {
     { label: 'Visits', value: agentData.kpis?.visits ?? visits.length },
     { label: 'Leads', value: dashboardMetrics.lead_count ?? leads.length },
     { label: 'Active Deals', value: dashboardMetrics.active_deals ?? opportunities.length },
+    { label: 'Closed Sales', value: agentData.kpis?.closed_sales ?? 0 },
+    { label: 'Commission Earned', value: `₹${Math.round(agentData.kpis?.commission_earned ?? 0).toLocaleString('en-IN')}` },
     { label: 'Unread Notifications', value: agentData.kpis?.unread_notifications ?? unreadNotifications },
   ];
 

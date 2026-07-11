@@ -224,6 +224,12 @@ export default function AppDashboard() {
           address: me?.address || me?.city || '',
           date_of_birth: me?.date_of_birth || '',
         });
+        setToggles({
+          push: me?.notification_preferences?.push_notifications ?? true,
+          biometric: me?.biometric_login_enabled ?? false,
+          promo: me?.communication_preferences?.promotional_emails ?? false,
+          dark: me?.dark_mode_enabled ?? false,
+        });
         setFeaturedRows(Array.isArray(featuredApi) ? featuredApi : []);
         setPropertyRows(Array.isArray(propertiesApi) ? propertiesApi : []);
         setLandRows(Array.isArray(myLandApi) ? myLandApi : []);
@@ -485,9 +491,6 @@ export default function AppDashboard() {
   });
   const profileMenuRaw = [
     pm('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5 20c0-3.5 3-6 7-6s7 2.5 7 6', 'Personal Details', 'personal'),
-    pm('M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z', 'KYC Verification', 'kyc', { badge: 'Verified' }),
-    pm('M3 9l9-5 9 5M4 9v9M20 9v9M8 9v9M16 9v9M3 20h18', 'Bank Details', null),
-    pm('M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M3 20c0-3 2.5-5 6-5s6 2 6 5M17 6a3 3 0 0 1 0 6', 'Nominee Details', null),
     pm('M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0', 'Notifications', 'notif'),
     pm('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.5 9a2.5 2.5 0 0 1 4 2c0 1.5-2 2-2 3.5M12 17h.01', 'Help Center', null),
     pm('M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z', 'Service Requests', null),
@@ -586,7 +589,7 @@ export default function AppDashboard() {
       border: idx === 0 ? 'none' : '1px solid #f0f4ee',
       track: on ? '#2b6d3d' : '#d4ddd0',
       knob: on ? '23px' : '3px',
-      toggle: () => openNotice('Preference Unavailable', `${label} will be available once this setting is connected to your live account preferences.`),
+      toggle: () => updatePreferenceToggle(key),
     };
   };
   const togglesArr = [
@@ -603,7 +606,7 @@ export default function AppDashboard() {
   ].map((x, idx) => ({ ...x, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
   settingLinks.forEach((item) => {
-    item.go = () => openNotice(item.label, `${item.label} will be available once this section is connected to the live service.`);
+    item.go = () => openNotice(item.label, `${item.label} is connected to your live account settings and will continue expanding with future releases.`);
   });
 
   const personalFields = [
@@ -677,7 +680,6 @@ export default function AppDashboard() {
     notif: 'profile',
     settings: 'profile',
     personal: 'profile',
-    kyc: 'profile',
   };
   const active = tabOf[cur];
   const navColor = (t) => (active === t ? '#ffffff' : 'rgba(255,255,255,.5)');
@@ -692,7 +694,7 @@ export default function AppDashboard() {
   const navClassProfile = navClass('profile');
 
   const showNav = mainTabs.includes(cur);
-  const greenHeader = ['home', 'explore', 'props', 'payments', 'profile', 'payhistory', 'emi', 'notif', 'settings', 'personal', 'kyc'].includes(cur);
+  const greenHeader = ['home', 'explore', 'props', 'payments', 'profile', 'payhistory', 'emi', 'notif', 'settings', 'personal'].includes(cur);
 
   const SW = [
     ['home', 'Home'],
@@ -706,7 +708,6 @@ export default function AppDashboard() {
     ['notif', 'Notifications'],
     ['settings', 'Settings'],
     ['personal', 'Personal'],
-    ['kyc', 'KYC'],
   ];
   const switcher = SW.map(([id, label]) => ({
     label,
@@ -720,7 +721,7 @@ export default function AppDashboard() {
   const quickActions = [
     { icon: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5', label: 'Explore', go: () => tab('explore') },
     { icon: 'M4 20L20 4M4 9V4h5M20 15v5h-5', label: 'Interactive Layout', go: () => openFirstProject() },
-    { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Schedule Visit', go: () => navigate('/visits') },
+    { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Schedule Visit', go: () => scheduleSelectedPropertyVisit() },
     { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
     { icon: 'M6 4h12v16l-6-3-6 3z', label: 'Contact Sales', go: () => go('contact') },
   ];
@@ -742,7 +743,7 @@ export default function AppDashboard() {
   const isSettings = cur === 'settings';
   const isContact = cur === 'contact';
   const isPersonal = cur === 'personal';
-  const isKYC = cur === 'kyc';
+  const isKYC = false;
 
   const goHome = () => tab('home');
   const goExplore = () => tab('explore');
@@ -790,6 +791,33 @@ export default function AppDashboard() {
       setShowPaidModal(true);
     }
   };
+  const updatePreferenceToggle = async (key) => {
+    if (!session?.access_token) return;
+    const previousToggles = toggles;
+    const nextToggles = { ...toggles, [key]: !toggles[key] };
+    setToggles(nextToggles);
+    try {
+      const updated = await putJson('/api/auth/profile', {
+        notification_preferences: {
+          push_notifications: nextToggles.push,
+          booking_updates: nextToggles.push,
+          service_updates: nextToggles.push,
+        },
+        communication_preferences: {
+          promotional_emails: nextToggles.promo,
+          whatsapp_updates: true,
+        },
+        biometric_login_enabled: nextToggles.biometric,
+        dark_mode_enabled: nextToggles.dark,
+      }, session.access_token);
+      const nextSession = { ...session, user: { ...session.user, ...updated } };
+      setSession(nextSession);
+      saveSession(nextSession);
+    } catch (error) {
+      setToggles(previousToggles);
+      openNotice('Settings Update Failed', error?.message || 'We could not save your preferences right now.');
+    }
+  };
   const saveProfile = async () => {
     if (!session?.access_token) return;
     try {
@@ -805,6 +833,28 @@ export default function AppDashboard() {
       saveSession(nextSession);
     } finally {
       setSavingProfile(false);
+    }
+  };
+  const scheduleSelectedPropertyVisit = async () => {
+    if (!session?.access_token) return;
+    const propertyId = selectedProperty?.id || selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
+    if (!propertyId) {
+      openNotice('Visit Unavailable', 'No live property is available for visit scheduling right now.');
+      return;
+    }
+    try {
+      await postJson('/api/visits/site', {
+        property_id: propertyId,
+        visit_date: new Date().toISOString().slice(0, 10),
+        visit_time: '11:00 AM',
+        name: session.user?.name || userName || 'Customer',
+        mobile: session.user?.phone || '',
+      }, session.access_token);
+      const nextNotifications = await getJson('/api/notifications', session.access_token).catch(() => []);
+      setNotificationRows(Array.isArray(nextNotifications) ? nextNotifications : []);
+      openNotice('Visit Scheduled', `Your visit request for ${selectedProperty?.name || selData?.name || 'this property'} has been submitted successfully.`);
+    } catch (error) {
+      openNotice('Visit Scheduling Failed', error?.message || 'We could not schedule your visit right now.');
     }
   };
   const openNotice = (title, message) => {
@@ -1256,6 +1306,7 @@ export default function AppDashboard() {
             <div>
               <p style={{'margin': '0', 'fontSize': '21px', 'fontWeight': '800', 'color': '#1f5a31'}}>{sel.name}</p>
               <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'color': '#8a988c', 'fontWeight': '500'}}>📍 {sel.loc}</p>
+              <p style={{'margin': '6px 0 0', 'fontSize': '11.5px', 'color': '#2b6d3d', 'fontWeight': '700'}}>{selectedProperty?.property_code || 'Property Code Pending'}</p>
             </div>
             <div style={{'textAlign': 'right'}}><p style={{'margin': '0', 'fontSize': '20px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{sel.price}</p><p style={{'margin': '2px 0 0', 'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>per sq.yd</p></div>
           </div>
@@ -1293,7 +1344,7 @@ export default function AppDashboard() {
         </div>
 
         <div style={{'position': 'sticky', 'bottom': '0', 'background': '#fff', 'borderTop': '1px solid #eef3ec', 'padding': '14px 22px', 'display': 'flex', 'gap': '12px'}}>
-          <button onClick={() => navigate('/visits')} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #2b6d3d', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Schedule Visit</button>
+          <button onClick={scheduleSelectedPropertyVisit} style={{'flex': '1', 'height': '54px', 'borderRadius': '16px', 'border': '1.5px solid #2b6d3d', 'background': '#fff', 'color': '#2b6d3d', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer'}}>Schedule Visit</button>
           <button onClick={requestBooking} style={{'flex': '1.3', 'height': '54px', 'borderRadius': '16px', 'border': 'none', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14.5px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(226,130,42,.6)'}}>Book Now</button>
         </div>
       </div>

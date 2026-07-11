@@ -374,6 +374,53 @@ def replace_live_property_labels(value: Optional[str]) -> str:
     return text
 
 
+def property_city_code(*candidates: Optional[str]) -> str:
+    text = " ".join(str(candidate or "") for candidate in candidates).lower()
+    if "visakhapatnam" in text or "vizag" in text:
+        return "VZG"
+    if "hyderabad" in text:
+        return "HYD"
+    if "bengaluru" in text or "bangalore" in text:
+        return "BLR"
+    if "vijayawada" in text:
+        return "VJA"
+    tokens = [token for token in re.split(r"[^a-z0-9]+", text) if token]
+    if not tokens:
+        return "RIV"
+    return (tokens[0][:3]).upper().ljust(3, "X")
+
+
+def property_locality_code(*candidates: Optional[str]) -> str:
+    for candidate in candidates:
+        text = str(candidate or "").strip()
+        if not text:
+            continue
+        primary = text.split(",")[0].strip()
+        token = re.sub(r"[^A-Za-z0-9]", "", primary).upper()
+        if token:
+            return token[:3].ljust(3, "X")
+    return "GEN"
+
+
+def property_sequence_code(identifier: Optional[str]) -> str:
+    raw = str(identifier or "").strip()
+    match = re.search(r"(\d+)$", raw)
+    if match:
+        return f"{int(match.group(1)):03d}"
+    checksum = abs(hash(raw)) % 1000 if raw else 0
+    return f"{checksum:03d}"
+
+
+def property_code_for_record(item: Dict[str, Any]) -> str:
+    existing = str(item.get("property_code") or "").strip().upper()
+    if existing:
+        return existing
+    identifier = item.get("id") or item.get("property_id")
+    city_code = property_city_code(item.get("location"), item.get("address"), item.get("name"))
+    locality_code = property_locality_code(item.get("location"), item.get("address"), item.get("name"))
+    return f"{city_code}{locality_code}-{property_sequence_code(identifier)}"
+
+
 def normalize_live_property_record(item: Dict[str, Any]) -> Dict[str, Any]:
     normalized = dict(item)
     property_id = canonical_live_property_id(
@@ -395,6 +442,7 @@ def normalize_live_property_record(item: Dict[str, Any]) -> Dict[str, Any]:
         normalized["address"] = live_property_location(property_id, normalized.get("address"))
         normalized["highlights"] = replace_live_property_labels(normalized.get("highlights"))
         normalized["description"] = replace_live_property_labels(normalized.get("description"))
+    normalized["property_code"] = property_code_for_record(normalized)
     return normalized
 
 
@@ -422,6 +470,7 @@ def normalize_live_visit_record(item: Dict[str, Any]) -> Dict[str, Any]:
     normalized["title"] = replace_live_property_labels(normalized.get("title"))
     normalized["body"] = replace_live_property_labels(normalized.get("body"))
     normalized["message"] = replace_live_property_labels(normalized.get("message"))
+    normalized["property_code"] = property_code_for_record(normalized)
     return normalized
 
 
@@ -525,6 +574,13 @@ def normalize_visit_status_value(value: Optional[str]) -> str:
 def normalize_booking_status_value(value: Optional[str]) -> str:
     normalized = str(value or "pending").strip().lower().replace("-", "_").replace(" ", "_")
     return BOOKING_STATUS_ALIASES.get(normalized.replace("_", " "), BOOKING_STATUS_ALIASES.get(normalized, normalized))
+
+
+def normalize_booking_record(item: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(item)
+    normalized["status"] = normalize_booking_status_value(normalized.get("status"))
+    normalized["property_code"] = property_code_for_record(normalized)
+    return normalized
 
 
 def should_prune_local_store_item(name: str, item: Dict[str, Any]) -> bool:
@@ -1541,9 +1597,14 @@ class UpdateProfileReq(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     address: Optional[str] = None
+    date_of_birth: Optional[str] = None
     age: Optional[int] = None
     aadhaar_number: Optional[str] = None
     bank_details: Optional[str] = None
+    notification_preferences: Optional[Dict[str, bool]] = None
+    communication_preferences: Optional[Dict[str, bool]] = None
+    biometric_login_enabled: Optional[bool] = None
+    dark_mode_enabled: Optional[bool] = None
 
 class BookingReq(BaseModel):
     plot_id: str
@@ -1666,7 +1727,8 @@ class AgentVisitUpdateReq(BaseModel):
     feedback: Optional[str] = None
 
 class AdminVisitStatusReq(BaseModel):
-    status: str
+    status: Optional[str] = None
+    assigned_agent_id: Optional[str] = None
     review_notes: Optional[str] = None
 
 class WishlistReq(BaseModel):
@@ -2887,12 +2949,24 @@ async def upsert_user_identity(
         "role": ROLE_CUSTOMER,
         "auth_methods": [auth_method],
         "address": "",
+        "date_of_birth": None,
         "kyc_status": "pending",
         "is_admin": False,
         "email_verified": bool(email),
         "phone_verified": bool(phone),
         "approval_status": APPROVAL_NOT_REQUIRED,
         "status": STATUS_ACTIVE,
+        "notification_preferences": {
+            "push_notifications": True,
+            "service_updates": True,
+            "booking_updates": True,
+        },
+        "communication_preferences": {
+            "promotional_emails": False,
+            "whatsapp_updates": True,
+        },
+        "biometric_login_enabled": False,
+        "dark_mode_enabled": False,
         "created_at": timestamp,
         "updated_at": timestamp,
         "last_login_at": timestamp,
@@ -4052,6 +4126,16 @@ async def update_profile(req: UpdateProfileReq, user: Dict[str, Any] = Depends(g
     update = {k: v for k, v in req.dict().items() if v is not None}
     if "email" in update:
         update["email"] = normalize_email(update["email"])
+    if "notification_preferences" in update:
+        update["notification_preferences"] = {
+            **(user.get("notification_preferences") or {}),
+            **(update.get("notification_preferences") or {}),
+        }
+    if "communication_preferences" in update:
+        update["communication_preferences"] = {
+            **(user.get("communication_preferences") or {}),
+            **(update.get("communication_preferences") or {}),
+        }
     update["updated_at"] = now_utc().isoformat()
     if update and await is_database_available():
         if update.get("email"):
@@ -4516,7 +4600,7 @@ async def list_properties(
                 or term in item.get("location", "").lower()
                 or term in item.get("description", "").lower()
             ]
-        return items
+        return [normalize_live_property_record(item) for item in items]
 
     q: Dict[str, Any] = {}
     if category and category.lower() != "all":
@@ -4776,11 +4860,11 @@ async def my_bookings(user: Dict[str, Any] = Depends(get_current_user)):
         items = [booking for booking in local_list_bookings() if booking.get("user_id") == user["id"]]
         items = filter_live_customer_items(items)
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        return [{**normalize_live_property_record(item), "status": normalize_booking_status_value(item.get("status"))} for item in items]
+        return [normalize_booking_record(normalize_live_property_record(item)) for item in items]
     items = await db.bookings.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
     items = filter_live_customer_items(items)
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return [{**item, "status": normalize_booking_status_value(item.get("status"))} for item in items]
+    return [normalize_booking_record(item) for item in items]
 
 
 # ---------- My Land ----------
@@ -5479,6 +5563,7 @@ async def admin_stats(user: Dict[str, Any] = Depends(get_admin_user)):
         users = load_local_store().get("users", [])
         return {
             "users": len(users),
+            "agents": len([item for item in users if is_agent_role(item.get("role"))]),
             "properties": len(local_get_properties()),
             "plots": len(plots),
             "plots_sold": len([item for item in plots if item.get("status") == "sold"]),
@@ -5491,6 +5576,7 @@ async def admin_stats(user: Dict[str, Any] = Depends(get_admin_user)):
         }
     return {
         "users": await db.users.count_documents({}),
+        "agents": await db.users.count_documents({"role": ROLE_AGENT}),
         "properties": await db.properties.count_documents({}),
         "plots": await db.plots.count_documents({}),
         "plots_sold": await db.plots.count_documents({"status": "sold"}),
@@ -5531,13 +5617,13 @@ async def admin_bookings(user: Dict[str, Any] = Depends(get_admin_user)):
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Booking database is unavailable")
         items = [
-            {**item, "status": normalize_booking_status_value(item.get("status"))}
+            normalize_booking_record(item)
             for item in filter_live_customer_items(local_list_bookings())
         ]
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return items
     items = [
-        {**item, "status": normalize_booking_status_value(item.get("status"))}
+        normalize_booking_record(item)
         for item in filter_live_customer_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
     ]
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
@@ -5637,6 +5723,12 @@ async def admin_settings(user: Dict[str, Any] = Depends(get_admin_user)):
             "Service Requests": True,
             "System Alerts": True,
         },
+        "commission_defaults": {
+            "enabled": True,
+            "model": "percentage",
+            "percentage": 2.0,
+            "flat_amount": 0,
+        },
     }
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
@@ -5662,6 +5754,10 @@ async def admin_settings(user: Dict[str, Any] = Depends(get_admin_user)):
             **defaults["notification_preferences"],
             **(existing.get("notification_preferences") or {}),
         },
+        "commission_defaults": {
+            **defaults["commission_defaults"],
+            **(existing.get("commission_defaults") or {}),
+        },
     }
 
 
@@ -5674,6 +5770,7 @@ async def update_admin_settings(request: Request, user: Dict[str, Any] = Depends
     settings_update = {
         "permissions": payload.get("permissions") or {},
         "notification_preferences": payload.get("notification_preferences") or {},
+        "commission_defaults": payload.get("commission_defaults") or {},
         "updated_at": now_utc().isoformat(),
         "updated_by_user_id": user.get("id"),
     }
@@ -6048,22 +6145,45 @@ async def admin_update_visit_status(
     req: AdminVisitStatusReq,
     user: Dict[str, Any] = Depends(get_admin_user),
 ):
-    allowed_statuses = {"pending", "confirmed", "scheduled", "completed", "cancelled", "rejected"}
-    next_status = normalize_visit_status_value(req.status)
-    if next_status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail="Invalid visit status")
-    if next_status == "confirmed":
-        next_status = "scheduled"
+    allowed_statuses = {"pending", "confirmed", "scheduled", "completed", "cancelled", "rejected", "rescheduled"}
+    next_status = None
+    if req.status is not None:
+        next_status = normalize_visit_status_value(req.status)
+        if next_status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail="Invalid visit status")
+        if next_status == "confirmed":
+            next_status = "scheduled"
 
     now_iso = now_utc().isoformat()
     updates = {
-        "status": next_status,
-        "approval_status": "admin_approved" if next_status in {"scheduled", "completed"} else "rejected" if next_status in {"cancelled", "rejected"} else "pending",
         "review_notes": (req.review_notes or "").strip(),
         "reviewed_at": now_iso,
         "reviewed_by_admin": user.get("name") or user.get("phone") or "Admin",
         "updated_at": now_iso,
     }
+    if next_status is not None:
+        updates["status"] = next_status
+        updates["approval_status"] = (
+            "admin_approved" if next_status in {"scheduled", "completed"}
+            else "rejected" if next_status in {"cancelled", "rejected"}
+            else "pending"
+        )
+    if req.assigned_agent_id:
+        if not await is_database_available() and not ALLOW_LOCAL_AUTH_FALLBACK:
+            raise HTTPException(status_code=503, detail="Visit database is unavailable")
+        assigned_agent = (
+            local_find_user(user_id=req.assigned_agent_id)
+            if not await is_database_available()
+            else await db.users.find_one({"id": req.assigned_agent_id, "role": ROLE_AGENT}, {"_id": 0})
+        )
+        if not assigned_agent:
+            raise HTTPException(status_code=404, detail="Assigned agent not found")
+        updates["assigned_agent_id"] = req.assigned_agent_id
+        updates["assigned_agent_name"] = assigned_agent.get("name")
+        updates["assigned_agent_phone"] = assigned_agent.get("phone")
+        if "status" not in updates:
+            updates["status"] = "scheduled"
+            updates["approval_status"] = "admin_approved"
 
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
@@ -6074,28 +6194,28 @@ async def admin_update_visit_status(
         updated = local_update_visit(visit_id, updates)
         if not updated:
             raise HTTPException(status_code=404, detail="Visit not found")
-        if updated.get("user_id"):
+        if updated and updated.get("user_id"):
             await create_notification(
                 updated["user_id"],
                 "Visit status updated",
-                f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {next_status}.",
+                f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {updated.get('status')}.",
                 "visit",
             )
-    await publish_live_update(
-        "visit.updated",
-        {"visit": normalize_live_visit_record(updated), "scope": "admin_review"},
-        user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
-        roles=["admin"],
-    )
-    await create_audit_log(
-        actor_user_id=user["id"],
-        action=f"visit.{next_status}",
-        entity_type="visit",
-        entity_id=visit_id,
-        metadata={"user_id": updated.get("user_id"), "assigned_agent_id": updated.get("assigned_agent_id")},
-    )
-    await publish_dashboard_metrics_update(user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")], roles=["admin"])
-    return {"success": True, "visit": normalize_live_visit_record(updated)}
+        await publish_live_update(
+            "visit.updated",
+            {"visit": normalize_live_visit_record(updated), "scope": "admin_review"},
+            user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
+            roles=["admin"],
+        )
+        await create_audit_log(
+            actor_user_id=user["id"],
+            action=f"visit.{updated.get('status') or 'updated'}",
+            entity_type="visit",
+            entity_id=visit_id,
+            metadata={"user_id": updated.get("user_id"), "assigned_agent_id": updated.get("assigned_agent_id")},
+        )
+        await publish_dashboard_metrics_update(user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")], roles=["admin"])
+        return {"success": True, "visit": normalize_live_visit_record(updated)}
 
     existing = await db.visits.find_one({"id": visit_id}, {"_id": 0})
     if not existing:
@@ -6107,7 +6227,7 @@ async def admin_update_visit_status(
         await create_notification(
             updated["user_id"],
             "Visit status updated",
-            f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {next_status}.",
+            f"Your visit request for {updated.get('property_name') or updated.get('centre_name') or 'the selected location'} is now {updated.get('status')}.",
             "visit",
         )
     if updated:
@@ -6117,6 +6237,14 @@ async def admin_update_visit_status(
             user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")],
             roles=["admin"],
         )
+        await create_audit_log(
+            actor_user_id=user["id"],
+            action=f"visit.{updated.get('status') or 'updated'}",
+            entity_type="visit",
+            entity_id=visit_id,
+            metadata={"user_id": updated.get("user_id"), "assigned_agent_id": updated.get("assigned_agent_id")},
+        )
+        await publish_dashboard_metrics_update(user_ids=[updated.get("user_id"), updated.get("assigned_agent_id")], roles=["admin"])
     return {"success": True, "visit": normalize_live_visit_record(updated)}
 
 
@@ -6151,6 +6279,7 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
         assets.append({
             **plot,
             "property_name": property_doc.get("name", plot["property_id"]),
+            "property_code": property_code_for_record(property_doc or plot),
         })
 
     bookings_raw = await db.bookings.find({"agent_id": {"$in": accessible_agent_ids}}, {"_id": 0}).to_list(300)
@@ -6160,20 +6289,28 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
     asset_map = {asset["id"]: asset for asset in assets}
 
     bookings = []
+    closed_sales = 0
+    commission_total = 0.0
     for booking in bookings_raw:
         customer = clean_user(customer_map.get(booking.get("user_id"), {})) if customer_map.get(booking.get("user_id")) else None
         asset = asset_map.get(booking["plot_id"], {})
-        bookings.append({
+        normalized_booking = normalize_booking_record({
             **booking,
             "plot_number": asset.get("plot_number"),
             "property_name": asset.get("property_name"),
+            "property_code": asset.get("property_code"),
             "customer": customer,
         })
+        bookings.append(normalized_booking)
+        if normalized_booking.get("status") == "completed":
+            closed_sales += 1
+            commission_total += float(normalized_booking.get("commission_amount") or 0)
 
     bookings.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     assets.sort(key=lambda x: (x.get("status") != "available", x.get("plot_number", "")))
     notifications_count = await db.notifications.count_documents({"user_id": user["id"], "read": False})
     visits_count = await db.visits.count_documents({"assigned_agent_id": user["id"]})
+    leads_count = await db.leads.count_documents({"assigned_agent_id": {"$in": accessible_agent_ids}})
 
     return {
         "profile": clean_user(user),
@@ -6182,8 +6319,12 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
             "assets": len(assets),
             "bookings": len(bookings),
             "visits": visits_count,
+            "leads": leads_count,
+            "closed_sales": closed_sales,
+            "commission_earned": round(commission_total, 2),
             "unread_notifications": notifications_count,
         },
+        "last_synced_at": now_utc().isoformat(),
         "assets": assets,
         "bookings": bookings,
     }
