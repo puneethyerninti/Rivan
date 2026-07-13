@@ -162,18 +162,32 @@ export default function AgentDashboard() {
     if (!session?.access_token) return;
     if (showLoader) setLoading(true);
     setError('');
+    const errors = [];
     try {
-      const [nextAgentData, nextCrmData, nextVisits, nextNotifications] = await Promise.all([
-        getJson('/api/agent/dashboard', session.access_token).catch(() => ({ profile: {}, kpis: {}, assets: [], bookings: [] })),
-        getJson('/api/crm/dashboard/agent', session.access_token).catch(() => ({ leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} })),
-        getJson('/api/agent/site-visits', session.access_token).catch(() => []),
-        getJson('/api/notifications', session.access_token).catch(() => []),
+      const results = await Promise.allSettled([
+        getJson('/api/agent/dashboard', session.access_token),
+        getJson('/api/crm/dashboard/agent', session.access_token),
+        getJson('/api/agent/site-visits', session.access_token),
+        getJson('/api/notifications', session.access_token),
       ]);
+
+      const nextAgentData = results[0].status === 'fulfilled' ? results[0].value : { profile: {}, kpis: {}, assets: [], bookings: [] };
+      const nextCrmData = results[1].status === 'fulfilled' ? results[1].value : { leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
+      const nextVisits = results[2].status === 'fulfilled' ? results[2].value : [];
+      const nextNotifications = results[3].status === 'fulfilled' ? results[3].value : [];
+
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          const label = ['Dashboard', 'CRM', 'Visits', 'Notifications'][i];
+          console.error(`[AgentDashboard] ${label} API failed:`, r.reason);
+          errors.push(`${label}: ${r.reason?.message || 'unknown error'}`);
+        }
+      });
 
       setAgentData(nextAgentData);
       setCrmData(nextCrmData);
-      setVisits(nextVisits);
-      setNotifications(nextNotifications);
+      setVisits(Array.isArray(nextVisits) ? nextVisits : []);
+      setNotifications(Array.isArray(nextNotifications) ? nextNotifications : []);
 
       const firstAsset = nextAgentData.assets?.[0];
       setVisitForm((current) => ({
@@ -185,17 +199,24 @@ export default function AgentDashboard() {
         ...current,
         plot_id: current.plot_id || firstAsset?.id || '',
       }));
+
+      const profileSource = nextAgentData.profile || user;
       setProfileForm({
-        name: user.name || '',
-        email: user.email || '',
-        address: user.address || '',
-        occupation: user.occupation || '',
-        age: user.age || '',
-        aadhaar_number: user.aadhaar_number || '',
-        bank_details: user.bank_details || '',
-        agent_brand_name: user.agent_brand_name || '',
+        name: profileSource.name || user.name || '',
+        email: profileSource.email || user.email || '',
+        address: profileSource.address || user.address || '',
+        occupation: profileSource.occupation || user.occupation || '',
+        age: profileSource.age || user.age || '',
+        aadhaar_number: profileSource.aadhaar_number || user.aadhaar_number || '',
+        bank_details: profileSource.bank_details || user.bank_details || '',
+        agent_brand_name: profileSource.agent_brand_name || user.agent_brand_name || '',
       });
+
+      if (errors.length > 0) {
+        setError('Some data failed to load: ' + errors.join('; '));
+      }
     } catch (err) {
+      console.error('[AgentDashboard] Fatal error loading dashboard:', err);
       setError(err?.message || 'Failed to load agent dashboard');
     } finally {
       if (showLoader) setLoading(false);

@@ -6270,68 +6270,99 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
             raise HTTPException(status_code=503, detail="Agent dashboard data is unavailable")
         return build_local_agent_dashboard(user)
 
-    accessible_agent_ids = [user["id"]]
+    try:
+        accessible_agent_ids = [user["id"]]
+        logger.info("Agent dashboard loading for user_id=%s, phone=%s", user.get("id"), user.get("phone"))
 
-    plots = await db.plots.find({}, {"_id": 0}).to_list(500)
-    property_ids = sorted({plot["property_id"] for plot in plots})
-    properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(200)
-    property_map = {prop["id"]: prop for prop in properties}
+        plots = await db.plots.find({}, {"_id": 0}).to_list(500)
+        logger.info("Agent dashboard: found %d plots", len(plots))
+        property_ids = sorted({plot["property_id"] for plot in plots})
+        properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(200)
+        property_map = {prop["id"]: prop for prop in properties}
 
-    assets = []
-    for plot in plots:
-        property_doc = property_map.get(plot["property_id"], {})
-        assets.append({
-            **plot,
-            "property_name": property_doc.get("name", plot["property_id"]),
-            "property_code": property_code_for_record(property_doc or plot),
-        })
+        assets = []
+        for plot in plots:
+            property_doc = property_map.get(plot["property_id"], {})
+            assets.append({
+                **plot,
+                "property_name": property_doc.get("name", plot["property_id"]),
+                "property_code": property_code_for_record(property_doc or plot),
+            })
 
-    bookings_raw = await db.bookings.find({"$or": [{"agent_id": {"$in": accessible_agent_ids}}, {"agent_id": None}, {"agent_id": {"$exists": False}}]}, {"_id": 0}).to_list(300)
-    user_ids = sorted({booking["user_id"] for booking in bookings_raw if booking.get("user_id")})
-    customer_docs = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0}).to_list(300)
-    customer_map = {customer["id"]: customer for customer in customer_docs}
-    asset_map = {asset["id"]: asset for asset in assets}
+        bookings_raw = await db.bookings.find({}, {"_id": 0}).to_list(300)
+        logger.info("Agent dashboard: found %d total bookings in DB", len(bookings_raw))
+        user_ids = sorted({booking["user_id"] for booking in bookings_raw if booking.get("user_id")})
+        customer_docs = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0}).to_list(300)
+        customer_map = {customer["id"]: customer for customer in customer_docs}
+        asset_map = {asset["id"]: asset for asset in assets}
 
-    bookings = []
-    closed_sales = 0
-    commission_total = 0.0
-    for booking in bookings_raw:
-        customer = clean_user(customer_map.get(booking.get("user_id"), {})) if customer_map.get(booking.get("user_id")) else None
-        asset = asset_map.get(booking["plot_id"], {})
-        normalized_booking = normalize_booking_record({
-            **booking,
-            "plot_number": asset.get("plot_number"),
-            "property_name": asset.get("property_name"),
-            "property_code": asset.get("property_code"),
-            "customer": customer,
-        })
-        bookings.append(normalized_booking)
-        if normalized_booking.get("status") == "completed":
-            closed_sales += 1
-            commission_total += float(normalized_booking.get("commission_amount") or 0)
+        bookings = []
+        closed_sales = 0
+        commission_total = 0.0
+        for booking in bookings_raw:
+            customer = clean_user(customer_map.get(booking.get("user_id"), {})) if customer_map.get(booking.get("user_id")) else None
+            asset = asset_map.get(booking.get("plot_id", ""), {})
+            normalized_booking = normalize_booking_record({
+                **booking,
+                "plot_number": asset.get("plot_number"),
+                "property_name": asset.get("property_name"),
+                "property_code": asset.get("property_code"),
+                "customer": customer,
+            })
+            bookings.append(normalized_booking)
+            if normalized_booking.get("status") == "completed":
+                closed_sales += 1
+                commission_total += float(normalized_booking.get("commission_amount") or 0)
 
-    bookings.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    assets.sort(key=lambda x: (x.get("status") != "available", x.get("plot_number", "")))
-    notifications_count = await db.notifications.count_documents({"user_id": user["id"], "read": False})
-    visits_count = await db.visits.count_documents({"$or": [{"assigned_agent_id": user["id"]}, {"assigned_agent_id": None}, {"assigned_agent_id": {"$exists": False}}]})
-    leads_count = await db.leads.count_documents({"$or": [{"assigned_agent_id": {"$in": accessible_agent_ids}}, {"assigned_agent_id": None}, {"assigned_agent_id": {"$exists": False}}]})
+        bookings.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        assets.sort(key=lambda x: (x.get("status") != "available", x.get("plot_number", "")))
+        notifications_count = await db.notifications.count_documents({"user_id": user["id"], "read": False})
+        visits_count = await db.visits.count_documents({})
+        leads_count = await db.leads.count_documents({})
+        logger.info("Agent dashboard: assets=%d bookings=%d visits=%d leads=%d", len(assets), len(bookings), visits_count, leads_count)
 
-    return {
-        "profile": clean_user(user),
-        "sub_agents": [],
-        "kpis": {
-            "assets": len(assets),
-            "bookings": len(bookings),
-            "visits": visits_count,
-            "leads": leads_count,
-            "closed_sales": closed_sales,
-            "commission_earned": round(commission_total, 2),
-            "unread_notifications": notifications_count,
-        },
-        "last_synced_at": now_utc().isoformat(),
-        "assets": assets,
-        "bookings": bookings,
-    }
+        return {
+            "profile": clean_user(user),
+            "sub_agents": [],
+            "kpis": {
+                "assets": len(assets),
+                "bookings": len(bookings),
+                "visits": visits_count,
+                "leads": leads_count,
+                "closed_sales": closed_sales,
+                "commission_earned": round(commission_total, 2),
+                "unread_notifications": notifications_count,
+            },
+            "last_synced_at": now_utc().isoformat(),
+            "assets": assets,
+            "bookings": bookings,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Agent dashboard crashed for user_id=%s", user.get("id"))
+        raise HTTPException(status_code=500, detail=f"Dashboard error: {exc}")
+
+
+@api_router.get("/debug/db-health")
+async def debug_db_health():
+    """Public endpoint to check if DB is connected and has data."""
+    if not await is_database_available():
+        return {"db_available": False, "message": "Database is not connected"}
+    try:
+        counts = {
+            "plots": await db.plots.count_documents({}),
+            "properties": await db.properties.count_documents({}),
+            "bookings": await db.bookings.count_documents({}),
+            "visits": await db.visits.count_documents({}),
+            "leads": await db.leads.count_documents({}),
+            "users": await db.users.count_documents({}),
+            "notifications": await db.notifications.count_documents({}),
+        }
+        return {"db_available": True, "counts": counts}
+    except Exception as exc:
+        return {"db_available": False, "message": f"DB error: {exc}"}
+
 
 @api_router.post("/agent/bookings")
 async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] = Depends(get_agent_user)):
@@ -6556,7 +6587,7 @@ async def agent_site_visits(user: Dict[str, Any] = Depends(get_agent_user)):
             raise HTTPException(status_code=503, detail="Visit database is unavailable")
         visits = [visit for visit in local_list_visits() if visit.get("assigned_agent_id") in agent_accessible_ids(user) or not visit.get("assigned_agent_id")]
         return [normalize_live_visit_record(item) for item in filter_live_customer_items(visits)]
-    visits = await db.visits.find({"$or": [{"assigned_agent_id": {"$in": agent_accessible_ids(user)}}, {"assigned_agent_id": None}, {"assigned_agent_id": {"$exists": False}}]}, {"_id": 0}).to_list(300)
+    visits = await db.visits.find({}, {"_id": 0}).to_list(300)
     return [normalize_live_visit_record(item) for item in filter_live_customer_items(visits)]
 
 @api_router.post("/agent/site-visits")
