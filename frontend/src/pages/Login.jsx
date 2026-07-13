@@ -398,18 +398,22 @@ export default function Login() {
         <div className="rv-scroll" style={{ position: "absolute", inset: "0", overflowY: "auto" }}>
           {screen === "splash" && (
             <div
-              className="rv-screen"
+              className="rv-screen rv-login-splash"
               style={{
                 minHeight: "100vh",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 background:
-                  "linear-gradient(180deg,#f3f8f0 0%,#e7f0e2 46%,#1f5a31 46%,#144626 100%)",
+                  "radial-gradient(circle at 50% 22%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 58%,#1f5a31 58%,#123f24 100%)",
               }}
             >
+              <span className="rv-splash-orb one" aria-hidden="true" />
+              <span className="rv-splash-orb two" aria-hidden="true" />
+              <span className="rv-splash-orb three" aria-hidden="true" />
               <button
                 type="button"
+                className="rv-staff-access-chip"
                 onClick={() => setStaffAccessOpen((value) => !value)}
                 aria-expanded={staffAccessOpen}
                 aria-controls="staff-access-panel"
@@ -592,39 +596,62 @@ export default function Login() {
               )}
               <div
                 style={{
-                  flex: "1",
+                  flex: "0 0 58vh",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  padding: "70px 34px 20px",
+                  justifyContent: "flex-end",
+                  padding: "86px 34px 24px",
                   textAlign: "center",
+                  position: "relative",
+                  zIndex: 1,
                 }}
               >
                 <img
+                  className="rv-splash-logo"
                   src="/assets/logo-full.png"
                   alt="Rivan Reality"
                   style={{
-                    width: "290px",
+                    width: "min(360px, 82vw)",
                     height: "auto",
-                    filter: "drop-shadow(0 10px 24px rgba(18,53,29,.18))",
+                    filter: "drop-shadow(0 18px 34px rgba(18,53,29,.22))",
                   }}
                 />
                 <p
+                  className="rv-splash-tagline"
                   style={{
-                    margin: "22px 0 0",
-                    fontSize: "15px",
-                    lineHeight: "1.55",
-                    color: "#4a5c4d",
-                    maxWidth: "250px",
-                    fontWeight: "500",
+                    margin: "24px 0 0",
+                    padding: "13px 20px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(31,90,49,.12)",
+                    background: "rgba(255,255,255,.82)",
+                    boxShadow: "0 18px 46px -30px rgba(18,53,29,.75)",
+                    backdropFilter: "blur(14px)",
+                    WebkitBackdropFilter: "blur(14px)",
+                    fontSize: "clamp(14px, 1.35vw, 18px)",
+                    lineHeight: "1.45",
+                    color: "#1b3f27",
+                    maxWidth: "420px",
+                    fontWeight: "800",
+                    letterSpacing: "-.2px",
                   }}
                 >
                   Your journey to a home you will be proud to own starts here.
                 </p>
               </div>
-              <div style={{ padding: "0 34px 46px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div
+                className="rv-splash-actions"
+                style={{
+                  padding: "34px clamp(22px, 3vw, 52px) 46px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "14px",
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
                 <button
+                  className="rv-primary-cta"
                   onClick={() => openPortal("customer")}
                   style={{
                     width: "100%",
@@ -644,9 +671,13 @@ export default function Login() {
                     boxShadow: "0 12px 24px -8px rgba(226,130,42,.7)",
                   }}
                 >
-                  Get Started <span style={{ fontSize: "19px" }}>→</span>
+                  <span>Get Started</span>
+                  <svg className="rv-cta-arrow" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ position: "relative", zIndex: 1 }}>
+                    <path d="M5 12h12M13 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
                 <button
+                  className="rv-secondary-cta"
                   onClick={() => startGuestBrowsing(navigate)}
                   style={{
                     width: "100%",
