@@ -1516,6 +1516,7 @@ def apply_session_role(user: Dict[str, Any], session: Optional[Dict[str, Any]]) 
     if session_role == "agent":
         if not agent_access_is_active(scoped):
             raise HTTPException(status_code=403, detail="Your agent access is not active for this session")
+        scoped["role"] = "agent"
         return scoped
     if session_role == "admin":
         if not has_admin_access(scoped) or not admin_access_is_active(scoped):
@@ -6269,9 +6270,9 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
 
     accessible_agent_ids = [user["id"]]
 
-    plots = await db.plots.find({"agent_id": {"$in": accessible_agent_ids}}, {"_id": 0}).to_list(300)
+    plots = await db.plots.find({}, {"_id": 0}).to_list(500)
     property_ids = sorted({plot["property_id"] for plot in plots})
-    properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(100)
+    properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(200)
     property_map = {prop["id"]: prop for prop in properties}
 
     assets = []
@@ -6338,8 +6339,6 @@ async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] 
         plot = local_get_plot(req.plot_id)
         if not plot:
             raise HTTPException(status_code=404, detail="Plot not found")
-        if plot.get("agent_id") not in agent_accessible_ids(user):
-            raise HTTPException(status_code=403, detail="You do not have access to this asset")
         if plot.get("status") not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Asset is not available for booking")
         customer = await upsert_user_identity(
@@ -6393,8 +6392,6 @@ async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] 
     plot = await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
     if not plot:
         raise HTTPException(status_code=404, detail="Plot not found")
-    if plot.get("agent_id") not in agent_accessible_ids(user):
-        raise HTTPException(status_code=403, detail="You do not have access to this asset")
     if plot.get("status") not in allowed_statuses:
         raise HTTPException(status_code=400, detail="Asset is not available for booking")
     customer = await upsert_user_identity(
