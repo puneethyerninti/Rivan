@@ -626,8 +626,7 @@ export default function AgentDashboard() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-            <button onClick={() => setPage('notifications')} style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: '#fff', cursor: 'pointer' }}>
-              <span style={{ fontSize: '20px' }}>🔔</span>
+            <button onClick={() => setPage('notifications')} aria-label="Notifications" style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: "#fff url('/assets/logo-mark.png') center / 24px 24px no-repeat", color: 'transparent', cursor: 'pointer' }}>
               {unreadNotifications > 0 && (
                 <span style={{ position: 'absolute', top: '-6px', right: '-6px', minWidth: '22px', height: '22px', borderRadius: '999px', background: '#e2822a', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
                   {unreadNotifications}

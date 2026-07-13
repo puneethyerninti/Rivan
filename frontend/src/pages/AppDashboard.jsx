@@ -671,6 +671,8 @@ export default function AppDashboard() {
     }));
   }
 
+  const unreadCustomerNotifications = notifs.filter((item) => item.unread).length;
+
   personalFields.splice(0, personalFields.length, ...[
     { label: 'Full Name', value: profileForm.name || session?.user?.name || '' },
     { label: 'Phone Number', value: session?.user?.phone ? `+${String(session.user.phone).replace(/^\+/, '')}` : '' },
@@ -988,7 +990,17 @@ export default function AppDashboard() {
               <p style={{'margin': '0', 'fontSize': '19px', 'fontWeight': '800', 'color': '#fff'}}>Hello, {userName} 👋</p>
               <p style={{'margin': '4px 0 0', 'fontSize': '13px', 'color': '#bcd6bd', 'fontWeight': '500'}}>Let's find your dream property</p>
             </div>
-            <img src="assets/logo-mark-white.png" alt="Rivan" style={{'height': '34px', 'width': 'auto', 'opacity': '.95'}} />
+            <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '10px'}}>
+              <button onClick={goNotif} aria-label="Notifications" style={{'position': 'relative', 'width': '42px', 'height': '42px', 'borderRadius': '14px', 'border': '1px solid rgba(255,255,255,.2)', 'background': 'rgba(255,255,255,.14)', 'display': 'grid', 'placeItems': 'center', 'cursor': 'pointer'}}>
+                <img src="assets/logo-mark-white.png" alt="" aria-hidden="true" style={{'height': '22px', 'width': 'auto', 'opacity': '.98'}} />
+                {unreadCustomerNotifications > 0 && (
+                  <span style={{'position': 'absolute', 'top': '-6px', 'right': '-6px', 'minWidth': '20px', 'height': '20px', 'borderRadius': '999px', 'background': '#e2822a', 'color': '#fff', 'fontSize': '10px', 'fontWeight': '900', 'display': 'grid', 'placeItems': 'center', 'padding': '0 5px'}}>
+                    {unreadCustomerNotifications}
+                  </span>
+                )}
+              </button>
+              <img src="assets/logo-mark-white.png" alt="Rivan" style={{'height': '34px', 'width': 'auto', 'opacity': '.95'}} />
+            </div>
           </div>
           <div style={{'marginTop': '18px', 'display': 'flex', 'alignItems': 'center', 'gap': '10px', 'height': '50px', 'background': '#fff', 'borderRadius': '15px', 'padding': '0 14px'}}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7c8c7e" stroke-width="1.8" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5"/></svg>

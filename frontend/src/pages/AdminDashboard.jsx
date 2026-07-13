@@ -168,6 +168,7 @@ export default function AdminDashboard() {
         nextAudit,
         nextNotifications,
         nextSettings,
+        nextMe,
       ] = await Promise.all([
         getJson('/api/admin/stats', session.access_token).catch(() => null),
         getJson('/api/admin/users', session.access_token).catch(() => []),
@@ -179,6 +180,7 @@ export default function AdminDashboard() {
         getJson('/api/admin/audit-logs', session.access_token).catch(() => []),
         getJson('/api/notifications', session.access_token).catch(() => []),
         getOptional('/api/admin/settings', defaultSettings),
+        getJson('/api/auth/me', session.access_token).catch(() => null),
       ]);
 
       setStats(nextStats);
@@ -191,10 +193,15 @@ export default function AdminDashboard() {
       setAuditLogs(nextAudit);
       setNotifications(nextNotifications);
       setSettings(nextSettings);
+      if (nextMe) {
+        const nextSession = { ...session, user: nextMe };
+        saveSession(nextSession);
+        setSession(nextSession);
+      }
       setProfileForm({
-        name: user.name || '',
-        email: user.email || '',
-        address: user.address || '',
+        name: (nextMe || user).name || '',
+        email: (nextMe || user).email || '',
+        address: (nextMe || user).address || '',
       });
     } catch (err) {
       setError(err?.message || 'Failed to load admin dashboard');
@@ -286,9 +293,11 @@ export default function AdminDashboard() {
   }));
   const closedBookings = normalizedBookings.filter((item) => ['completed', 'closed'].includes(String(item.status || '').toLowerCase()));
   const commissionTotal = closedBookings.reduce((sum, item) => sum + Number(item.commission_amount || 0), 0);
-  const areaSales = normalizedBookings.reduce((acc, item) => {
-    const key = item.location || item.property_location || item.property_name || item.property_id || 'Unassigned';
-    acc[key] = (acc[key] || 0) + (['completed', 'closed'].includes(String(item.status || '').toLowerCase()) ? 1 : 0);
+  const propertyLookup = new Map(properties.map((item) => [item.id, item]));
+  const areaSales = closedBookings.reduce((acc, item) => {
+    const property = propertyLookup.get(item.property_id) || {};
+    const key = item.location || item.property_location || property.location || item.property_name || property.name || 'Unassigned';
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
   const topSellingArea = Object.entries(areaSales).sort((a, b) => b[1] - a[1])[0]?.[0] || 'No closed sales yet';
@@ -380,10 +389,24 @@ export default function AdminDashboard() {
       const nextSession = { ...session, user: updated };
       saveSession(nextSession);
       setSession(nextSession);
+      setProfileForm({
+        name: updated.name || '',
+        email: updated.email || '',
+        address: updated.address || '',
+      });
     } catch (err) {
       setError(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const confirmBooking = async (bookingId) => {
+    try {
+      await postJson(`/api/admin/bookings/${bookingId}/confirm`, {}, session.access_token);
+      refreshAll(false);
+    } catch (err) {
+      setError(err?.message || 'Failed to confirm booking');
     }
   };
 
@@ -407,7 +430,7 @@ export default function AdminDashboard() {
   ];
 
   const renderTable = (columns, rows) => (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
         <thead>
           <tr style={{ textAlign: 'left' }}>
@@ -422,7 +445,7 @@ export default function AdminDashboard() {
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex} style={{ borderTop: '1px solid #eef3ec' }}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} style={{ padding: '13px 12px 13px 0', fontSize: '13px', color: '#16231a' }}>
+                <td key={cellIndex} style={{ padding: '13px 12px 13px 0', fontSize: '13px', color: '#16231a', verticalAlign: 'top' }}>
                   {cell}
                 </td>
               ))}
@@ -434,8 +457,8 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#eef2ec', color: '#16231a' }}>
-      <aside style={{ width: '260px', background: '#1f5a31', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', background: '#eef2ec', color: '#16231a', overflowX: 'hidden' }}>
+      <aside style={{ width: '260px', flex: '0 0 260px', background: '#1f5a31', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
         <div>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
@@ -472,8 +495,8 @@ export default function AdminDashboard() {
         </button>
       </aside>
 
-      <main style={{ flex: 1, padding: '24px' }}>
-        <div style={{ ...cardStyle, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
+      <main style={{ flex: 1, minWidth: 0, padding: '24px', overflowX: 'hidden' }}>
+        <div style={{ ...cardStyle, minWidth: 0, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: '32px', color: '#1f5a31' }}>
               {page === 'dashboard' ? 'Admin Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Admin'}
@@ -486,20 +509,19 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <button onClick={() => setPage('notifications')} style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: '#fff', cursor: 'pointer' }}>
-              <span style={{ fontSize: '20px' }}>🔔</span>
+            <button onClick={() => setPage('notifications')} aria-label="Notifications" style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: "#fff url('/assets/logo-mark.png') center / 24px 24px no-repeat", color: 'transparent', cursor: 'pointer' }}>
               {unreadCount > 0 && (
                 <span style={{ position: 'absolute', top: '-6px', right: '-6px', minWidth: '22px', height: '22px', borderRadius: '999px', background: '#e2822a', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'grid', placeItems: 'center', padding: '0 6px' }}>
                   {unreadCount}
                 </span>
               )}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff', minWidth: 0 }}>
               <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#2b6d3d,#3f8a54)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
                 {initialsOf(user.name)}
               </div>
-              <div>
-                <div style={{ fontWeight: 800 }}>{user.name || 'Admin'}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{user.name || 'Admin'}</div>
                 <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(user.phone) || settings.role_label || 'Admin'}</div>
               </div>
             </div>
@@ -520,8 +542,8 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: '18px' }}>
-              <section style={cardStyle}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: '18px', alignItems: 'start' }}>
+              <section style={{ ...cardStyle, minWidth: 0 }}>
                 <h3 style={{ marginTop: 0 }}>Latest Bookings</h3>
                 {renderTable(
                   ['Customer', 'Property', 'Code', 'Plot', 'Status', 'Created'],
@@ -535,7 +557,7 @@ export default function AdminDashboard() {
                   ]),
                 )}
               </section>
-              <section style={cardStyle}>
+              <section style={{ ...cardStyle, minWidth: 0, overflow: 'hidden' }}>
                 <h3 style={{ marginTop: 0 }}>Pending Agent Approvals</h3>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                   {Object.entries(agentApprovalCounts).map(([key, value]) => (
@@ -546,13 +568,13 @@ export default function AdminDashboard() {
                   <p style={{ margin: 0, color: '#6d7d6f' }}>No pending applications right now.</p>
                 ) : (
                   pendingAgents.slice(0, 6).map((agent) => (
-                    <div key={agent.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '12px 0', borderTop: '1px solid #eef3ec' }}>
-                      <div>
+                    <div key={agent.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '12px 0', borderTop: '1px solid #eef3ec', flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 800 }}>{agent.name}</div>
                         <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{agent.id}</div>
                         <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{agent.phone ? formatPhoneDisplay(agent.phone) : 'No phone'}</div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button onClick={() => { setSelectedApprovalId(agent.id); setPage('approvals'); }} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Review</button>
                         <button onClick={() => updateAgentStatus(agent.id, 'approved')} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
                         <button onClick={() => updateAgentStatus(agent.id, 'rejected')} style={{ border: '1px solid #f0c8c8', borderRadius: '10px', background: '#fff', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Reject</button>
@@ -638,7 +660,10 @@ export default function AdminDashboard() {
             {renderTable(
               ['Property', 'Location', 'Category', 'Starting Price', 'Updated'],
               properties.map((item) => [
-                item.name || 'Property',
+                <div>
+                  <div style={{ fontWeight: 800 }}>{item.name || 'Property'}</div>
+                  <div style={{ marginTop: '4px', color: '#2b6d3d', fontSize: '12px', fontWeight: 800 }}>{item.property_code || 'Code pending'}</div>
+                </div>,
                 item.location || '—',
                 item.category || '—',
                 item.starting_price ? `₹${Number(item.starting_price).toLocaleString('en-IN')}` : '—',
@@ -652,13 +677,21 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Bookings</h3>
             {renderTable(
-              ['Customer', 'Property', 'Plot', 'Status', 'Created'],
+              ['Customer', 'Property', 'Code', 'Plot', 'Status', 'Created', 'Action'],
               bookings.map((item) => [
                 item.name || item.customer?.name || 'Customer',
                 item.property_name || item.property_id || 'Property',
+                item.property_code || 'Code pending',
                 item.plot_number || item.plot_id || 'Plot',
                 <span style={tone(item.status)}>{String(item.status || 'pending').replace('_', ' ')}</span>,
                 formatDateTime(item.created_at),
+                ['pending', 'agent_approved'].includes(String(item.status || '').toLowerCase()) ? (
+                  <button onClick={() => confirmBooking(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                    Confirm
+                  </button>
+                ) : (
+                  <span style={{ color: '#8a9a8c', fontWeight: 700 }}>Synced</span>
+                ),
               ]),
             )}
           </section>

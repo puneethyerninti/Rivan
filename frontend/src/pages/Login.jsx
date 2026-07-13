@@ -617,27 +617,6 @@ export default function Login() {
                     filter: "drop-shadow(0 18px 34px rgba(18,53,29,.22))",
                   }}
                 />
-                <p
-                  className="rv-splash-tagline"
-                  style={{
-                    margin: "24px 0 0",
-                    padding: "13px 20px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(31,90,49,.12)",
-                    background: "rgba(255,255,255,.82)",
-                    boxShadow: "0 18px 46px -30px rgba(18,53,29,.75)",
-                    backdropFilter: "blur(14px)",
-                    WebkitBackdropFilter: "blur(14px)",
-                    fontSize: "clamp(14px, 1.35vw, 18px)",
-                    lineHeight: "1.45",
-                    color: "#1b3f27",
-                    maxWidth: "420px",
-                    fontWeight: "800",
-                    letterSpacing: "-.2px",
-                  }}
-                >
-                  Your journey to a home you will be proud to own starts here.
-                </p>
               </div>
               <div
                 className="rv-splash-actions"

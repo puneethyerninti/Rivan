@@ -413,11 +413,20 @@ def property_sequence_code(identifier: Optional[str]) -> str:
 
 def property_code_for_record(item: Dict[str, Any]) -> str:
     existing = str(item.get("property_code") or "").strip().upper()
-    if existing:
+    if existing and not re.fullmatch(r"PR-[A-F0-9]{5}", existing):
         return existing
     identifier = str(item.get("id") or item.get("property_id") or uuid.uuid4())
-    hash_str = hashlib.md5(identifier.encode()).hexdigest().upper()
-    return f"PR-{hash_str[:5]}"
+    property_id = str(item.get("property_id") or item.get("id") or "").strip()
+    if property_id == "prop-1":
+        return "ATC-001"
+
+    locality = property_locality_code(
+        item.get("location"),
+        item.get("address"),
+        item.get("property_name"),
+        item.get("name"),
+    )
+    return f"{locality}-{property_sequence_code(identifier)}"
 
 
 def normalize_live_property_record(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -5709,6 +5718,8 @@ async def admin_users(
     approval_status: Optional[str] = None,
     user: Dict[str, Any] = Depends(get_admin_user),
 ):
+    if await is_database_available():
+        await ensure_primary_agent_seed()
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="User database is unavailable")
@@ -5735,10 +5746,27 @@ async def admin_bookings(user: Dict[str, Any] = Depends(get_admin_user)):
         ]
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return items
-    items = [
-        normalize_booking_record(item)
-        for item in filter_live_customer_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
-    ]
+    raw_items = filter_live_customer_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
+    property_ids = sorted({item.get("property_id") for item in raw_items if item.get("property_id")})
+    plot_ids = sorted({item.get("plot_id") for item in raw_items if item.get("plot_id")})
+    properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(500) if property_ids else []
+    plots = await db.plots.find({"id": {"$in": plot_ids}}, {"_id": 0}).to_list(500) if plot_ids else []
+    property_map = {item.get("id"): normalize_live_property_record(item) for item in properties}
+    plot_map = {item.get("id"): item for item in plots}
+
+    items = []
+    for item in raw_items:
+        prop = property_map.get(item.get("property_id"), {})
+        plot = plot_map.get(item.get("plot_id"), {})
+        enriched = normalize_booking_record({
+            **item,
+            "property_name": item.get("property_name") or prop.get("name"),
+            "property_code": prop.get("property_code") or property_code_for_record(prop or item),
+            "plot_number": item.get("plot_number") or plot.get("plot_number"),
+            "facing": item.get("facing") or plot.get("facing"),
+            "size_sqy": item.get("size_sqy") or plot.get("size_sqy"),
+        })
+        items.append(enriched)
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return items
 
@@ -6004,6 +6032,8 @@ async def admin_confirm_booking(booking_id: str, user: Dict[str, Any] = Depends(
 
 @api_router.get("/admin/agents")
 async def admin_agents(user: Dict[str, Any] = Depends(get_admin_user)):
+    if await is_database_available():
+        await ensure_primary_agent_seed()
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Authentication database is unavailable")
