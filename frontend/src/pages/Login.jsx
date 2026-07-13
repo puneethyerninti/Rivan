@@ -4,7 +4,7 @@ import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { firebaseAuth } from "../lib/firebase";
 import { clearSession, loadSession, postJson, restoreSession, saveSession } from "../lib/auth";
 
-const RESEND_SECONDS = 30;
+const RESEND_SECONDS = 20;
 const PRIMARY_AGENT_PHONE = "9052644345";
 const EMPTY_OTP = ["", "", "", "", "", ""];
 const EMPTY_CUSTOMER_ONBOARDING = {
@@ -65,6 +65,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [recaptchaReady, setRecaptchaReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -107,9 +108,14 @@ export default function Login() {
       size: "invisible",
     });
     recaptchaRef.current = verifier;
+    verifier
+      .render()
+      .then(() => setRecaptchaReady(true))
+      .catch(() => setRecaptchaReady(false));
     return () => {
       verifier.clear();
       recaptchaRef.current = null;
+      setRecaptchaReady(false);
     };
   }, []);
 
@@ -223,12 +229,13 @@ export default function Login() {
       return;
     }
 
-    if (!recaptchaRef.current) {
-      setError("reCAPTCHA is not ready yet. Refresh and try again.");
+    if (!recaptchaRef.current || !recaptchaReady) {
+      setError("Secure OTP check is still getting ready. Please try again in a moment.");
       return;
     }
 
     resetMessages();
+    setStatus("Checking access and preparing OTP...");
     setLoading(true);
     try {
       const precheck = await runAccessPrecheck(normalizedPhone);
@@ -240,6 +247,7 @@ export default function Login() {
       }
 
       const fullPhone = `+91${normalizedPhone}`;
+      setStatus("Sending OTP now...");
       const confirmation = await signInWithPhoneNumber(
         firebaseAuth,
         fullPhone,
@@ -301,8 +309,10 @@ export default function Login() {
     resetMessages();
     setLoading(true);
     try {
+      setStatus("Verifying OTP...");
       const credential = await confirmationRef.current.confirm(code);
-      const firebaseIdToken = await credential.user.getIdToken(true);
+      setStatus("Opening your dashboard...");
+      const firebaseIdToken = await credential.user.getIdToken();
       const session = await exchangeToken(firebaseIdToken, normalizedPhone);
       if (session.user.role === "admin") navigate("/admin", { replace: true });
       else if (session.user.role === "agent") navigate("/agent", { replace: true });
@@ -709,7 +719,7 @@ export default function Login() {
 
               <button
                 onClick={requestOtp}
-                disabled={loading}
+                disabled={loading || !recaptchaReady}
                 style={{
                   marginTop: "24px",
                   width: "100%",
@@ -721,16 +731,16 @@ export default function Login() {
                   fontFamily: "inherit",
                   fontSize: "16px",
                   fontWeight: "700",
-                  cursor: loading ? "wait" : "pointer",
+                  cursor: loading || !recaptchaReady ? "wait" : "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "10px",
                   boxShadow: "0 14px 26px -10px rgba(18,68,35,.75)",
-                  opacity: loading ? 0.7 : 1,
+                  opacity: loading || !recaptchaReady ? 0.7 : 1,
                 }}
               >
-                {loading ? "Checking..." : "Continue"} <span style={{ fontSize: "19px" }}>→</span>
+                {!recaptchaReady ? "Preparing..." : loading ? "Sending..." : "Continue"} <span style={{ fontSize: "19px" }}>→</span>
               </button>
             </div>
           )}

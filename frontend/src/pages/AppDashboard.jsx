@@ -96,6 +96,12 @@ function loadGuestSession() {
   }
 }
 
+function defaultVisitDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function AppDashboard() {
   const navigate = useNavigate();
 
@@ -133,6 +139,18 @@ export default function AppDashboard() {
   const [contactMessage, setContactMessage] = useState('');
   const [homeSearch, setHomeSearch] = useState('');
   const [exploreSearch, setExploreSearch] = useState('');
+  const [actionFormMode, setActionFormMode] = useState(null);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
+  const [actionPlots, setActionPlots] = useState([]);
+  const [actionForm, setActionForm] = useState({
+    visit_date: defaultVisitDate(),
+    visit_time: '11:00 AM',
+    name: session?.user?.name || '',
+    mobile: session?.user?.phone || '',
+    whatsapp: session?.user?.phone || '',
+    plot_id: '',
+    message: '',
+  });
 
   const cur = stack[stack.length - 1];
 
@@ -759,38 +777,42 @@ export default function AppDashboard() {
     setTimeout(() => setExploreLoading(false), 1300);
   };
   const payNow = () => openNotice('Payments Unavailable', 'Payments are intentionally excluded from this release. Use live booking requests, visits, documents, notifications, and service workflows for production testing.');
-  const requestBooking = async () => {
-    if (!session?.access_token) return;
-    try {
-      const propertyId = selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
-      if (!propertyId) {
-        setShowPaidModal(true);
-        return;
-      }
-      const plots = await getJson(`/api/properties/${propertyId}/plots`, session.access_token).catch(() => []);
-      const plot = Array.isArray(plots) ? plots.find((item) => ['available', 'reserved'].includes(String(item.status || '').toLowerCase())) : null;
-      if (!plot?.id) {
-        setShowPaidModal(true);
-        return;
-      }
-      await postJson('/api/bookings', {
-        plot_id: plot.id,
-        name: session.user?.name || userName || 'Customer',
-        mobile: session.user?.phone || '',
-        whatsapp: session.user?.phone || '',
-        message: `Booking request for ${selData?.name || 'Sirpuram Gardens'}`,
-      }, session.access_token);
-      const [nextLands, nextNotifications] = await Promise.all([
-        getJson('/api/myland', session.access_token).catch(() => []),
-        getJson('/api/notifications', session.access_token).catch(() => []),
-      ]);
-      setLandRows(Array.isArray(nextLands) ? nextLands : []);
-      setNotificationRows(Array.isArray(nextNotifications) ? nextNotifications : []);
-      setShowPaidModal(true);
-    } catch {
-      setShowPaidModal(true);
-    }
+  const propertyIdForAction = () => selectedProperty?.id || selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
+  const loadActionPlots = async (propertyId) => {
+    if (!session?.access_token || !propertyId) return [];
+    const plots = await getJson(`/api/properties/${propertyId}/plots`, session.access_token).catch(() => []);
+    const availablePlots = Array.isArray(plots)
+      ? plots.filter((item) => ['available', 'reserved'].includes(String(item.status || '').toLowerCase()))
+      : [];
+    setActionPlots(availablePlots);
+    return availablePlots;
   };
+  const openPropertyActionForm = async (mode) => {
+    if (!session?.access_token) return;
+    const propertyId = propertyIdForAction();
+    if (!propertyId) {
+      openNotice('Property Unavailable', 'No live property is available for this request right now.');
+      return;
+    }
+    const plots = mode === 'booking' ? await loadActionPlots(propertyId) : [];
+    if (mode === 'booking' && !plots.length) {
+      openNotice('Booking Unavailable', 'No available live plots are attached to this property right now.');
+      return;
+    }
+    setActionForm({
+      visit_date: defaultVisitDate(),
+      visit_time: '11:00 AM',
+      name: session.user?.name || userName || '',
+      mobile: session.user?.phone || '',
+      whatsapp: session.user?.phone || '',
+      plot_id: plots[0]?.id || '',
+      message: mode === 'booking'
+        ? `I want to book ${selectedProperty?.name || selData?.name || 'this property'}.`
+        : `I want to visit ${selectedProperty?.name || selData?.name || 'this property'}.`,
+    });
+    setActionFormMode(mode);
+  };
+  const requestBooking = () => openPropertyActionForm('booking');
   const updatePreferenceToggle = async (key) => {
     if (!session?.access_token) return;
     const previousToggles = toggles;
@@ -835,28 +857,60 @@ export default function AppDashboard() {
       setSavingProfile(false);
     }
   };
-  const scheduleSelectedPropertyVisit = async () => {
+  const submitPropertyActionForm = async () => {
     if (!session?.access_token) return;
-    const propertyId = selectedProperty?.id || selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
+    const propertyId = propertyIdForAction();
     if (!propertyId) {
-      openNotice('Visit Unavailable', 'No live property is available for visit scheduling right now.');
+      openNotice('Property Unavailable', 'No live property is available for this request right now.');
       return;
     }
+    if (!actionForm.name.trim() || !actionForm.mobile.trim()) {
+      openNotice('Details Required', 'Add your name and mobile number before submitting.');
+      return;
+    }
+    if (actionFormMode === 'booking' && !actionForm.plot_id) {
+      openNotice('Select Plot', 'Choose an available plot before submitting the booking request.');
+      return;
+    }
+    setActionSubmitting(true);
     try {
-      await postJson('/api/visits/site', {
-        property_id: propertyId,
-        visit_date: new Date().toISOString().slice(0, 10),
-        visit_time: '11:00 AM',
-        name: session.user?.name || userName || 'Customer',
-        mobile: session.user?.phone || '',
-      }, session.access_token);
-      const nextNotifications = await getJson('/api/notifications', session.access_token).catch(() => []);
+      if (actionFormMode === 'booking') {
+        await postJson('/api/bookings', {
+          plot_id: actionForm.plot_id,
+          name: actionForm.name.trim(),
+          mobile: actionForm.mobile.trim(),
+          whatsapp: actionForm.whatsapp || actionForm.mobile,
+          message: actionForm.message || `Booking request for ${selectedProperty?.name || selData?.name || 'this property'}`,
+        }, session.access_token);
+      } else {
+        await postJson('/api/visits/site', {
+          property_id: propertyId,
+          visit_date: actionForm.visit_date,
+          visit_time: actionForm.visit_time,
+          name: actionForm.name.trim(),
+          mobile: actionForm.mobile.trim(),
+        }, session.access_token);
+      }
+      const [nextLands, nextNotifications] = await Promise.all([
+        getJson('/api/myland', session.access_token).catch(() => []),
+        getJson('/api/notifications', session.access_token).catch(() => []),
+      ]);
+      setLandRows(Array.isArray(nextLands) ? nextLands : []);
       setNotificationRows(Array.isArray(nextNotifications) ? nextNotifications : []);
-      openNotice('Visit Scheduled', `Your visit request for ${selectedProperty?.name || selData?.name || 'this property'} has been submitted successfully.`);
+      setActionFormMode(null);
+      openNotice(
+        actionFormMode === 'booking' ? 'Booking Submitted' : 'Visit Scheduled',
+        actionFormMode === 'booking'
+          ? 'Your booking request has been submitted with the selected details.'
+          : 'Your visit request has been submitted with the selected date and time.',
+      );
     } catch (error) {
-      openNotice('Visit Scheduling Failed', error?.message || 'We could not schedule your visit right now.');
+      openNotice('Request Failed', error?.message || 'We could not submit this request right now.');
+    } finally {
+      setActionSubmitting(false);
     }
   };
+  const scheduleSelectedPropertyVisit = () => openPropertyActionForm('visit');
   const openNotice = (title, message) => {
     setModalTitle(title);
     setModalMessage(message);
@@ -1604,6 +1658,77 @@ export default function AppDashboard() {
       </button>
     </nav>
 
+
+
+
+    {/* ===================== PROPERTY ACTION FORM ===================== */}
+    {actionFormMode && (
+    <div onClick={() => !actionSubmitting && setActionFormMode(null)} style={{'position': 'absolute', 'inset': '0', 'background': 'rgba(9,32,16,.5)', 'backdropFilter': 'blur(3px)', 'display': 'flex', 'alignItems': 'flex-end', 'justifyContent': 'center', 'zIndex': '68', 'padding': '18px'}}>
+      <div onClick={(event) => event.stopPropagation()} style={{'background': '#fff', 'borderRadius': '22px', 'padding': '20px', 'width': '100%', 'maxHeight': '86vh', 'overflowY': 'auto', 'boxShadow': '0 24px 60px -30px rgba(9,32,16,.7)'}}>
+        <div style={{'display': 'flex', 'justifyContent': 'space-between', 'gap': '14px', 'alignItems': 'flex-start'}}>
+          <div>
+            <p style={{'margin': '0', 'fontSize': '18px', 'fontWeight': '800', 'color': '#1f5a31'}}>{actionFormMode === 'booking' ? 'Book This Property' : 'Schedule Site Visit'}</p>
+            <p style={{'margin': '5px 0 0', 'fontSize': '12.5px', 'color': '#6d7d6f', 'lineHeight': '1.45'}}>{selectedProperty?.name || selData?.name || 'Selected property'}</p>
+          </div>
+          <button onClick={() => setActionFormMode(null)} disabled={actionSubmitting} style={{'width': '36px', 'height': '36px', 'borderRadius': '12px', 'border': '1px solid #e6ede2', 'background': '#fff', 'color': '#1f5a31', 'fontSize': '18px', 'cursor': 'pointer'}}>×</button>
+        </div>
+
+        <div style={{'display': 'grid', 'gap': '12px', 'marginTop': '18px'}}>
+          <label style={{'display': 'grid', 'gap': '7px'}}>
+            <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>Full Name</span>
+            <input value={actionForm.name} onChange={(event) => setActionForm((current) => ({ ...current, name: event.target.value }))} placeholder="Enter your name" style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px'}} />
+          </label>
+          <label style={{'display': 'grid', 'gap': '7px'}}>
+            <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>Mobile Number</span>
+            <input value={actionForm.mobile} onChange={(event) => setActionForm((current) => ({ ...current, mobile: event.target.value }))} placeholder="+91 mobile number" inputMode="tel" style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px'}} />
+          </label>
+
+          {actionFormMode === 'visit' && (
+            <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '12px'}}>
+              <label style={{'display': 'grid', 'gap': '7px'}}>
+                <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>Visit Date</span>
+                <input type="date" min={new Date().toISOString().slice(0, 10)} value={actionForm.visit_date} onChange={(event) => setActionForm((current) => ({ ...current, visit_date: event.target.value }))} style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px'}} />
+              </label>
+              <label style={{'display': 'grid', 'gap': '7px'}}>
+                <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>Visit Time</span>
+                <select value={actionForm.visit_time} onChange={(event) => setActionForm((current) => ({ ...current, visit_time: event.target.value }))} style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'background': '#fff'}}>
+                  {['10:00 AM', '11:00 AM', '12:30 PM', '03:00 PM', '04:30 PM', '06:00 PM'].map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
+          {actionFormMode === 'booking' && (
+            <>
+              <label style={{'display': 'grid', 'gap': '7px'}}>
+                <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>Select Plot</span>
+                <select value={actionForm.plot_id} onChange={(event) => setActionForm((current) => ({ ...current, plot_id: event.target.value }))} style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'background': '#fff'}}>
+                  {actionPlots.map((plot) => (
+                    <option key={plot.id} value={plot.id}>{plot.plot_number || plot.id} • {plot.size || plot.area || plot.status || 'Available'}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{'display': 'grid', 'gap': '7px'}}>
+                <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>WhatsApp Number</span>
+                <input value={actionForm.whatsapp} onChange={(event) => setActionForm((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="WhatsApp number" inputMode="tel" style={{'height': '48px', 'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px'}} />
+              </label>
+            </>
+          )}
+
+          <label style={{'display': 'grid', 'gap': '7px'}}>
+            <span style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#3d4f40'}}>{actionFormMode === 'booking' ? 'Booking Notes' : 'Visit Notes'}</span>
+            <textarea value={actionForm.message} onChange={(event) => setActionForm((current) => ({ ...current, message: event.target.value }))} rows={3} placeholder="Add any preference or question..." style={{'borderRadius': '13px', 'border': '1.5px solid #e2e8e0', 'padding': '12px 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'resize': 'vertical'}} />
+          </label>
+        </div>
+
+        <button onClick={submitPropertyActionForm} disabled={actionSubmitting} style={{'marginTop': '16px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '800', 'cursor': 'pointer', 'opacity': actionSubmitting ? '.72' : '1'}}>
+          {actionSubmitting ? 'Submitting...' : actionFormMode === 'booking' ? 'Submit Booking Request' : 'Confirm Visit'}
+        </button>
+      </div>
+    </div>
+    )}
 
 
 
