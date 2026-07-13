@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getJson,
@@ -128,6 +128,9 @@ export default function AgentDashboard() {
     aadhaar_number: session?.user?.aadhaar_number || '',
     agent_brand_name: session?.user?.agent_brand_name || '',
   });
+  const [profileDirty, setProfileDirty] = useState(false);
+  const profileDirtyRef = useRef(false);
+  const pageRef = useRef(page);
   const [savingProfile, setSavingProfile] = useState(false);
   const [visitForm, setVisitForm] = useState({
     property_id: '',
@@ -159,6 +162,14 @@ export default function AgentDashboard() {
       navigate('/login', { replace: true });
     }
   }, [navigate, session]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    profileDirtyRef.current = profileDirty;
+  }, [profileDirty]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 820);
@@ -237,16 +248,23 @@ export default function AgentDashboard() {
         plot_id: current.plot_id || firstAsset?.id || '',
       }));
 
-      const profileSource = nextAgentData.profile || user;
-      setProfileForm({
-        name: profileSource.name || user.name || '',
-        email: profileSource.email || user.email || '',
-        address: profileSource.address || user.address || '',
-        occupation: profileSource.occupation || user.occupation || '',
-        age: profileSource.age || user.age || '',
-        aadhaar_number: profileSource.aadhaar_number || user.aadhaar_number || '',
-        agent_brand_name: profileSource.agent_brand_name || user.agent_brand_name || '',
-      });
+      const latestSession = loadSession();
+      if (latestSession?.access_token && latestSession.access_token !== session.access_token) {
+        setSession(latestSession);
+      }
+
+      const profileSource = nextAgentData.profile || latestSession?.user || user;
+      if (!profileDirtyRef.current || pageRef.current !== 'profile') {
+        setProfileForm({
+          name: profileSource.name || user.name || '',
+          email: profileSource.email || user.email || '',
+          address: profileSource.address || user.address || '',
+          occupation: profileSource.occupation || user.occupation || '',
+          age: profileSource.age || user.age || '',
+          aadhaar_number: profileSource.aadhaar_number || user.aadhaar_number || '',
+          agent_brand_name: profileSource.agent_brand_name || user.agent_brand_name || '',
+        });
+      }
 
       if (errors.length > 0) {
         setError('Some data failed to load: ' + errors.join('; '));
@@ -564,12 +582,28 @@ export default function AgentDashboard() {
       saveSession(nextSession);
       setSession(nextSession);
       setAgentData((current) => ({ ...current, profile: mergedUser }));
+      setProfileForm({
+        name: mergedUser.name || '',
+        email: mergedUser.email || '',
+        address: mergedUser.address || '',
+        occupation: mergedUser.occupation || '',
+        age: mergedUser.age || '',
+        aadhaar_number: mergedUser.aadhaar_number || '',
+        agent_brand_name: mergedUser.agent_brand_name || '',
+      });
+      setProfileDirty(false);
       setNotice('Profile saved successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
     }
+  };
+
+  const updateProfileField = (field, value) => {
+    profileDirtyRef.current = true;
+    setProfileDirty(true);
+    setProfileForm((current) => ({ ...current, [field]: value }));
   };
 
   return (
@@ -895,14 +929,14 @@ export default function AgentDashboard() {
           <section style={{ ...cardStyle, maxWidth: '720px' }}>
             <h3 style={{ marginTop: 0 }}>Agent Profile</h3>
             <div style={{ display: 'grid', gap: '14px' }}>
-              <input value={profileForm.name} onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.name} onChange={(event) => updateProfileField('name', event.target.value)} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.email} onChange={(event) => updateProfileField('email', event.target.value)} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={formatPhoneDisplay(displayedUser.phone)} readOnly style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit', background: '#f6faf4' }} />
-              <input value={profileForm.address} onChange={(event) => setProfileForm((current) => ({ ...current, address: event.target.value }))} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.occupation} onChange={(event) => setProfileForm((current) => ({ ...current, occupation: event.target.value }))} placeholder="Occupation" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.age} type="number" onChange={(event) => setProfileForm((current) => ({ ...current, age: event.target.value }))} placeholder="Age" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.aadhaar_number} onChange={(event) => setProfileForm((current) => ({ ...current, aadhaar_number: event.target.value }))} placeholder="Aadhaar Number" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.agent_brand_name} onChange={(event) => setProfileForm((current) => ({ ...current, agent_brand_name: event.target.value }))} placeholder="Agent Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.address} onChange={(event) => updateProfileField('address', event.target.value)} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.occupation} onChange={(event) => updateProfileField('occupation', event.target.value)} placeholder="Occupation" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.age} type="number" onChange={(event) => updateProfileField('age', event.target.value)} placeholder="Age" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.aadhaar_number} onChange={(event) => updateProfileField('aadhaar_number', event.target.value)} placeholder="Aadhaar Number" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Agent Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>

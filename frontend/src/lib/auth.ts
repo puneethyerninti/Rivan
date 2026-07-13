@@ -4,6 +4,7 @@ const BACKEND_URL =
 
 const SESSION_KEY = "rivan_session";
 let refreshPromise = null;
+const ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 90;
 
 export function getBackendUrl() {
   return BACKEND_URL.replace(/\/$/, "");
@@ -31,6 +32,25 @@ export function loadSession() {
   } catch {
     return null;
   }
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const payload = String(token || "").split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function isAccessTokenFresh(token) {
+  const payload = decodeJwtPayload(token);
+  const exp = Number(payload?.exp || 0);
+  if (!exp) return false;
+  return exp - Math.floor(Date.now() / 1000) > ACCESS_TOKEN_REFRESH_SKEW_SECONDS;
 }
 
 export function clearSession() {
@@ -99,7 +119,9 @@ export async function refreshStoredSession() {
         return data;
       })
       .catch((error) => {
-        invalidateSession();
+        if (error instanceof ApiError && [400, 401, 403].includes(error.status)) {
+          invalidateSession();
+        }
         throw error;
       })
       .finally(() => {
@@ -113,7 +135,7 @@ export async function refreshStoredSession() {
 export async function restoreSession() {
   const session = loadSession();
   if (!session?.refresh_token) return null;
-  if (session?.access_token) return session;
+  if (session?.access_token && isAccessTokenFresh(session.access_token)) return session;
   return refreshStoredSession();
 }
 
@@ -148,9 +170,16 @@ export async function requestJson(path, options = {}, token) {
   if (response.status === 401) {
     const storedSession = loadSession();
     if (storedSession?.refresh_token) {
-      const refreshedSession = await refreshStoredSession();
-      activeToken = refreshedSession?.access_token || activeToken;
-      ({ response, data } = await performJsonRequest(path, options, activeToken));
+      try {
+        const refreshedSession = await refreshStoredSession();
+        activeToken = refreshedSession?.access_token || activeToken;
+        ({ response, data } = await performJsonRequest(path, options, activeToken));
+      } catch (error) {
+        if (error instanceof ApiError && [400, 401, 403].includes(error.status)) {
+          throw error;
+        }
+        throw new ApiError("Session refresh is temporarily unavailable. Please try again.", 503, { cause: error?.message });
+      }
     }
   }
 

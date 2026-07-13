@@ -3652,8 +3652,67 @@ async def ensure_primary_agent_seed() -> None:
     )
 
 
+async def reconcile_primary_agent_profile() -> Optional[Dict[str, Any]]:
+    if not await is_database_available():
+        return None
+    variants = phone_identity_variants(PRIMARY_AGENT_PHONE)
+    candidates = await db.users.find(
+        {
+            "$or": [
+                {"id": PRIMARY_AGENT_USER_ID},
+                {"phone": {"$in": variants}},
+            ]
+        },
+        {"_id": 0},
+    ).to_list(20)
+    if not candidates:
+        return None
+
+    primary = next((item for item in candidates if item.get("id") == PRIMARY_AGENT_USER_ID), None)
+    profile_fields = ("name", "email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name")
+
+    def score(item: Dict[str, Any]) -> int:
+        value = 0
+        if item.get("id") == PRIMARY_AGENT_USER_ID:
+            value += 2
+        name = str(item.get("name") or "").strip().lower()
+        if name and name not in {"agent", PRIMARY_AGENT_PHONE}:
+            value += 8
+        for field in profile_fields:
+            if str(item.get(field) or "").strip():
+                value += 1
+        return value
+
+    source = sorted(candidates, key=score, reverse=True)[0]
+    update: Dict[str, Any] = {
+        "phone": PRIMARY_AGENT_PHONE,
+        "role": ROLE_AGENT,
+        "approval_status": APPROVAL_APPROVED,
+        "status": STATUS_ACTIVE,
+        "phone_verified": True,
+        "updated_at": now_utc().isoformat(),
+    }
+    for field in profile_fields:
+        source_value = source.get(field)
+        primary_value = (primary or {}).get(field)
+        if source_value not in (None, "") and (field != "name" or str(source_value).strip().lower() != "agent"):
+            update[field] = source_value
+        elif primary_value not in (None, ""):
+            update[field] = primary_value
+
+    await db.users.update_one({"id": PRIMARY_AGENT_USER_ID}, {"$set": update}, upsert=True)
+    await db.users.update_many(
+        {"phone": {"$in": variants}, "id": {"$ne": PRIMARY_AGENT_USER_ID}},
+        {"$set": {**{k: v for k, v in update.items() if k in profile_fields and k != "email"}, "linked_primary_agent_id": PRIMARY_AGENT_USER_ID, "updated_at": update["updated_at"]}},
+    )
+    return await db.users.find_one({"id": PRIMARY_AGENT_USER_ID}, {"_id": 0})
+
+
 async def resolve_primary_agent_user() -> Optional[Dict[str, Any]]:
     await ensure_primary_agent_seed()
+    reconciled = await reconcile_primary_agent_profile()
+    if reconciled:
+        return reconciled
     user = await db.users.find_one({"phone": {"$in": phone_identity_variants(PRIMARY_AGENT_PHONE)}}, {"_id": 0})
     if user:
         return user
@@ -4110,7 +4169,11 @@ async def agent_firebase_auth(req: AgentFirebaseAuthReq, request: Request, respo
     if phone in phone_identity_variants(PRIMARY_AGENT_PHONE):
         if not await is_database_available():
             raise HTTPException(status_code=503, detail="Authentication database is unavailable")
-        user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+        user = await reconcile_primary_agent_profile()
+        if user:
+            user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
+        if not user:
+            user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
         if not user:
             await ensure_primary_agent_seed()
             user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID})
@@ -4334,6 +4397,17 @@ async def update_profile(req: UpdateProfileReq, user: Dict[str, Any] = Depends(g
 
         try:
             await db.users.update_one({"id": user["id"]}, {"$set": update})
+            if user.get("id") == PRIMARY_AGENT_USER_ID or normalize_phone(user.get("phone")) == PRIMARY_AGENT_PHONE:
+                sync_fields = {
+                    key: value
+                    for key, value in update.items()
+                    if key in {"name", "address", "occupation", "age", "aadhaar_number", "agent_brand_name", "updated_at"}
+                }
+                if sync_fields:
+                    await db.users.update_many(
+                        {"phone": {"$in": phone_identity_variants(PRIMARY_AGENT_PHONE)}},
+                        {"$set": {**sync_fields, "linked_primary_agent_id": PRIMARY_AGENT_USER_ID}},
+                    )
         except DuplicateKeyError:
             logger.exception("Duplicate email conflict while updating profile for user %s", user["id"])
             raise HTTPException(
