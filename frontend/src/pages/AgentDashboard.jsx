@@ -90,6 +90,13 @@ function formatPhoneDisplay(value) {
   return digits ? `+91 ${digits}` : '';
 }
 
+function formatSquareYards(item) {
+  const raw = item?.size_sqy || item?.sq_yards || item?.square_yards;
+  if (raw) return `${raw} sq yards`;
+  const size = String(item?.size || '').trim();
+  return size || '—';
+}
+
 function liveStatusLabel(value) {
   if (value === 'connected') return 'Live updates are on';
   if (value === 'polling') return 'Refreshing automatically';
@@ -328,6 +335,7 @@ export default function AgentDashboard() {
 
   const displayedUser = { ...user, ...(agentData.profile || {}) };
   const assets = agentData.assets || [];
+  const assetById = new Map(assets.map((asset) => [asset.id, asset]));
   const bookings = agentData.bookings || [];
   const leads = (crmData.leads?.length ? crmData.leads : agentData.leads) || [];
   const opportunities = (crmData.opportunities?.length ? crmData.opportunities : agentData.opportunities) || [];
@@ -815,18 +823,23 @@ export default function AgentDashboard() {
             <section style={cardStyle}>
               <h3 style={{ marginTop: 0 }}>Booking Pipeline</h3>
               {renderTable(
-                ['Customer', 'Property', 'Plot', 'Status', 'Actions'],
-                bookings.map((item) => [
-                  item.customer?.name || item.name || 'Customer',
-                  item.property_name || item.property_id || 'Property',
-                  item.plot_number || item.plot_id || 'Plot',
-                  <span style={badgeTone(item.status || 'pending')}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={() => updateBookingStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
-                    <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Complete</button>
-                    <button onClick={() => updateBookingStatus(item.id, 'cancelled')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-                  </div>,
-                ]),
+                ['Customer', 'Property', 'Plot ID', 'Facing', 'Sq Yards', 'Status', 'Actions'],
+                bookings.map((item) => {
+                  const asset = assetById.get(item.plot_id) || {};
+                  return [
+                    item.customer?.name || item.name || 'Customer',
+                    item.property_name || asset.property_name || item.property_id || 'Property',
+                    item.plot_number || asset.plot_number || item.plot_id || 'Plot',
+                    item.facing || asset.facing || '—',
+                    formatSquareYards({ ...asset, ...item }),
+                    <span style={badgeTone(item.status || 'pending')}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button onClick={() => updateBookingStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                      <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Complete</button>
+                      <button onClick={() => updateBookingStatus(item.id, 'cancelled')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                    </div>,
+                  ];
+                }),
               )}
             </section>
           </div>

@@ -389,12 +389,68 @@ export default function Login() {
               className="rv-screen"
               style={{
                 minHeight: "100vh",
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 background:
                   "linear-gradient(180deg,#f3f8f0 0%,#e7f0e2 46%,#1f5a31 46%,#144626 100%)",
               }}
             >
+              <div
+                aria-label="Portal shortcuts"
+                style={{
+                  position: "absolute",
+                  top: "22px",
+                  right: "24px",
+                  display: "flex",
+                  gap: "12px",
+                  zIndex: 2,
+                }}
+              >
+                {[
+                  {
+                    role: "agent",
+                    label: "Agent Login",
+                    title: "Agent",
+                    path: "M12 3a7 7 0 0 0-7 7v3a3 3 0 0 0 3 3h1v-5H7v-1a5 5 0 0 1 10 0v1h-2v5h1a3 3 0 0 0 3-3v-3a7 7 0 0 0-7-7Zm-2 15h4a2 2 0 0 1 2 2v1H8v-1a2 2 0 0 1 2-2Z",
+                  },
+                  {
+                    role: "admin",
+                    label: "Admin Login",
+                    title: "Admin",
+                    path: "M12 2 5 5v6c0 4.8 3 8.8 7 10 4-1.2 7-5.2 7-10V5l-7-3Zm0 5a2.4 2.4 0 1 1 0 4.8A2.4 2.4 0 0 1 12 7Zm-4 9.2c.8-1.8 2.3-2.7 4-2.7s3.2.9 4 2.7c-1 1.2-2.3 2.1-4 2.7-1.7-.6-3-1.5-4-2.7Z",
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.role}
+                    onClick={() => openPortal(item.role)}
+                    title={item.label}
+                    aria-label={item.label}
+                    style={{
+                      width: "52px",
+                      height: "52px",
+                      border: "1px solid rgba(31,90,49,.18)",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,.86)",
+                      color: "#1f5a31",
+                      boxShadow: "0 14px 30px -18px rgba(18,53,29,.55)",
+                      display: "grid",
+                      placeItems: "center",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      fontWeight: "900",
+                      letterSpacing: "-.5px",
+                    }}
+                  >
+                    <span style={{ display: "grid", gap: "1px", placeItems: "center", lineHeight: 1 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+                        <path d={item.path} fill="currentColor" />
+                      </svg>
+                      <span style={{ fontSize: "8px", fontWeight: "800", letterSpacing: ".2px" }}>{item.title}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
               <div
                 style={{
                   flex: "1",
@@ -467,40 +523,6 @@ export default function Login() {
                   }}
                 >
                   Explore as Guest
-                </button>
-                <button
-                  onClick={() => openPortal("agent")}
-                  style={{
-                    width: "100%",
-                    height: "58px",
-                    border: "1.5px solid rgba(255,255,255,.35)",
-                    borderRadius: "18px",
-                    background: "rgba(255,255,255,.08)",
-                    color: "#eaf2e6",
-                    fontFamily: "inherit",
-                    fontSize: "15px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  Agent Login
-                </button>
-                <button
-                  onClick={() => openPortal("admin")}
-                  style={{
-                    width: "100%",
-                    height: "58px",
-                    border: "1.5px solid rgba(255,255,255,.35)",
-                    borderRadius: "18px",
-                    background: "rgba(255,255,255,.08)",
-                    color: "#eaf2e6",
-                    fontFamily: "inherit",
-                    fontSize: "15px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  Admin Login
                 </button>
               </div>
             </div>
