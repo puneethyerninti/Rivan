@@ -6,6 +6,7 @@ import { clearSession, loadSession, postJson, restoreSession, saveSession } from
 
 const RESEND_SECONDS = 20;
 const PRIMARY_AGENT_PHONE = "9052644345";
+const LAST_STAFF_ROLE_KEY = "rivan_last_staff_role";
 const EMPTY_OTP = ["", "", "", "", "", ""];
 const EMPTY_CUSTOMER_ONBOARDING = {
   name: "",
@@ -66,6 +67,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [recaptchaReady, setRecaptchaReady] = useState(false);
+  const [staffAccessOpen, setStaffAccessOpen] = useState(false);
+  const [rememberedStaffRole, setRememberedStaffRole] = useState(() => localStorage.getItem(LAST_STAFF_ROLE_KEY) || "");
 
   useEffect(() => {
     let mounted = true;
@@ -146,6 +149,7 @@ export default function Login() {
     setRole(nextRole);
     setPhone("");
     resetFlowState();
+    setStaffAccessOpen(false);
     setScreen("login");
   };
 
@@ -321,9 +325,17 @@ export default function Login() {
       setStatus("Opening your dashboard...");
       const firebaseIdToken = await credential.user.getIdToken();
       const session = await exchangeToken(firebaseIdToken, normalizedPhone);
-      if (session.user.role === "admin") navigate("/admin", { replace: true });
-      else if (session.user.role === "agent") navigate("/agent", { replace: true });
-      else navigate("/app", { replace: true });
+      if (session.user.role === "admin") {
+        localStorage.setItem(LAST_STAFF_ROLE_KEY, "admin");
+        setRememberedStaffRole("admin");
+        navigate("/admin", { replace: true });
+      } else if (session.user.role === "agent") {
+        localStorage.setItem(LAST_STAFF_ROLE_KEY, "agent");
+        setRememberedStaffRole("agent");
+        navigate("/agent", { replace: true });
+      } else {
+        navigate("/app", { replace: true });
+      }
     } catch (err) {
       setError(err?.message || "OTP verification failed.");
     } finally {
@@ -396,61 +408,188 @@ export default function Login() {
                   "linear-gradient(180deg,#f3f8f0 0%,#e7f0e2 46%,#1f5a31 46%,#144626 100%)",
               }}
             >
-              <div
-                aria-label="Portal shortcuts"
+              <button
+                type="button"
+                onClick={() => setStaffAccessOpen((value) => !value)}
+                aria-expanded={staffAccessOpen}
+                aria-controls="staff-access-panel"
+                title="Staff access"
                 style={{
                   position: "absolute",
                   top: "22px",
                   right: "24px",
+                  minHeight: "42px",
+                  border: "1px solid rgba(31,90,49,.16)",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,.76)",
+                  color: "#1f5a31",
+                  boxShadow: "0 16px 30px -22px rgba(18,53,29,.65)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
                   display: "flex",
-                  gap: "12px",
-                  zIndex: 2,
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  zIndex: 3,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                  letterSpacing: ".1px",
                 }}
               >
-                {[
-                  {
-                    role: "agent",
-                    label: "Agent Login",
-                    title: "Agent",
-                    path: "M12 3a7 7 0 0 0-7 7v3a3 3 0 0 0 3 3h1v-5H7v-1a5 5 0 0 1 10 0v1h-2v5h1a3 3 0 0 0 3-3v-3a7 7 0 0 0-7-7Zm-2 15h4a2 2 0 0 1 2 2v1H8v-1a2 2 0 0 1 2-2Z",
-                  },
-                  {
-                    role: "admin",
-                    label: "Admin Login",
-                    title: "Admin",
-                    path: "M12 2 5 5v6c0 4.8 3 8.8 7 10 4-1.2 7-5.2 7-10V5l-7-3Zm0 5a2.4 2.4 0 1 1 0 4.8A2.4 2.4 0 0 1 12 7Zm-4 9.2c.8-1.8 2.3-2.7 4-2.7s3.2.9 4 2.7c-1 1.2-2.3 2.1-4 2.7-1.7-.6-3-1.5-4-2.7Z",
-                  },
-                ].map((item) => (
-                  <button
-                    key={item.role}
-                    onClick={() => openPortal(item.role)}
-                    title={item.label}
-                    aria-label={item.label}
-                    style={{
-                      width: "52px",
-                      height: "52px",
-                      border: "1px solid rgba(31,90,49,.18)",
-                      borderRadius: "18px",
-                      background: "rgba(255,255,255,.86)",
-                      color: "#1f5a31",
-                      boxShadow: "0 14px 30px -18px rgba(18,53,29,.55)",
-                      display: "grid",
-                      placeItems: "center",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      fontWeight: "900",
-                      letterSpacing: "-.5px",
-                    }}
-                  >
-                    <span style={{ display: "grid", gap: "1px", placeItems: "center", lineHeight: 1 }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
-                        <path d={item.path} fill="currentColor" />
-                      </svg>
-                      <span style={{ fontSize: "8px", fontWeight: "800", letterSpacing: ".2px" }}>{item.title}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(180deg,#f6a13a,#e2822a)",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    boxShadow: "0 8px 14px -8px rgba(226,130,42,.9)",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ display: "block" }}>
+                    <path
+                      d="M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V8a3 3 0 0 0-6 0v2Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </span>
+                Staff access
+              </button>
+
+              {staffAccessOpen && (
+                <div
+                  id="staff-access-panel"
+                  style={{
+                    position: "absolute",
+                    top: "76px",
+                    right: "24px",
+                    width: "min(330px, calc(100% - 48px))",
+                    border: "1px solid rgba(31,90,49,.12)",
+                    borderRadius: "24px",
+                    background: "rgba(255,255,255,.96)",
+                    color: "#16231a",
+                    boxShadow: "0 26px 70px -34px rgba(18,53,29,.75)",
+                    padding: "16px",
+                    zIndex: 4,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "12px", fontWeight: "900", color: "#e2822a", textTransform: "uppercase", letterSpacing: ".8px" }}>
+                        Team portal
+                      </p>
+                      <h2 style={{ margin: "4px 0 0", fontSize: "20px", lineHeight: "1.15", color: "#1f5a31" }}>
+                        Internal access
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStaffAccessOpen(false)}
+                      aria-label="Close staff access"
+                      style={{
+                        width: "34px",
+                        height: "34px",
+                        border: "none",
+                        borderRadius: "50%",
+                        background: "#f1f6ee",
+                        color: "#1f5a31",
+                        cursor: "pointer",
+                        fontWeight: "900",
+                      }}
+                    >
+                      x
+                    </button>
+                  </div>
+                  <p style={{ margin: "9px 0 14px", color: "#657568", fontSize: "13px", lineHeight: "1.45" }}>
+                    For approved Rivan team members only. Customers can continue with the main journey below.
+                  </p>
+                  {rememberedStaffRole && (
+                    <button
+                      type="button"
+                      onClick={() => openPortal(rememberedStaffRole)}
+                      style={{
+                        width: "100%",
+                        minHeight: "50px",
+                        border: "none",
+                        borderRadius: "16px",
+                        background: "linear-gradient(180deg,#1f5a31,#174626)",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontWeight: "800",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      Continue as {rememberedStaffRole === "admin" ? "Admin" : "Agent"}
+                    </button>
+                  )}
+                  {[
+                    {
+                      role: "agent",
+                      label: "Agent Login",
+                      copy: "Leads, visits, bookings",
+                      path: "M12 3a7 7 0 0 0-7 7v3a3 3 0 0 0 3 3h1v-5H7v-1a5 5 0 0 1 10 0v1h-2v5h1a3 3 0 0 0 3-3v-3a7 7 0 0 0-7-7Zm-2 15h4a2 2 0 0 1 2 2v1H8v-1a2 2 0 0 1 2-2Z",
+                    },
+                    {
+                      role: "admin",
+                      label: "Admin Login",
+                      copy: "Approvals, CRM, reports",
+                      path: "M12 2 5 5v6c0 4.8 3 8.8 7 10 4-1.2 7-5.2 7-10V5l-7-3Zm0 5a2.4 2.4 0 1 1 0 4.8A2.4 2.4 0 0 1 12 7Zm-4 9.2c.8-1.8 2.3-2.7 4-2.7s3.2.9 4 2.7c-1 1.2-2.3 2.1-4 2.7-1.7-.6-3-1.5-4-2.7Z",
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.role}
+                      type="button"
+                      onClick={() => openPortal(item.role)}
+                      aria-label={item.label}
+                      title={item.label}
+                      style={{
+                        width: "100%",
+                        minHeight: "58px",
+                        border: "1px solid #e0eadc",
+                        borderRadius: "18px",
+                        background: "#fbfdfa",
+                        color: "#1f5a31",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "10px 12px",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        textAlign: "left",
+                        marginTop: "10px",
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "15px",
+                          background: item.role === "admin" ? "#eef6ea" : "#fff4e8",
+                          color: item.role === "admin" ? "#1f5a31" : "#e2822a",
+                          display: "grid",
+                          placeItems: "center",
+                          flex: "0 0 auto",
+                        }}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+                          <path d={item.path} fill="currentColor" />
+                        </svg>
+                      </span>
+                      <span style={{ display: "grid", gap: "2px" }}>
+                        <strong style={{ fontSize: "14px", color: "#16231a" }}>{item.label}</strong>
+                        <span style={{ fontSize: "12px", color: "#718074", fontWeight: "600" }}>{item.copy}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <div
                 style={{
                   flex: "1",
