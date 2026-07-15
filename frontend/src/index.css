@@ -13,7 +13,6 @@ body {
   -webkit-font-smoothing: antialiased; 
   background: #ffffff; 
   overscroll-behavior-y: none;
-  touch-action: manipulation;
 }
 button, input, select, textarea { font: inherit; }
 #root { min-height: 100vh; min-height: 100dvh; }

@@ -393,12 +393,13 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    minHeight: '100dvh',
+    height: '100dvh',
+    maxHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
-    overflowX: 'hidden',
+    overflow: 'hidden',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '260px',
@@ -409,7 +410,8 @@ export default function AgentDashboard() {
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: isMobile ? '10px' : '18px',
-    position: isMobile ? 'sticky' : 'static',
+    position: 'relative',
+    flexShrink: 0,
     top: 0,
     zIndex: 30,
     boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',
@@ -421,9 +423,19 @@ export default function AgentDashboard() {
     overflowX: isMobile ? 'auto' : 'visible',
     paddingBottom: isMobile ? '4px' : 0,
     flex: 1,
+    minWidth: 0,
     scrollbarWidth: 'none',
   };
-  const mainStyle = { flex: 1, padding: isMobile ? '14px 12px 24px' : '24px', minWidth: 0, overflowX: 'hidden' };
+  const mainStyle = {
+    flex: 1,
+    minHeight: 0,
+    padding: isMobile ? '14px 12px 24px' : '24px',
+    minWidth: 0,
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehavior: 'contain',
+  };
   const headerStyle = {
     ...cardStyle,
     marginBottom: '18px',
