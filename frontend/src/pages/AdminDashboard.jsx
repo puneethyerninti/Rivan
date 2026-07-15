@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, saveSession, supportsLiveUpdates } from '../lib/auth';
 
@@ -13,6 +13,10 @@ const cardStyle = {
 const statusTone = {
   approved: ['#e6f4ea', '#1a8a4a'],
   active: ['#e6f4ea', '#1a8a4a'],
+  assigned: ['#eef2fb', '#2a6fdb'],
+  agent_approved: ['#eef2fb', '#2a6fdb'],
+  admin_approved: ['#e6f4ea', '#1a8a4a'],
+  pending_agent_approval: ['#fdf3e8', '#c2711f'],
   open: ['#fdf3e8', '#c2711f'],
   pending: ['#fdf3e8', '#c2711f'],
   rejected: ['#fdeaea', '#c93b3b'],
@@ -69,6 +73,16 @@ function formatPhoneDisplay(value) {
   return digits ? `+91 ${digits}` : '';
 }
 
+function formatMoney(value) {
+  return `₹${Math.round(Number(value || 0)).toLocaleString('en-IN')}`;
+}
+
+function formatSize(value, fallback) {
+  const direct = value || fallback;
+  if (!direct) return '—';
+  return String(direct).includes('yard') ? String(direct) : `${direct} sq yards`;
+}
+
 function liveStatusLabel(value) {
   if (value === 'connected') return 'Live updates are on';
   if (value === 'polling') return 'Refreshing automatically';
@@ -101,12 +115,30 @@ export default function AdminDashboard() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [liveStatus, setLiveStatus] = useState('connecting');
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 860);
+  const [profileDirty, setProfileDirty] = useState(false);
+  const profileDirtyRef = useRef(false);
+  const pageRef = useRef(page);
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'admin') {
       navigate('/login', { replace: true });
     }
   }, [navigate, session]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    profileDirtyRef.current = profileDirty;
+  }, [profileDirty]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 860);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const user = session?.user || {};
   const unreadCount = useMemo(
@@ -198,11 +230,13 @@ export default function AdminDashboard() {
         saveSession(nextSession);
         setSession(nextSession);
       }
-      setProfileForm({
-        name: (nextMe || user).name || '',
-        email: (nextMe || user).email || '',
-        address: (nextMe || user).address || '',
-      });
+      if (!profileDirtyRef.current || pageRef.current !== 'profile') {
+        setProfileForm({
+          name: (nextMe || user).name || '',
+          email: (nextMe || user).email || '',
+          address: (nextMe || user).address || '',
+        });
+      }
     } catch (err) {
       setError(err?.message || 'Failed to load admin dashboard');
     } finally {
@@ -307,9 +341,62 @@ export default function AdminDashboard() {
     return acc;
   }, {});
   const latestVisits = visits.slice(0, 6);
-  const assignableAgents = agents.filter((item) => String(item.approval_status || '').toLowerCase() === 'approved');
+  const assignableAgents = agents.filter((item) => {
+    const approval = String(item.approval_status || '').toLowerCase();
+    const status = String(item.status || '').toLowerCase();
+    return approval === 'approved' || status === 'active';
+  });
+  const bookingStatusCounts = stats?.booking_status_counts || normalizedBookings.reduce((acc, item) => {
+    const key = String(item.status || 'pending').toLowerCase();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const visitStatusCounts = stats?.visit_status_counts || visits.reduce((acc, item) => {
+    const key = String(item.status || 'pending').toLowerCase();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const pendingVisits = visits.filter((item) => ['pending_agent_approval', 'agent_approved', 'pending'].includes(String(item.status || '').toLowerCase()));
+  const unassignedVisits = visits.filter((item) => !item.assigned_agent_id && !['completed', 'cancelled', 'rejected'].includes(String(item.status || '').toLowerCase()));
+  const propertyPerformance = properties.map((property) => {
+    const propertyBookings = normalizedBookings.filter((booking) => booking.property_id === property.id || booking.property_code === property.property_code);
+    const propertyVisits = visits.filter((visit) => visit.property_id === property.id || visit.property_code === property.property_code);
+    const closedCount = propertyBookings.filter((booking) => ['completed', 'closed'].includes(String(booking.status || '').toLowerCase())).length;
+    return { ...property, bookings: propertyBookings.length, visits: propertyVisits.length, closed: closedCount };
+  }).sort((a, b) => (b.closed - a.closed) || (b.bookings - a.bookings) || (b.visits - a.visits));
+  const shellStyle = {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: isMobile ? 'column' : 'row',
+    background: '#eef2ec',
+    color: '#16231a',
+    overflowX: 'hidden',
+  };
+  const sidebarStyle = {
+    width: isMobile ? 'auto' : '260px',
+    flex: isMobile ? '0 0 auto' : '0 0 260px',
+    background: '#1f5a31',
+    color: '#fff',
+    padding: isMobile ? '14px' : '24px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: isMobile ? '12px' : '18px',
+    position: isMobile ? 'sticky' : 'static',
+    top: 0,
+    zIndex: 10,
+  };
+  const navStyle = {
+    display: 'flex',
+    flexDirection: isMobile ? 'row' : 'column',
+    gap: '8px',
+    overflowX: isMobile ? 'auto' : 'visible',
+    paddingBottom: isMobile ? '4px' : 0,
+  };
+  const mainStyle = { flex: 1, minWidth: 0, padding: isMobile ? '14px' : '24px', overflowX: 'hidden' };
+  const dashboardGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1.35fr) minmax(300px,.65fr)', gap: '18px', alignItems: 'start' };
+  const formGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' };
 
-  const dashboardCards = [
+  const legacyDashboardCards = [
     { label: 'Users', value: stats?.users ?? users.length },
     { label: 'Agents', value: stats?.agents ?? agents.length },
     { label: 'Closed Sales', value: closedBookings.length },
@@ -317,6 +404,18 @@ export default function AdminDashboard() {
     { label: 'Bookings', value: stats?.bookings ?? bookings.length },
     { label: 'Visits', value: stats?.visits ?? visits.length },
     { label: 'Top Area', value: topSellingArea },
+    { label: 'Properties', value: stats?.properties ?? properties.length },
+  ];
+
+  const dashboardCards = [
+    { label: 'Users', value: stats?.users ?? users.length },
+    { label: 'Agents', value: stats?.agents ?? agents.length },
+    { label: 'Closed Sales', value: stats?.closed_sales ?? closedBookings.length },
+    { label: 'Commission Total', value: formatMoney(stats?.commission_total ?? commissionTotal) },
+    { label: 'Bookings', value: stats?.bookings ?? bookings.length },
+    { label: 'Visits', value: stats?.visits ?? visits.length },
+    { label: 'Needs Assignment', value: unassignedVisits.length },
+    { label: 'Top Area', value: stats?.top_selling_area || topSellingArea },
     { label: 'Properties', value: stats?.properties ?? properties.length },
   ];
 
@@ -394,11 +493,18 @@ export default function AdminDashboard() {
         email: updated.email || '',
         address: updated.address || '',
       });
+      setProfileDirty(false);
     } catch (err) {
       setError(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
     }
+  };
+
+  const updateProfileField = (field, value) => {
+    profileDirtyRef.current = true;
+    setProfileDirty(true);
+    setProfileForm((current) => ({ ...current, [field]: value }));
   };
 
   const confirmBooking = async (bookingId) => {
@@ -407,6 +513,15 @@ export default function AdminDashboard() {
       refreshAll(false);
     } catch (err) {
       setError(err?.message || 'Failed to confirm booking');
+    }
+  };
+
+  const updateBookingStatus = async (bookingId, status) => {
+    try {
+      await postJson(`/api/admin/bookings/${bookingId}/status`, { status }, session.access_token);
+      refreshAll(false);
+    } catch (err) {
+      setError(err?.message || 'Failed to update booking');
     }
   };
 
@@ -457,15 +572,15 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#eef2ec', color: '#16231a', overflowX: 'hidden' }}>
-      <aside style={{ width: '260px', flex: '0 0 260px', background: '#1f5a31', color: '#fff', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div style={shellStyle}>
+      <aside style={sidebarStyle}>
         <div>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
             Manage approvals, users, properties, bookings, and support activity from one place.
           </p>
         </div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <nav style={navStyle}>
           {navItems.map(([id, label]) => (
             <button
               key={id}
@@ -495,7 +610,7 @@ export default function AdminDashboard() {
         </button>
       </aside>
 
-      <main style={{ flex: 1, minWidth: 0, padding: '24px', overflowX: 'hidden' }}>
+      <main style={mainStyle}>
         <div style={{ ...cardStyle, minWidth: 0, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: '32px', color: '#1f5a31' }}>
@@ -546,7 +661,7 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: '18px', alignItems: 'start' }}>
+            <div style={dashboardGridStyle}>
               <section style={{ ...cardStyle, minWidth: 0 }}>
                 <h3 style={{ marginTop: 0 }}>Latest Bookings</h3>
                 {renderTable(
@@ -586,6 +701,46 @@ export default function AdminDashboard() {
                     </div>
                   ))
                 )}
+              </section>
+              <section style={{ ...cardStyle, minWidth: 0, overflow: 'hidden' }}>
+                <h3 style={{ marginTop: 0 }}>Operational Health</h3>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 800, marginBottom: '8px' }}>Booking pipeline</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {Object.entries(bookingStatusCounts).map(([key, value]) => (
+                        <span key={key} style={tone(key)}>{key.replaceAll('_', ' ')}: {value}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 800, marginBottom: '8px' }}>Visit pipeline</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {Object.entries(visitStatusCounts).map(([key, value]) => (
+                        <span key={key} style={tone(key)}>{key.replaceAll('_', ' ')}: {value}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '14px', background: '#fbfdfa', border: '1px solid #eef3ec' }}>
+                    <div style={{ fontWeight: 800 }}>{pendingVisits.length} visits need review</div>
+                    <div style={{ marginTop: '4px', color: '#6d7d6f', fontSize: '12px' }}>{unassignedVisits.length} still need an assigned partner.</div>
+                  </div>
+                </div>
+              </section>
+              <section style={{ ...cardStyle, minWidth: 0, overflow: 'hidden' }}>
+                <h3 style={{ marginTop: 0 }}>Property Performance</h3>
+                {propertyPerformance.slice(0, 5).map((item) => (
+                  <div key={item.id || item.property_code} style={{ padding: '12px 0', borderTop: '1px solid #eef3ec' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name || 'Property'}</div>
+                        <div style={{ color: '#2b6d3d', fontSize: '12px', fontWeight: 800 }}>{item.property_code || 'Code pending'}</div>
+                      </div>
+                      <span style={tone(item.closed ? 'sold' : item.bookings ? 'booked' : 'available')}>{item.closed} sold</span>
+                    </div>
+                    <div style={{ marginTop: '6px', color: '#6d7d6f', fontSize: '12px' }}>{item.bookings} bookings • {item.visits} visits</div>
+                  </div>
+                ))}
               </section>
             </div>
           </div>
@@ -681,21 +836,29 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Bookings</h3>
             {renderTable(
-              ['Customer', 'Property', 'Code', 'Plot', 'Status', 'Created', 'Action'],
+              ['Customer', 'Property', 'Code', 'Plot', 'Facing', 'Sq Yards', 'Status', 'Created', 'Actions'],
               bookings.map((item) => [
                 item.name || item.customer?.name || 'Customer',
                 item.property_name || item.property_id || 'Property',
                 item.property_code || 'Code pending',
                 item.plot_number || item.plot_id || 'Plot',
+                item.facing || '—',
+                formatSize(item.size_sqy, item.size),
                 <span style={tone(item.status)}>{String(item.status || 'pending').replace('_', ' ')}</span>,
                 formatDateTime(item.created_at),
-                ['pending', 'agent_approved'].includes(String(item.status || '').toLowerCase()) ? (
-                  <button onClick={() => confirmBooking(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
-                    Confirm
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {['pending', 'agent_approved'].includes(String(item.status || '').toLowerCase()) && (
+                    <button onClick={() => confirmBooking(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                      Reserve
+                    </button>
+                  )}
+                  <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                    Close Sale
                   </button>
-                ) : (
-                  <span style={{ color: '#8a9a8c', fontWeight: 700 }}>Synced</span>
-                ),
+                  <button onClick={() => updateBookingStatus(item.id, 'rejected')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                    Reject
+                  </button>
+                </div>,
               ]),
             )}
           </section>
@@ -705,14 +868,33 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Visits</h3>
             {renderTable(
-              ['Customer', 'Property', 'Date', 'Time', 'Status'],
+              ['Customer', 'Property', 'Date', 'Time', 'Partner', 'Status', 'Actions'],
               latestVisits.length ? visits.map((item) => [
                 item.name || item.customer_name || 'Customer',
-                item.property_name || item.centre_name || item.property_id || 'Property',
+                <div>
+                  <div style={{ fontWeight: 800 }}>{item.property_name || item.centre_name || item.property_id || 'Property'}</div>
+                  <div style={{ marginTop: '4px', color: '#2b6d3d', fontSize: '12px', fontWeight: 800 }}>{item.property_code || 'Code pending'}</div>
+                </div>,
                 formatShortDate(item.visit_date || item.created_at),
                 item.visit_time || '—',
-                <span style={tone(item.status)}>{item.status || 'pending'}</span>,
-              ]) : [[<span style={{ color: '#8a9a8c' }}>No visits available.</span>, '', '', '', '']],
+                item.assigned_agent_name || 'Unassigned',
+                <span style={tone(item.status)}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <select
+                    value={item.assigned_agent_id || ''}
+                    onChange={(event) => event.target.value && updateVisitWorkflow(item.id, { assigned_agent_id: event.target.value })}
+                    style={{ height: '34px', borderRadius: '9px', border: '1px solid #dfe8dc', padding: '0 8px', fontFamily: 'inherit', maxWidth: '180px' }}
+                  >
+                    <option value="">Assign partner</option>
+                    {assignableAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>Assign to {agent.name || agent.phone || 'Partner'}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => updateVisitWorkflow(item.id, { status: 'scheduled' })} style={{ border: 'none', borderRadius: '9px', background: '#eef2fb', color: '#2a6fdb', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>✓ Schedule</button>
+                  <button onClick={() => updateVisitWorkflow(item.id, { status: 'completed' })} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>✓ Complete</button>
+                  <button onClick={() => updateVisitWorkflow(item.id, { status: 'rejected' })} style={{ border: 'none', borderRadius: '9px', background: '#fdeaea', color: '#c93b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>× Reject</button>
+                </div>,
+              ]) : [[<span style={{ color: '#8a9a8c' }}>No visits available.</span>, '', '', '', '', '', '']],
             )}
           </section>
         )}
@@ -854,10 +1036,10 @@ export default function AdminDashboard() {
           <section style={{ ...cardStyle, maxWidth: '720px' }}>
             <h3 style={{ marginTop: 0 }}>Admin Profile</h3>
             <div style={{ display: 'grid', gap: '14px' }}>
-              <input name="name" value={profileForm.name} onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input name="email" value={profileForm.email} onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input name="name" value={profileForm.name} onChange={(event) => updateProfileField('name', event.target.value)} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input name="email" value={profileForm.email} onChange={(event) => updateProfileField('email', event.target.value)} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={formatPhoneDisplay(user.phone)} readOnly style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit', background: '#f6faf4' }} />
-              <input name="address" value={profileForm.address} onChange={(event) => setProfileForm((current) => ({ ...current, address: event.target.value }))} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input name="address" value={profileForm.address} onChange={(event) => updateProfileField('address', event.target.value)} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>

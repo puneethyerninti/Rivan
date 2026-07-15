@@ -2916,6 +2916,32 @@ async def create_audit_log(
 async def build_dashboard_metrics_snapshot() -> Dict[str, Any]:
     if not await is_database_available():
         return {}
+    bookings = filter_live_customer_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
+    visits = filter_live_customer_items(await db.visits.find({}, {"_id": 0}).to_list(500))
+    properties = [normalize_live_property_record(item) for item in await db.properties.find({}, {"_id": 0}).to_list(500)]
+    property_map = {item.get("id"): item for item in properties}
+    booking_status_counts: Dict[str, int] = defaultdict(int)
+    visit_status_counts: Dict[str, int] = defaultdict(int)
+    area_sales: Dict[str, int] = defaultdict(int)
+    commission_total = 0.0
+    closed_statuses = {"completed", "closed", "sold"}
+
+    for booking in bookings:
+        status_value = normalize_booking_status_value(booking.get("status"))
+        booking_status_counts[status_value] += 1
+        if status_value in closed_statuses:
+            prop = property_map.get(booking.get("property_id")) or {}
+            area = booking.get("property_location") or booking.get("location") or prop.get("location") or booking.get("property_name") or prop.get("name") or "Unassigned"
+            area_sales[str(area)] += 1
+            commission_total += float(booking.get("commission_amount") or 0)
+
+    for visit in visits:
+        visit_status_counts[normalize_visit_status_value(visit.get("status"))] += 1
+
+    top_selling_area = None
+    if area_sales:
+        top_selling_area = sorted(area_sales.items(), key=lambda item: item[1], reverse=True)[0][0]
+
     return {
         "users": await db.users.count_documents({}),
         "customers": await db.users.count_documents({"role": ROLE_CUSTOMER}),
@@ -2925,9 +2951,15 @@ async def build_dashboard_metrics_snapshot() -> Dict[str, Any]:
         "plots_available": await db.plots.count_documents({"status": "available"}),
         "plots_reserved": await db.plots.count_documents({"status": "reserved"}),
         "plots_booked": await db.plots.count_documents({"status": "booked"}),
-        "bookings": await db.bookings.count_documents({}),
-        "visits": await db.visits.count_documents({}),
+        "bookings": len(bookings),
+        "visits": len(visits),
         "service_requests": await db.service_requests.count_documents({}),
+        "booking_status_counts": dict(booking_status_counts),
+        "visit_status_counts": dict(visit_status_counts),
+        "closed_sales": sum(area_sales.values()),
+        "commission_total": round(commission_total, 2),
+        "top_selling_area": top_selling_area or "No closed sales yet",
+        "last_synced_at": now_utc().isoformat(),
     }
 
 
@@ -6205,6 +6237,117 @@ async def admin_confirm_booking(booking_id: str, user: Dict[str, Any] = Depends(
     return {"success": True}
 
 
+@api_router.post("/admin/bookings/{booking_id}/status")
+async def admin_update_booking_status(
+    booking_id: str,
+    req: AgentBookingStatusReq,
+    user: Dict[str, Any] = Depends(get_admin_user),
+):
+    status_value = normalize_booking_status_value(req.status)
+    allowed_statuses = {"pending", "agent_approved", "admin_approved", "reserved", "completed", "rejected", "cancelled"}
+    if status_value not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Invalid booking status")
+
+    now_iso = now_utc().isoformat()
+    plot_status = (
+        "booked" if status_value in {"admin_approved", "reserved"}
+        else "sold" if status_value == "completed"
+        else "available" if status_value in {"cancelled", "rejected"}
+        else None
+    )
+
+    def build_updates(existing_booking: Dict[str, Any], plot_doc: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        updates: Dict[str, Any] = {
+            "status": status_value,
+            "approval_status": (
+                "admin_approved" if status_value in {"admin_approved", "reserved", "completed"}
+                else "rejected" if status_value in {"rejected", "cancelled"}
+                else existing_booking.get("approval_status") or "pending"
+            ),
+            "updated_at": now_iso,
+            "reviewed_by_admin": user.get("name") or user.get("phone") or "Admin",
+            "reviewed_at": now_iso,
+        }
+        if status_value in {"admin_approved", "reserved"}:
+            updates["confirmed_at"] = existing_booking.get("confirmed_at") or now_iso
+        if status_value == "completed":
+            sale_value = float(existing_booking.get("booking_value") or existing_booking.get("total_amount") or existing_booking.get("sale_value") or (plot_doc or {}).get("price") or 0)
+            updates["closed_at"] = existing_booking.get("closed_at") or now_iso
+            updates["commission_amount"] = float(existing_booking.get("commission_amount") or round(sale_value * 0.02, 2))
+        return updates
+
+    if not await is_database_available():
+        if not ALLOW_LOCAL_AUTH_FALLBACK:
+            raise HTTPException(status_code=503, detail="Booking database is unavailable")
+        booking = next((item for item in local_list_bookings() if item.get("id") == booking_id), None)
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        plot = local_get_plot(booking.get("plot_id")) if booking.get("plot_id") else None
+        updates = build_updates(booking, plot)
+        updated_booking = local_update_booking(booking_id, updates)
+        if plot_status and booking.get("plot_id"):
+            local_save_plot_override(booking["plot_id"], {"status": plot_status, "owner_id": booking.get("user_id") if plot_status in {"booked", "sold"} else None})
+        if booking.get("user_id"):
+            await create_notification(
+                booking["user_id"],
+                "Booking status updated",
+                f"Your booking for {booking.get('plot_label') or booking.get('plot_number') or booking.get('property_name') or 'your selected unit'} is now {status_value.replace('_', ' ')}.",
+                "booking",
+            )
+        await publish_live_update(
+            "booking.updated",
+            {"booking": updated_booking or {**booking, **updates}, "scope": "admin_status"},
+            user_ids=[booking.get("user_id"), booking.get("agent_id"), booking.get("assigned_agent_id")],
+            roles=["admin"],
+        )
+        await create_audit_log(
+            actor_user_id=user["id"],
+            action=f"booking.{status_value}",
+            entity_type="booking",
+            entity_id=booking_id,
+            metadata={"plot_id": booking.get("plot_id"), "customer_id": booking.get("user_id")},
+        )
+        await publish_dashboard_metrics_update(user_ids=[booking.get("user_id"), booking.get("agent_id"), booking.get("assigned_agent_id")], roles=["admin"])
+        return {"success": True, "booking": updated_booking}
+
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    plot = await db.plots.find_one({"id": booking.get("plot_id")}, {"_id": 0}) if booking.get("plot_id") else None
+    updates = build_updates(booking, plot)
+    await db.bookings.update_one({"id": booking_id}, {"$set": updates})
+    if plot_status and booking.get("plot_id"):
+        plot_updates = {"status": plot_status}
+        if plot_status in {"booked", "sold"}:
+            plot_updates["owner_id"] = booking.get("user_id")
+        else:
+            plot_updates["owner_id"] = None
+        await db.plots.update_one({"id": booking["plot_id"]}, {"$set": plot_updates})
+    updated = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if booking.get("user_id"):
+        await create_notification(
+            booking["user_id"],
+            "Booking status updated",
+            f"Your booking for {booking.get('plot_label') or booking.get('plot_number') or booking.get('property_name') or 'your selected unit'} is now {status_value.replace('_', ' ')}.",
+            "booking",
+        )
+    await publish_live_update(
+        "booking.updated",
+        {"booking": updated, "scope": "admin_status"},
+        user_ids=[booking.get("user_id"), booking.get("agent_id"), booking.get("assigned_agent_id")],
+        roles=["admin"],
+    )
+    await create_audit_log(
+        actor_user_id=user["id"],
+        action=f"booking.{status_value}",
+        entity_type="booking",
+        entity_id=booking_id,
+        metadata={"plot_id": booking.get("plot_id"), "customer_id": booking.get("user_id")},
+    )
+    await publish_dashboard_metrics_update(user_ids=[booking.get("user_id"), booking.get("agent_id"), booking.get("assigned_agent_id")], roles=["admin"])
+    return {"success": True, "booking": updated}
+
+
 @api_router.get("/admin/agents")
 async def admin_agents(user: Dict[str, Any] = Depends(get_admin_user)):
     if await is_database_available():
@@ -6463,14 +6606,24 @@ async def admin_update_visit_status(
     req: AdminVisitStatusReq,
     user: Dict[str, Any] = Depends(get_admin_user),
 ):
-    allowed_statuses = {"pending", "confirmed", "scheduled", "completed", "cancelled", "rejected", "rescheduled"}
+    allowed_statuses = {
+        "pending_agent_approval",
+        "agent_approved",
+        "admin_approved",
+        "scheduled",
+        "assigned",
+        "completed",
+        "cancelled",
+        "rejected",
+        "rescheduled",
+    }
     next_status = None
     if req.status is not None:
         next_status = normalize_visit_status_value(req.status)
-        if next_status not in allowed_statuses:
-            raise HTTPException(status_code=400, detail="Invalid visit status")
         if next_status == "confirmed":
             next_status = "scheduled"
+        if next_status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail="Invalid visit status")
 
     now_iso = now_utc().isoformat()
     updates = {
@@ -6482,8 +6635,9 @@ async def admin_update_visit_status(
     if next_status is not None:
         updates["status"] = next_status
         updates["approval_status"] = (
-            "admin_approved" if next_status in {"scheduled", "completed"}
+            "admin_approved" if next_status in {"admin_approved", "assigned", "scheduled", "completed"}
             else "rejected" if next_status in {"cancelled", "rejected"}
+            else "agent_approved" if next_status == "agent_approved"
             else "pending"
         )
     if req.assigned_agent_id:
@@ -6500,7 +6654,7 @@ async def admin_update_visit_status(
         updates["assigned_agent_name"] = assigned_agent.get("name")
         updates["assigned_agent_phone"] = assigned_agent.get("phone")
         if "status" not in updates:
-            updates["status"] = "scheduled"
+            updates["status"] = "assigned"
             updates["approval_status"] = "admin_approved"
 
     if not await is_database_available():
