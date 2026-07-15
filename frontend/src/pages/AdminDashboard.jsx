@@ -68,6 +68,24 @@ function initialsOf(name) {
     .join('') || 'AD';
 }
 
+function isPlaceholderName(value) {
+  return ['agent', 'partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
+}
+
+function firstRealValue(...values) {
+  return values.find((value) => String(value || '').trim() && !isPlaceholderName(value)) || values.find((value) => String(value || '').trim()) || '';
+}
+
+function mergeAdminIdentity(...sources) {
+  const merged = Object.assign({}, ...sources.filter(Boolean));
+  return {
+    ...merged,
+    name: firstRealValue(...sources.map((source) => source?.name), merged.name),
+    email: firstRealValue(...sources.map((source) => source?.email), merged.email),
+    phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
+  };
+}
+
 function formatPhoneDisplay(value) {
   const digits = String(value || '').replace(/\D/g, '').slice(-10);
   return digits ? `+91 ${digits}` : '';
@@ -226,15 +244,16 @@ export default function AdminDashboard() {
       setNotifications(nextNotifications);
       setSettings(nextSettings);
       if (nextMe) {
-        const nextSession = { ...session, user: nextMe };
+        const nextSession = { ...session, user: mergeAdminIdentity(user, nextMe) };
         saveSession(nextSession);
         setSession(nextSession);
       }
+      const profileSource = mergeAdminIdentity(user, nextMe);
       if (!profileDirtyRef.current || pageRef.current !== 'profile') {
         setProfileForm({
-          name: (nextMe || user).name || '',
-          email: (nextMe || user).email || '',
-          address: (nextMe || user).address || '',
+          name: profileSource.name || '',
+          email: profileSource.email || '',
+          address: profileSource.address || '',
         });
       }
     } catch (err) {
@@ -364,8 +383,9 @@ export default function AdminDashboard() {
     const closedCount = propertyBookings.filter((booking) => ['completed', 'closed'].includes(String(booking.status || '').toLowerCase())).length;
     return { ...property, bookings: propertyBookings.length, visits: propertyVisits.length, closed: closedCount };
   }).sort((a, b) => (b.closed - a.closed) || (b.bookings - a.bookings) || (b.visits - a.visits));
+  const displayedUser = mergeAdminIdentity(user, profileDirty ? profileForm : null);
   const shellStyle = {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
@@ -377,13 +397,15 @@ export default function AdminDashboard() {
     flex: isMobile ? '0 0 auto' : '0 0 260px',
     background: '#1f5a31',
     color: '#fff',
-    padding: isMobile ? '14px' : '24px 16px',
+    padding: isMobile ? '12px 12px 10px' : '24px 16px',
     display: 'flex',
-    flexDirection: 'column',
-    gap: isMobile ? '12px' : '18px',
+    flexDirection: isMobile ? 'row' : 'column',
+    alignItems: isMobile ? 'center' : 'stretch',
+    gap: isMobile ? '10px' : '18px',
     position: isMobile ? 'sticky' : 'static',
     top: 0,
-    zIndex: 10,
+    zIndex: 30,
+    boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',
   };
   const navStyle = {
     display: 'flex',
@@ -391,8 +413,10 @@ export default function AdminDashboard() {
     gap: '8px',
     overflowX: isMobile ? 'auto' : 'visible',
     paddingBottom: isMobile ? '4px' : 0,
+    flex: 1,
+    scrollbarWidth: 'none',
   };
-  const mainStyle = { flex: 1, minWidth: 0, padding: isMobile ? '14px' : '24px', overflowX: 'hidden' };
+  const mainStyle = { flex: 1, minWidth: 0, padding: isMobile ? '14px 12px 24px' : '24px', overflowX: 'hidden' };
   const dashboardGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1.35fr) minmax(300px,.65fr)', gap: '18px', alignItems: 'start' };
   const formGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' };
 
@@ -485,13 +509,14 @@ export default function AdminDashboard() {
     setSavingProfile(true);
     try {
       const updated = await putJson('/api/auth/profile', profileForm, session.access_token);
-      const nextSession = { ...session, user: updated };
+      const mergedUser = mergeAdminIdentity(user, updated, profileForm);
+      const nextSession = { ...session, user: mergedUser };
       saveSession(nextSession);
       setSession(nextSession);
       setProfileForm({
-        name: updated.name || '',
-        email: updated.email || '',
-        address: updated.address || '',
+        name: mergedUser.name || '',
+        email: mergedUser.email || '',
+        address: mergedUser.address || '',
       });
       setProfileDirty(false);
     } catch (err) {
@@ -546,6 +571,24 @@ export default function AdminDashboard() {
 
   const renderTable = (columns, rows) => (
     <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+      {isMobile ? (
+        rows.length === 0 ? (
+          <p style={{ margin: 0, color: '#6d7d6f' }}>No records yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {rows.map((row, rowIndex) => (
+              <div key={rowIndex} style={{ border: '1px solid #eef3ec', borderRadius: '16px', padding: '14px', background: '#fbfdf9' }}>
+                {row.map((cell, cellIndex) => (
+                  <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: '92px minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#8a9a8c', textTransform: 'uppercase' }}>{columns[cellIndex]}</span>
+                    <div style={{ minWidth: 0, fontSize: '13px', color: '#16231a', overflowWrap: 'anywhere' }}>{cell}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px' }}>
         <thead>
           <tr style={{ textAlign: 'left' }}>
@@ -568,6 +611,7 @@ export default function AdminDashboard() {
           ))}
         </tbody>
       </table>
+      )}
     </div>
   );
 
@@ -575,8 +619,8 @@ export default function AdminDashboard() {
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
         <div>
-          <img src="/assets/logo-full.png" alt="Rivan" style={{ width: '152px', height: 'auto' }} />
-          <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5 }}>
+          <img src="/assets/logo-full.png" alt="Rivan" style={{ width: isMobile ? '116px' : '152px', height: 'auto' }} />
+          <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5, display: isMobile ? 'none' : 'block' }}>
             Manage approvals, users, properties, bookings, and support activity from one place.
           </p>
         </div>
@@ -588,14 +632,16 @@ export default function AdminDashboard() {
               style={{
                 border: 'none',
                 borderRadius: '12px',
-                padding: '12px 14px',
-                textAlign: 'left',
+                padding: isMobile ? '9px 12px' : '12px 14px',
+                textAlign: isMobile ? 'center' : 'left',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                fontSize: '13px',
+                fontSize: isMobile ? '12px' : '13px',
                 fontWeight: 700,
                 background: page === id ? '#fff' : 'rgba(255,255,255,.08)',
                 color: page === id ? '#1f5a31' : '#fff',
+                whiteSpace: 'nowrap',
+                flex: isMobile ? '0 0 auto' : 'initial',
               }}
             >
               {label}
@@ -604,26 +650,26 @@ export default function AdminDashboard() {
         </nav>
         <button
           onClick={logout}
-          style={{ marginTop: 'auto', height: '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer' }}
+          style={{ marginTop: isMobile ? 0 : 'auto', height: isMobile ? '40px' : '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: isMobile ? '12px' : '13px', fontWeight: 800, cursor: 'pointer', minWidth: isMobile ? '84px' : 'auto' }}
         >
           Logout
         </button>
       </aside>
 
       <main style={mainStyle}>
-        <div style={{ ...cardStyle, minWidth: 0, marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
+        <div style={{ ...cardStyle, minWidth: 0, marginBottom: '18px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '32px', color: '#1f5a31' }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? '26px' : '32px', color: '#1f5a31' }}>
               {page === 'dashboard' ? 'Admin Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Admin'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
               {liveStatusLabel(liveStatus)}
             </p>
             <p style={{ margin: '6px 0 0', color: '#6d7d6f', fontSize: '14px' }}>
-              Welcome, {user.name || 'Admin'} • {settings.role_label || 'Admin'}
+              Welcome, {displayedUser.name || 'Admin'} • {settings.role_label || 'Admin'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
             <button onClick={() => setPage('notifications')} aria-label="Notifications" style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: '#fff', color: '#1f5a31', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
@@ -637,11 +683,11 @@ export default function AdminDashboard() {
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff', minWidth: 0 }}>
               <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#2b6d3d,#3f8a54)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-                {initialsOf(user.name)}
+                {initialsOf(displayedUser.name)}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{user.name || 'Admin'}</div>
-                <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(user.phone) || settings.role_label || 'Admin'}</div>
+                <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '150px' : '180px' }}>{displayedUser.name || 'Admin'}</div>
+                <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(displayedUser.phone) || settings.role_label || 'Admin'}</div>
               </div>
             </div>
           </div>

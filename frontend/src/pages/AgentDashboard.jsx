@@ -90,6 +90,24 @@ function formatPhoneDisplay(value) {
   return digits ? `+91 ${digits}` : '';
 }
 
+function isPlaceholderName(value) {
+  return ['agent', 'partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
+}
+
+function firstRealValue(...values) {
+  return values.find((value) => String(value || '').trim() && !isPlaceholderName(value)) || values.find((value) => String(value || '').trim()) || '';
+}
+
+function mergePartnerIdentity(...sources) {
+  const merged = Object.assign({}, ...sources.filter(Boolean));
+  return {
+    ...merged,
+    name: firstRealValue(...sources.map((source) => source?.name), merged.name),
+    email: firstRealValue(...sources.map((source) => source?.email), merged.email),
+    phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
+  };
+}
+
 function formatSquareYards(item) {
   const raw = item?.size_sqy || item?.sq_yards || item?.square_yards;
   if (raw) return `${raw} sq yards`;
@@ -253,7 +271,7 @@ export default function AgentDashboard() {
         setSession(latestSession);
       }
 
-      const profileSource = nextAgentData.profile || latestSession?.user || user;
+      const profileSource = mergePartnerIdentity(user, latestSession?.user, nextAgentData.profile);
       if (!profileDirtyRef.current || pageRef.current !== 'profile') {
         setProfileForm({
           name: profileSource.name || user.name || '',
@@ -351,7 +369,7 @@ export default function AgentDashboard() {
     };
   }, [session?.access_token]);
 
-  const displayedUser = { ...user, ...(agentData.profile || {}) };
+  const displayedUser = mergePartnerIdentity(user, agentData.profile, profileDirty ? profileForm : null);
   const assets = agentData.assets || [];
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
   const bookings = agentData.bookings || [];
@@ -375,23 +393,26 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
+    overflowX: 'hidden',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '260px',
     background: '#1f5a31',
     color: '#fff',
-    padding: isMobile ? '14px' : '24px 16px',
+    padding: isMobile ? '12px 12px 10px' : '24px 16px',
     display: 'flex',
-    flexDirection: 'column',
-    gap: isMobile ? '12px' : '18px',
+    flexDirection: isMobile ? 'row' : 'column',
+    alignItems: isMobile ? 'center' : 'stretch',
+    gap: isMobile ? '10px' : '18px',
     position: isMobile ? 'sticky' : 'static',
     top: 0,
-    zIndex: 10,
+    zIndex: 30,
+    boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',
   };
   const navStyle = {
     display: 'flex',
@@ -399,8 +420,10 @@ export default function AgentDashboard() {
     gap: '8px',
     overflowX: isMobile ? 'auto' : 'visible',
     paddingBottom: isMobile ? '4px' : 0,
+    flex: 1,
+    scrollbarWidth: 'none',
   };
-  const mainStyle = { flex: 1, padding: isMobile ? '14px' : '24px', minWidth: 0 };
+  const mainStyle = { flex: 1, padding: isMobile ? '14px 12px 24px' : '24px', minWidth: 0, overflowX: 'hidden' };
   const headerStyle = {
     ...cardStyle,
     marginBottom: '18px',
@@ -440,6 +463,19 @@ export default function AgentDashboard() {
     <div style={{ overflowX: 'auto' }}>
       {rows.length === 0 ? (
         <p style={{ margin: 0, color: '#6d7d6f' }}>{emptyMessage}</p>
+      ) : isMobile ? (
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {rows.map((row, rowIndex) => (
+            <div key={rowIndex} style={{ border: '1px solid #eef3ec', borderRadius: '16px', padding: '14px', background: '#fbfdf9' }}>
+              {row.map((cell, cellIndex) => (
+                <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: '94px minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#8a9a8c', textTransform: 'uppercase' }}>{columns[cellIndex]}</span>
+                  <div style={{ minWidth: 0, fontSize: '13px', color: '#16231a', overflowWrap: 'anywhere' }}>{cell}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       ) : (
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
         <thead>
@@ -577,7 +613,7 @@ export default function AgentDashboard() {
         if (payload[k] === '') payload[k] = null;
       });
       const updated = await putJson('/api/auth/profile', payload, session.access_token);
-      const mergedUser = { ...updated, ...payload };
+      const mergedUser = mergePartnerIdentity(user, updated, payload);
       const nextSession = { ...session, user: mergedUser };
       saveSession(nextSession);
       setSession(nextSession);
@@ -623,12 +659,13 @@ export default function AgentDashboard() {
               style={{
                 border: 'none',
                 borderRadius: '12px',
-                padding: isMobile ? '10px 12px' : '12px 14px',
-                textAlign: 'left',
+                padding: isMobile ? '9px 12px' : '12px 14px',
+                textAlign: isMobile ? 'center' : 'left',
                 whiteSpace: 'nowrap',
+                flex: isMobile ? '0 0 auto' : 'initial',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                fontSize: '13px',
+                fontSize: isMobile ? '12px' : '13px',
                 fontWeight: 700,
                 background: page === id ? '#fff' : 'rgba(255,255,255,.08)',
                 color: page === id ? '#1f5a31' : '#fff',
@@ -640,7 +677,7 @@ export default function AgentDashboard() {
         </nav>
         <button
           onClick={logout}
-          style={{ marginTop: isMobile ? 0 : 'auto', height: '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer', minWidth: isMobile ? '120px' : 'auto' }}
+          style={{ marginTop: isMobile ? 0 : 'auto', height: isMobile ? '40px' : '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: isMobile ? '12px' : '13px', fontWeight: 800, cursor: 'pointer', minWidth: isMobile ? '84px' : 'auto' }}
         >
           Logout
         </button>
