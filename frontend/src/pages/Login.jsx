@@ -68,7 +68,7 @@ export default function Login() {
   const [status, setStatus] = useState("");
   const [recaptchaReady, setRecaptchaReady] = useState(false);
   const [staffAccessOpen, setStaffAccessOpen] = useState(false);
-  const [rememberedStaffRole, setRememberedStaffRole] = useState(() => localStorage.getItem(LAST_STAFF_ROLE_KEY) || "");
+  const [, setRememberedStaffRole] = useState(() => localStorage.getItem(LAST_STAFF_ROLE_KEY) || "");
 
   useEffect(() => {
     let mounted = true;
@@ -512,26 +512,6 @@ export default function Login() {
                   <p style={{ margin: "9px 0 14px", color: "#657568", fontSize: "13px", lineHeight: "1.45" }}>
                     For approved Rivan team members only. Customers can continue with the main journey below.
                   </p>
-                  {rememberedStaffRole && (
-                    <button
-                      type="button"
-                      onClick={() => openPortal(rememberedStaffRole)}
-                      style={{
-                        width: "100%",
-                        minHeight: "50px",
-                        border: "none",
-                        borderRadius: "16px",
-                        background: "linear-gradient(180deg,#1f5a31,#174626)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                        fontWeight: "800",
-                        marginBottom: "10px",
-                      }}
-                    >
-                      Continue as {rememberedStaffRole === "admin" ? "Admin" : "Agent"}
-                    </button>
-                  )}
                   {[
                     {
                       role: "agent",

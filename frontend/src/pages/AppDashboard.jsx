@@ -16,6 +16,7 @@ const G = [
   'linear-gradient(150deg,#356b52 0%,#5a9a7a 55%,#b6d7bf 100%)',
   'linear-gradient(150deg,#4a6b2f 0%,#84a95a 55%,#d3dfa0 100%)',
 ];
+const DEFAULT_PROPERTY_IMAGE = '/Property Image 1.jpeg';
 
 function initialsFromName(name) {
   return String(name || 'CU')
@@ -28,14 +29,20 @@ function initialsFromName(name) {
 
 function formatCurrency(value) {
   const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 'Price on request';
   return `₹${Math.round(amount).toLocaleString('en-IN')}`;
 }
 
 function formatShortAmount(value) {
   const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return '₹0';
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`;
   if (amount >= 100000) return `₹${(amount / 100000).toFixed(1).replace(/\.0$/, '')} L`;
   return `₹${Math.round(amount).toLocaleString('en-IN')}`;
+}
+
+function hasRatePrice(value) {
+  return String(value || '').trim().startsWith('₹');
 }
 
 function formatDateOnly(value) {
@@ -96,8 +103,13 @@ function normalizeImageUrl(value) {
 
 function PropertyImage({ src, alt, eager = false, fallback = G[0], style = {}, children, ...props }) {
   const imageUrl = normalizeImageUrl(src);
+  const fallbackLayer = {
+    backgroundImage: `linear-gradient(180deg, rgba(9,32,16,.12), rgba(9,32,16,.34)), url("${DEFAULT_PROPERTY_IMAGE}")`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  };
   return (
-    <div {...props} style={{ position: 'relative', overflow: 'hidden', background: fallback, ...style }}>
+    <div {...props} style={{ position: 'relative', overflow: 'hidden', background: fallback, ...fallbackLayer, ...style }}>
       {imageUrl && (
         <img
           src={imageUrl}
@@ -419,23 +431,31 @@ export default function AppDashboard() {
     name: 'Sirpuram Gardens',
     loc: 'Achutapuram, Visakhapatnam',
     tag: 'Achutapuram',
-    price: 'â‚¹0',
+    price: 'Price on request',
     grad: G[0],
     open: () => openProject({
       name: 'Sirpuram Gardens',
       loc: 'Achutapuram, Visakhapatnam',
       tag: 'Achutapuram',
-      price: 'â‚¹0',
+      price: 'Price on request',
       grad: G[0],
     }),
   });
   nearbyAll.splice(0, nearbyAll.length, {
     name: 'Sirpuram Gardens',
     loc: 'Achutapuram, Visakhapatnam',
-    price: 'â‚¹0',
+    price: 'Price on request',
     type: 'Plots',
     grad: G[0],
   });
+
+  if (featured[0]?.name === 'Sirpuram Gardens') {
+    featured[0].price = 'Price on request';
+    featured[0].open = () => openProject({ ...featured[0], price: 'Price on request' });
+  }
+  if (nearbyAll[0]?.name === 'Sirpuram Gardens') {
+    nearbyAll[0].price = 'Price on request';
+  }
 
   const getChip = (l) => ({
     label: l,
@@ -1090,7 +1110,7 @@ export default function AppDashboard() {
                 <div style={{'padding': '11px 12px 13px'}}>
                   <p style={{'margin': '0', 'fontSize': '13.5px', 'fontWeight': '700', 'color': '#16231a'}}>{f.name}</p>
                   <p style={{'margin': '3px 0 8px', 'fontSize': '11.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{f.loc}</p>
-                  <p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{f.price} <span style={{'fontSize': '10.5px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
+                  <p style={{'margin': '0', 'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{f.price}{hasRatePrice(f.price) && <span style={{'fontSize': '10.5px', 'color': '#9aa89c', 'fontWeight': '600'}}> /sq.yd</span>}</p>
                 </div>
               </div>
             ))}
@@ -1177,7 +1197,7 @@ export default function AppDashboard() {
                 <div style={{'flex': '1', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'center'}}>
                   <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '700', 'color': '#16231a'}}>{n.name}</p>
                   <p style={{'margin': '3px 0 8px', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '500'}}>{n.loc}</p>
-                  <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{n.price} <span style={{'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>/sq.yd</span></p>
+                  <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{n.price}{hasRatePrice(n.price) && <span style={{'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}> /sq.yd</span>}</p>
                 </div>
                 <button onClick={n.like} style={{'alignSelf': 'flex-start', 'border': 'none', 'background': 'transparent', 'cursor': 'pointer', 'padding': '2px'}}>
                   <svg width="21" height="21" viewBox="0 0 24 24" fill={n.heartFill} stroke={n.heartStroke} stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
@@ -1426,7 +1446,7 @@ export default function AppDashboard() {
               <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'color': '#8a988c', 'fontWeight': '500'}}>📍 {sel.loc}</p>
               <p style={{'margin': '6px 0 0', 'fontSize': '11.5px', 'color': '#2b6d3d', 'fontWeight': '700'}}>{selectedProperty?.property_code || 'Property Code Pending'}</p>
             </div>
-            <div style={{'textAlign': 'right'}}><p style={{'margin': '0', 'fontSize': '20px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{sel.price}</p><p style={{'margin': '2px 0 0', 'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>per sq.yd</p></div>
+            <div style={{'textAlign': 'right'}}><p style={{'margin': '0', 'fontSize': '20px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{sel.price}</p>{hasRatePrice(sel.price) && <p style={{'margin': '2px 0 0', 'fontSize': '11px', 'color': '#9aa89c', 'fontWeight': '600'}}>per sq.yd</p>}</div>
           </div>
 
           <div style={{'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '11px', 'marginTop': '18px'}}>
