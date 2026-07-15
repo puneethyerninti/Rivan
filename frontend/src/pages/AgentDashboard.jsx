@@ -77,12 +77,12 @@ function formatDateOnly(value) {
 }
 
 function initialsOf(name) {
-  return String(name || 'AG')
+  return String(name || 'PT')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || '')
-    .join('') || 'AG';
+    .join('') || 'PT';
 }
 
 function formatPhoneDisplay(value) {
@@ -289,7 +289,7 @@ export default function AgentDashboard() {
       }
     } catch (err) {
       console.error('[AgentDashboard] Fatal error loading dashboard:', err);
-      setError(err?.message || 'Failed to load agent dashboard');
+      setError(err?.message || 'Failed to load partner dashboard');
     } finally {
       if (showLoader) setLoading(false);
     }
@@ -406,8 +406,8 @@ export default function AgentDashboard() {
     color: '#fff',
     padding: isMobile ? '12px 12px 10px' : '24px 16px',
     display: 'flex',
-    flexDirection: isMobile ? 'row' : 'column',
-    alignItems: isMobile ? 'center' : 'stretch',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: isMobile ? '10px' : '18px',
     position: isMobile ? 'sticky' : 'static',
     top: 0,
@@ -645,11 +645,19 @@ export default function AgentDashboard() {
   return (
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
-        <div>
+        <div style={{ display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: isMobile ? '116px' : '152px', height: 'auto' }} />
           <p style={{ margin: isMobile ? '8px 0 0' : '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5, display: isMobile ? 'none' : 'block' }}>
             Manage your leads, visits, bookings, and customer follow-ups in one place.
           </p>
+          {isMobile && (
+            <button
+              onClick={logout}
+              style={{ height: '40px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 800, cursor: 'pointer', minWidth: '84px' }}
+            >
+              Logout
+            </button>
+          )}
         </div>
         <nav style={navStyle}>
           {navItems.map(([id, label]) => (
@@ -677,7 +685,7 @@ export default function AgentDashboard() {
         </nav>
         <button
           onClick={logout}
-          style={{ marginTop: isMobile ? 0 : 'auto', height: isMobile ? '40px' : '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: isMobile ? '12px' : '13px', fontWeight: 800, cursor: 'pointer', minWidth: isMobile ? '84px' : 'auto' }}
+          style={{ display: isMobile ? 'none' : 'block', marginTop: 'auto', height: '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer' }}
         >
           Logout
         </button>
@@ -687,13 +695,13 @@ export default function AgentDashboard() {
         <div style={headerStyle}>
           <div>
             <h1 style={{ margin: 0, fontSize: isMobile ? '26px' : '32px', color: '#1f5a31' }}>
-              {page === 'dashboard' ? 'Agent Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Agent'}
+              {page === 'dashboard' ? 'Partner Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Partner'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
               {liveStatusLabel(liveStatus)}
             </p>
             <p style={{ margin: '6px 0 0', color: '#6d7d6f', fontSize: '14px' }}>
-              Welcome, {displayedUser.name || 'Agent'}
+              Welcome, {displayedUser.name || 'Partner'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
@@ -713,8 +721,8 @@ export default function AgentDashboard() {
                 {initialsOf(displayedUser.name)}
               </div>
               <div>
-                <div style={{ fontWeight: 800 }}>{displayedUser.name || 'Agent'}</div>
-                <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(displayedUser.phone) || 'Agent'}</div>
+                <div style={{ fontWeight: 800 }}>{displayedUser.name || 'Partner'}</div>
+                <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(displayedUser.phone) || 'Partner'}</div>
               </div>
             </div>
           </div>
@@ -722,15 +730,15 @@ export default function AgentDashboard() {
 
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
         {notice && <div style={{ ...cardStyle, marginBottom: '18px', color: '#1a8a4a', fontWeight: 700 }}>{notice}</div>}
-        {loading && <div style={cardStyle}>Loading live agent data...</div>}
+        {loading && <div style={cardStyle}>Loading live partner data...</div>}
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(180px,1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
               {topCards.map((item) => (
-                <div key={item.label} style={cardStyle}>
+                <div key={item.label} style={{ ...cardStyle, padding: isMobile ? '14px' : cardStyle.padding }}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>
-                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#1f5a31' }}>{item.value}</div>
+                  <div style={{ marginTop: '10px', fontSize: isMobile ? '24px' : '30px', fontWeight: 800, color: '#1f5a31' }}>{item.value}</div>
                 </div>
               ))}
             </div>
@@ -964,7 +972,7 @@ export default function AgentDashboard() {
 
         {!loading && page === 'profile' && (
           <section style={{ ...cardStyle, maxWidth: '720px' }}>
-            <h3 style={{ marginTop: 0 }}>Agent Profile</h3>
+            <h3 style={{ marginTop: 0 }}>Partner Profile</h3>
             <div style={{ display: 'grid', gap: '14px' }}>
               <input value={profileForm.name} onChange={(event) => updateProfileField('name', event.target.value)} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.email} onChange={(event) => updateProfileField('email', event.target.value)} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
@@ -973,7 +981,7 @@ export default function AgentDashboard() {
               <input value={profileForm.occupation} onChange={(event) => updateProfileField('occupation', event.target.value)} placeholder="Occupation" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.age} type="number" onChange={(event) => updateProfileField('age', event.target.value)} placeholder="Age" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.aadhaar_number} onChange={(event) => updateProfileField('aadhaar_number', event.target.value)} placeholder="Aadhaar Number" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Agent Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
+              <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Partner Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>

@@ -18,6 +18,9 @@ export function getWebSocketUrl(token) {
 let liveUpdatesCapabilityPromise = null;
 
 export async function supportsLiveUpdates() {
+  if (import.meta.env.VITE_ENABLE_WEBSOCKETS !== "true") {
+    return false;
+  }
   if (!liveUpdatesCapabilityPromise) {
     liveUpdatesCapabilityPromise = fetch(`${getBackendUrl()}/api/health?_t=${Date.now()}`, {
       method: "GET",

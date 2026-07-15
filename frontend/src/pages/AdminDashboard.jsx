@@ -399,8 +399,8 @@ export default function AdminDashboard() {
     color: '#fff',
     padding: isMobile ? '12px 12px 10px' : '24px 16px',
     display: 'flex',
-    flexDirection: isMobile ? 'row' : 'column',
-    alignItems: isMobile ? 'center' : 'stretch',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: isMobile ? '10px' : '18px',
     position: isMobile ? 'sticky' : 'static',
     top: 0,
@@ -422,7 +422,7 @@ export default function AdminDashboard() {
 
   const legacyDashboardCards = [
     { label: 'Users', value: stats?.users ?? users.length },
-    { label: 'Agents', value: stats?.agents ?? agents.length },
+    { label: 'Partners', value: stats?.agents ?? agents.length },
     { label: 'Closed Sales', value: closedBookings.length },
     { label: 'Commission Total', value: `₹${Math.round(commissionTotal).toLocaleString('en-IN')}` },
     { label: 'Bookings', value: stats?.bookings ?? bookings.length },
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
 
   const dashboardCards = [
     { label: 'Users', value: stats?.users ?? users.length },
-    { label: 'Agents', value: stats?.agents ?? agents.length },
+    { label: 'Partners', value: stats?.agents ?? agents.length },
     { label: 'Closed Sales', value: stats?.closed_sales ?? closedBookings.length },
     { label: 'Commission Total', value: formatMoney(stats?.commission_total ?? commissionTotal) },
     { label: 'Bookings', value: stats?.bookings ?? bookings.length },
@@ -618,11 +618,19 @@ export default function AdminDashboard() {
   return (
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
-        <div>
+        <div style={{ display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <img src="/assets/logo-full.png" alt="Rivan" style={{ width: isMobile ? '116px' : '152px', height: 'auto' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5, display: isMobile ? 'none' : 'block' }}>
             Manage approvals, users, properties, bookings, and support activity from one place.
           </p>
+          {isMobile && (
+            <button
+              onClick={logout}
+              style={{ height: '40px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 800, cursor: 'pointer', minWidth: '84px' }}
+            >
+              Logout
+            </button>
+          )}
         </div>
         <nav style={navStyle}>
           {navItems.map(([id, label]) => (
@@ -650,7 +658,7 @@ export default function AdminDashboard() {
         </nav>
         <button
           onClick={logout}
-          style={{ marginTop: isMobile ? 0 : 'auto', height: isMobile ? '40px' : '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: isMobile ? '12px' : '13px', fontWeight: 800, cursor: 'pointer', minWidth: isMobile ? '84px' : 'auto' }}
+          style={{ display: isMobile ? 'none' : 'block', marginTop: 'auto', height: '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer' }}
         >
           Logout
         </button>
@@ -698,11 +706,11 @@ export default function AdminDashboard() {
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
               {dashboardCards.map((item) => (
-                <div key={item.label} style={cardStyle}>
+                <div key={item.label} style={{ ...cardStyle, padding: isMobile ? '14px' : cardStyle.padding }}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>
-                  <div style={{ marginTop: '10px', fontSize: '30px', fontWeight: 800, color: '#1f5a31' }}>{item.value}</div>
+                  <div style={{ marginTop: '10px', fontSize: isMobile ? '24px' : '30px', fontWeight: 800, color: '#1f5a31' }}>{item.value}</div>
                 </div>
               ))}
             </div>
@@ -723,7 +731,7 @@ export default function AdminDashboard() {
                 )}
               </section>
               <section style={{ ...cardStyle, minWidth: 0, overflow: 'hidden' }}>
-                <h3 style={{ marginTop: 0 }}>Pending Agent Approvals</h3>
+                <h3 style={{ marginTop: 0 }}>Pending Partner Approvals</h3>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                   {Object.entries(agentApprovalCounts).map(([key, value]) => (
                     <span key={key} style={tone(key)}>{key.replace('_', ' ')}: {value}</span>
@@ -795,7 +803,7 @@ export default function AdminDashboard() {
         {!loading && page === 'approvals' && (
           <section style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>Agent Applications</h3>
+              <h3 style={{ margin: 0 }}>Partner Applications</h3>
               {selectedApprovalId && <button onClick={() => setSelectedApprovalId(null)} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', padding: '6px 12px', cursor: 'pointer' }}>Back to List</button>}
             </div>
             {selectedApprovalId && selectedApproval ? (
@@ -814,15 +822,15 @@ export default function AdminDashboard() {
                   <div style={{ gridColumn: '1 / -1' }}><strong>Notes:</strong> {selectedApproval.application_notes || '—'}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <button onClick={() => { updateAgentStatus(selectedApproval.id, 'approved'); setSelectedApprovalId(null); }} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}>Approve Agent</button>
-                  <button onClick={() => { updateAgentStatus(selectedApproval.id, 'rejected'); setSelectedApprovalId(null); }} style={{ border: '1px solid #f0c8c8', borderRadius: '10px', background: '#fff', color: '#c93b3b', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}>Reject Agent</button>
+                  <button onClick={() => { updateAgentStatus(selectedApproval.id, 'approved'); setSelectedApprovalId(null); }} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}>Approve Partner</button>
+                  <button onClick={() => { updateAgentStatus(selectedApproval.id, 'rejected'); setSelectedApprovalId(null); }} style={{ border: '1px solid #f0c8c8', borderRadius: '10px', background: '#fff', color: '#c93b3b', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}>Reject Partner</button>
                 </div>
               </div>
             ) : (
               renderTable(
                 ['Name', 'Phone', 'Email', 'Status', 'Applied', 'Action'],
                 agents.map((agent) => [
-                  agent.name || 'Agent',
+                  agent.name || 'Partner',
                   agent.phone ? formatPhoneDisplay(agent.phone) : '—',
                   agent.email || '—',
                   <span style={tone(agent.approval_status || agent.status)}>{agent.approval_status || agent.status || 'pending'}</span>,
@@ -845,11 +853,11 @@ export default function AdminDashboard() {
                 formatShortDate(item.created_at),
               ]),
             )}
-            <h3 style={{ marginTop: '32px' }}>Agent Profiles</h3>
+            <h3 style={{ marginTop: '32px' }}>Partner Profiles</h3>
             {renderTable(
               ['Name', 'Phone', 'Brand', 'Status', 'Joined'],
               users.filter(u => u.role === 'agent' || u.role === 'admin').map((item) => [
-                item.name || 'Agent',
+                item.name || 'Partner',
                 item.phone ? formatPhoneDisplay(item.phone) : '—',
                 item.agent_brand_name || '—',
                 <span style={tone(item.status || item.approval_status)}>{item.status || item.approval_status || '—'}</span>,
