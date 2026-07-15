@@ -1105,13 +1105,13 @@ export default function AppDashboard() {
 
           {/* quick actions */}
           <p style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31', 'margin': '24px 0 13px'}}>Quick Actions</p>
-          <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(5,1fr)', 'gap': '8px'}}>
+          <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(5,minmax(0,1fr))', 'gap': '6px'}}>
             { quickActions.map((q, index) => (
-              <button onClick={q.go} style={{'border': 'none', 'background': 'transparent', 'cursor': 'pointer', 'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'gap': '7px', 'fontFamily': 'inherit'}}>
-                <span style={{'width': '50px', 'height': '50px', 'borderRadius': '16px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
+              <button onClick={q.go} style={{'border': 'none', 'background': 'transparent', 'cursor': 'pointer', 'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'gap': '7px', 'fontFamily': 'inherit', 'minWidth': 0, 'padding': 0}}>
+                <span style={{'width': '46px', 'height': '46px', 'borderRadius': '15px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
                   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={q.icon}/></svg>
                 </span>
-                <span style={{'fontSize': '10px', 'fontWeight': '600', 'color': '#4a5c4d', 'textAlign': 'center', 'lineHeight': '1.2'}}>{q.label}</span>
+                <span style={{'fontSize': '9.5px', 'fontWeight': '600', 'color': '#4a5c4d', 'textAlign': 'center', 'lineHeight': '1.15', 'maxWidth': '100%', 'overflowWrap': 'anywhere'}}>{q.label}</span>
               </button>
             ))}
           </div>
