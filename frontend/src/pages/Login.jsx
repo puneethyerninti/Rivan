@@ -216,7 +216,7 @@ export default function Login() {
     if (isPrimaryAgentPhone(normalizedPhone)) {
       return {
         allowed: true,
-        statusMessage: "Continue with OTP to access your agent dashboard.",
+        statusMessage: "Continue with OTP to access your Partner portal.",
       };
     }
 
@@ -375,7 +375,7 @@ export default function Login() {
 
   const subtitleByRole = {
     customer: "Sign in to continue with Rivan Reality",
-    agent: "Use your approved mobile number to access the agent dashboard",
+    agent: "Use your approved mobile number to access the Partner portal",
     admin: "Only the authorized admin mobile number can continue",
   };
 

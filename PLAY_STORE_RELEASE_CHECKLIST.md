@@ -2,6 +2,8 @@
 
 This repo already contains a Capacitor Android app at `frontend/android`. Use that path for the first Play Store release because it packages the same production web app used at `rivanreality.com`.
 
+Important: open `frontend/android` in Android Studio for Play Store work. The root-level `android/` folder is a legacy scaffold and is not the active release project.
+
 ## Current Production Baseline
 
 - Android package ID: `com.rivan.reality`

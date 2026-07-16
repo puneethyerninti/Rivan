@@ -4081,7 +4081,7 @@ async def agent_access_status(req: AgentAccessStatusReq, request: Request):
             "approval_status": None,
             "can_login": False,
             "can_apply": True,
-            "message": "This phone number belongs to a non-agent account and cannot open the agent dashboard.",
+            "message": "This phone number belongs to a non-partner account and cannot open the Partner portal.",
         }
 
     return {
@@ -6865,8 +6865,8 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
 
 
 @api_router.get("/debug/db-health")
-async def debug_db_health():
-    """Public endpoint to check if DB is connected and has data."""
+async def debug_db_health(user: Dict[str, Any] = Depends(get_admin_user)):
+    """Admin-only endpoint to check if DB is connected and has data."""
     if not await is_database_available():
         return {"db_available": False, "message": "Database is not connected"}
     try:
@@ -6879,7 +6879,7 @@ async def debug_db_health():
             "users": await db.users.count_documents({}),
             "notifications": await db.notifications.count_documents({}),
         }
-        return {"db_available": True, "counts": counts}
+        return {"db_available": True, "checked_by": user.get("id"), "counts": counts}
     except Exception as exc:
         return {"db_available": False, "message": f"DB error: {exc}"}
 

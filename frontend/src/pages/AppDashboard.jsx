@@ -660,9 +660,9 @@ export default function AppDashboard() {
   const emiInterest = fmtL(interest);
 
   const notifs = [
-    { title: 'Payment Due Reminder', body: 'Your next installment of ₹1,00,000 is due on 12 Jun 2025.', time: '2 hours ago', unread: true, icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', iconColor: '#e2822a', iconBg: '#fdefe0' },
+    { title: 'Payment Module On Hold', body: 'Online payments are not active yet. Booking, visits, documents, and support updates continue to work live.', time: '2 hours ago', unread: true, icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', iconColor: '#e2822a', iconBg: '#fdefe0' },
     { title: 'New Project Launched', body: 'Emerald Springs at Yendada is now open for bookings.', time: 'Yesterday', unread: true, icon: 'M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5', iconColor: '#2b6d3d', iconBg: '#eef6ea' },
-    { title: 'Payment Received', body: 'We received your installment #6 of ₹1,00,000. Thank you!', time: '2 days ago', unread: false, icon: 'M5 12l4 4 10-10', iconColor: '#2b6d3d', iconBg: '#eef6ea' },
+    { title: 'Booking Support Active', body: 'Our team will guide offline payment steps until the payment gateway is approved.', time: '2 days ago', unread: false, icon: 'M5 12l4 4 10-10', iconColor: '#2b6d3d', iconBg: '#eef6ea' },
   ].map((n) => ({ ...n, bg: n.unread ? '#f4faf1' : '#fff' }));
 
   notifs.splice(0, notifs.length);
@@ -831,7 +831,7 @@ export default function AppDashboard() {
     setExploreLoading(true);
     setTimeout(() => setExploreLoading(false), 1300);
   };
-  const payNow = () => openNotice('Payments Unavailable', 'Payments are intentionally excluded from this release. Use live booking requests, visits, documents, notifications, and service workflows for production testing.');
+  const payNow = () => openNotice('Payments On Hold', 'Online payments are not active yet. This section is kept for visibility and will go live after payment gateway approval. Booking requests, visits, documents, notifications, and support workflows remain live.');
   const propertyIdForAction = () => selectedProperty?.id || selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
   const loadActionPlots = async (propertyId) => {
     if (!session?.access_token || !propertyId) return [];
@@ -1352,7 +1352,7 @@ export default function AppDashboard() {
               </div>
               <p style={{'margin': '5px 0 0', 'fontSize': '11.5px', 'color': '#e2822a', 'fontWeight': '700'}}>Use live booking, visit scheduling, documents, and service requests for production testing</p>
             </div>
-            <button onClick={payNow} style={{'border': 'none', 'borderRadius': '14px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'padding': '13px 22px', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(18,68,35,.7)'}}>Why Unavailable?</button>
+            <button onClick={payNow} style={{'border': 'none', 'borderRadius': '14px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '700', 'padding': '13px 22px', 'cursor': 'pointer', 'boxShadow': '0 12px 22px -10px rgba(18,68,35,.7)'}}>Why On Hold?</button>
           </div>
 
           <div style={{'marginTop': '14px', 'background': '#fff', 'borderRadius': '20px', 'border': '1px solid #eef3ec', 'overflow': 'hidden', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>

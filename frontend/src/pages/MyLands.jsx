@@ -176,7 +176,7 @@ export default function MyLands() {
 
   const goHome = () => navigate('/app');
   const goVisitsPage = () => navigate('/visits');
-  const goPayments = () => showNotice('Payments Unavailable', 'Payments are not part of this release yet.');
+  const goPayments = () => showNotice('Payments On Hold', 'Online payments are not active yet. This section is kept for visibility and will go live after payment gateway approval.');
   const goProfile = () => navigate('/app#profile');
 
   const chipStyle = (c) => filter === c
@@ -207,7 +207,7 @@ export default function MyLands() {
       }
       showNotice('No live document is available for this property yet.');
     },
-    Payments: () => showNotice('Payments Unavailable', 'Payments are not part of this release yet.'),
+    Payments: () => showNotice('Payments On Hold', 'Online payments are not active yet. This section is kept for visibility and will go live after payment gateway approval.'),
     Contact: () => navigate('/app#contact'),
   };
 

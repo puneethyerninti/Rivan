@@ -143,7 +143,6 @@ export default function AgentDashboard() {
     address: session?.user?.address || '',
     occupation: session?.user?.occupation || '',
     age: session?.user?.age || '',
-    aadhaar_number: session?.user?.aadhaar_number || '',
     agent_brand_name: session?.user?.agent_brand_name || '',
   });
   const [profileDirty, setProfileDirty] = useState(false);
@@ -279,7 +278,6 @@ export default function AgentDashboard() {
           address: profileSource.address || user.address || '',
           occupation: profileSource.occupation || user.occupation || '',
           age: profileSource.age || user.age || '',
-          aadhaar_number: profileSource.aadhaar_number || user.aadhaar_number || '',
           agent_brand_name: profileSource.agent_brand_name || user.agent_brand_name || '',
         });
       }
@@ -635,7 +633,6 @@ export default function AgentDashboard() {
         address: mergedUser.address || '',
         occupation: mergedUser.occupation || '',
         age: mergedUser.age || '',
-        aadhaar_number: mergedUser.aadhaar_number || '',
         agent_brand_name: mergedUser.agent_brand_name || '',
       });
       setProfileDirty(false);
@@ -991,7 +988,6 @@ export default function AgentDashboard() {
               <input value={profileForm.address} onChange={(event) => updateProfileField('address', event.target.value)} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.occupation} onChange={(event) => updateProfileField('occupation', event.target.value)} placeholder="Occupation" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.age} type="number" onChange={(event) => updateProfileField('age', event.target.value)} placeholder="Age" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.aadhaar_number} onChange={(event) => updateProfileField('aadhaar_number', event.target.value)} placeholder="Aadhaar Number" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Partner Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
               <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
