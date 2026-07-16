@@ -161,6 +161,8 @@ export default function AdminDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [liveStatus, setLiveStatus] = useState('connecting');
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 860);
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminStatusFilter, setAdminStatusFilter] = useState('all');
   const [profileDirty, setProfileDirty] = useState(false);
   const profileDirtyRef = useRef(false);
   const pageRef = useRef(page);
@@ -415,13 +417,14 @@ export default function AdminDashboard() {
   }).sort((a, b) => (b.closed - a.closed) || (b.bookings - a.bookings) || (b.visits - a.visits));
   const displayedUser = mergeAdminIdentity(user, profileDirty ? profileForm : null);
   const shellStyle = {
-    height: '100dvh',
-    maxHeight: '100dvh',
+    height: isMobile ? 'auto' : '100dvh',
+    maxHeight: isMobile ? 'none' : '100dvh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
-    overflow: 'hidden',
+    overflow: isMobile ? 'visible' : 'hidden',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '260px',
@@ -455,7 +458,7 @@ export default function AdminDashboard() {
     minWidth: 0,
     padding: isMobile ? '14px 12px 24px' : '24px',
     overflowX: 'hidden',
-    overflowY: 'auto',
+    overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehavior: 'contain',
   };
@@ -489,6 +492,26 @@ export default function AdminDashboard() {
   const latestBookings = bookings.slice(0, 6);
   const latestTickets = supportTickets.slice(0, 6);
   const latestAudit = auditLogs.slice(0, 8);
+  const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
+  const matchesAdminSearch = (item) => {
+    const query = normalizeSearch(adminSearch);
+    if (!query) return true;
+    return normalizeSearch(JSON.stringify(item)).includes(query);
+  };
+  const matchesAdminStatus = (item) => {
+    if (adminStatusFilter === 'all') return true;
+    const statusText = normalizeSearch(`${item.status || ''} ${item.approval_status || ''} ${item.availability || ''}`);
+    return statusText.includes(adminStatusFilter);
+  };
+  const visibleCustomers = users.filter((item) => item.role === 'customer' && matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visiblePartners = users.filter((item) => (item.role === 'agent' || item.role === 'admin') && matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleAgents = agents.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleProperties = properties.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visiblePlots = plots.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleBookings = bookings.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleVisits = visits.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleSupportTickets = supportTickets.filter((item) => matchesAdminSearch(item) && matchesAdminStatus(item));
+  const visibleAuditLogs = auditLogs.filter((item) => matchesAdminSearch(item));
 
   const markAllRead = async () => {
     await postJson('/api/notifications/read-all', {}, session.access_token).catch(() => null);
@@ -907,6 +930,31 @@ export default function AdminDashboard() {
 
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
         {loading && <div style={cardStyle}>Loading live admin data...</div>}
+        {!loading && (
+          <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
+            <div style={formGridStyle}>
+              <input
+                value={adminSearch}
+                onChange={(event) => setAdminSearch(event.target.value)}
+                placeholder="Search customers, partners, bookings, visits, plots..."
+                style={fieldStyle}
+              />
+              <select value={adminStatusFilter} onChange={(event) => setAdminStatusFilter(event.target.value)} style={fieldStyle}>
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="assigned">Assigned</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="reserved">Reserved</option>
+                <option value="completed">Completed</option>
+                <option value="available">Available</option>
+                <option value="sold">Sold</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </section>
+        )}
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
@@ -1040,7 +1088,7 @@ export default function AdminDashboard() {
             ) : (
               renderTable(
                 ['Name', 'Phone', 'Email', 'Status', 'Applied', 'Action'],
-                agents.map((agent) => [
+                visibleAgents.map((agent) => [
                   agent.name || 'Partner',
                   agent.phone ? formatPhoneDisplay(agent.phone) : '—',
                   agent.email || '—',
@@ -1058,7 +1106,7 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: 0 }}>Customer Logins</h3>
             {renderTable(
               ['Name', 'Phone', 'Joined'],
-              users.filter(u => u.role === 'customer').map((item) => [
+              visibleCustomers.map((item) => [
                 item.name || 'Customer',
                 item.phone ? formatPhoneDisplay(item.phone) : '—',
                 formatShortDate(item.created_at),
@@ -1067,7 +1115,7 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: '32px' }}>Partner Profiles</h3>
             {renderTable(
               ['Name', 'Phone', 'Brand', 'Status', 'Joined'],
-              users.filter(u => u.role === 'agent' || u.role === 'admin').map((item) => [
+              visiblePartners.map((item) => [
                 item.name || 'Partner',
                 item.phone ? formatPhoneDisplay(item.phone) : '—',
                 item.agent_brand_name || '—',
@@ -1143,7 +1191,7 @@ export default function AdminDashboard() {
               <h3 style={{ marginTop: 0 }}>Properties</h3>
               {renderTable(
                 ['Property', 'Location', 'Category', 'Starting Price', 'Availability', 'Updated', 'Action'],
-                properties.map((item) => [
+                visibleProperties.map((item) => [
                   <div>
                     <div style={{ fontWeight: 800 }}>{item.name || 'Property'}</div>
                     <div style={{ marginTop: '4px', color: '#2b6d3d', fontSize: '12px', fontWeight: 800 }}>{item.property_code || 'Code pending'}</div>
@@ -1162,7 +1210,7 @@ export default function AdminDashboard() {
               <h3 style={{ marginTop: 0 }}>Plots / Units</h3>
               {renderTable(
                 ['Property', 'Plot', 'Facing', 'Sq Yards', 'Price', 'Partner', 'Status', 'Action'],
-                plots.map((item) => [
+                visiblePlots.map((item) => [
                   <div>
                     <div style={{ fontWeight: 800 }}>{item.property_name || item.property_id || 'Property'}</div>
                     <div style={{ marginTop: '4px', color: '#2b6d3d', fontSize: '12px', fontWeight: 800 }}>{item.property_code || 'Code pending'}</div>
@@ -1185,7 +1233,7 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: 0 }}>Bookings</h3>
             {renderTable(
               ['Customer', 'Property', 'Code', 'Plot', 'Facing', 'Sq Yards', 'Status', 'Created', 'Actions'],
-              bookings.map((item) => [
+              visibleBookings.map((item) => [
                 item.name || item.customer?.name || 'Customer',
                 item.property_name || item.property_id || 'Property',
                 item.property_code || 'Code pending',
@@ -1217,7 +1265,7 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: 0 }}>Visits</h3>
             {renderTable(
               ['Customer', 'Property', 'Date', 'Time', 'Partner', 'Status', 'Actions'],
-              latestVisits.length ? visits.map((item) => [
+              visibleVisits.length ? visibleVisits.map((item) => [
                 item.name || item.customer_name || 'Customer',
                 <div>
                   <div style={{ fontWeight: 800 }}>{item.property_name || item.centre_name || item.property_id || 'Property'}</div>
@@ -1271,8 +1319,8 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: 0 }}>Service Request Queue</h3>
             {renderTable(
               ['Ticket #', 'Customer', 'Subject', 'Priority', 'Status', 'Date', 'Actions'],
-              latestTickets.length
-                ? supportTickets.map((item) => [
+              visibleSupportTickets.length
+                ? visibleSupportTickets.map((item) => [
                     item.ticket_number,
                     item.customer_name,
                     item.subject,
@@ -1284,7 +1332,7 @@ export default function AdminDashboard() {
                       <button onClick={() => updateSupportStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Complete</button>
                     </div>,
                   ])
-                : [[<span style={{ color: '#8a9a8c' }}>No support tickets yet.</span>, '', '', '', '', '', '']],
+                : [[<span style={{ color: '#8a9a8c' }}>No support tickets match the current filters.</span>, '', '', '', '', '', '']],
             )}
           </section>
         )}
@@ -1319,8 +1367,8 @@ export default function AdminDashboard() {
             <h3 style={{ marginTop: 0 }}>Audit Logs</h3>
             {renderTable(
               ['Action', 'Entity', 'Actor', 'When'],
-              latestAudit.length
-                ? auditLogs.map((item) => [
+              visibleAuditLogs.length
+                ? visibleAuditLogs.map((item) => [
                     item.action || 'Action',
                     `${item.entity_type || 'entity'}${item.entity_id ? ` • ${item.entity_id}` : ''}`,
                     item.actor_user_id || 'system',

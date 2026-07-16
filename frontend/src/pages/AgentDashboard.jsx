@@ -173,6 +173,8 @@ export default function AgentDashboard() {
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [liveStatus, setLiveStatus] = useState('connecting');
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 820);
+  const [partnerSearch, setPartnerSearch] = useState('');
+  const [partnerStatusFilter, setPartnerStatusFilter] = useState('all');
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'agent') {
@@ -388,16 +390,35 @@ export default function AgentDashboard() {
   const filteredPlotsForVisit = assets.filter(
     (asset) => !visitForm.property_id || asset.property_id === visitForm.property_id,
   );
+  const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
+  const matchesPartnerSearch = (item) => {
+    const query = normalizeSearch(partnerSearch);
+    if (!query) return true;
+    return normalizeSearch(JSON.stringify(item)).includes(query);
+  };
+  const matchesPartnerStatus = (item) => {
+    if (partnerStatusFilter === 'all') return true;
+    const statusText = normalizeSearch(`${item.status || ''} ${item.stage || ''} ${item.approval_status || ''}`);
+    return statusText.includes(partnerStatusFilter);
+  };
+  const visibleLeads = leads.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleOpportunities = opportunities.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleTasks = tasks.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleVisits = visits.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleBookings = bookings.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleAssets = assets.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
+  const visibleNotifications = notifications.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    height: '100dvh',
-    maxHeight: '100dvh',
+    height: isMobile ? 'auto' : '100dvh',
+    maxHeight: isMobile ? 'none' : '100dvh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
-    overflow: 'hidden',
+    overflow: isMobile ? 'visible' : 'hidden',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '260px',
@@ -430,7 +451,7 @@ export default function AgentDashboard() {
     padding: isMobile ? '14px 12px 24px' : '24px',
     minWidth: 0,
     overflowX: 'hidden',
-    overflowY: 'auto',
+    overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehavior: 'contain',
   };
@@ -739,6 +760,34 @@ export default function AgentDashboard() {
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
         {notice && <div style={{ ...cardStyle, marginBottom: '18px', color: '#1a8a4a', fontWeight: 700 }}>{notice}</div>}
         {loading && <div style={cardStyle}>Loading live partner data...</div>}
+        {!loading && (
+          <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
+            <div style={formGridStyle}>
+              <input
+                value={partnerSearch}
+                onChange={(event) => setPartnerSearch(event.target.value)}
+                placeholder="Search customers, properties, bookings, visits..."
+                style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit', minWidth: 0 }}
+              />
+              <select
+                value={partnerStatusFilter}
+                onChange={(event) => setPartnerStatusFilter(event.target.value)}
+                style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit', minWidth: 0 }}
+              >
+                <option value="all">All statuses</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="pending">Pending</option>
+                <option value="agent_approved">Partner approved</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+              </select>
+            </div>
+          </section>
+        )}
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
@@ -786,7 +835,7 @@ export default function AgentDashboard() {
             <h3 style={{ marginTop: 0 }}>Assigned Leads</h3>
             {renderTable(
               ['Lead', 'Phone', 'Source', 'Tags', 'Updated'],
-              leads.map((item) => [
+              visibleLeads.map((item) => [
                 item.name || 'Lead',
                 item.phone ? `+91 ${item.phone}` : '—',
                 item.source || 'manual',
@@ -802,7 +851,7 @@ export default function AgentDashboard() {
             <h3 style={{ marginTop: 0 }}>Opportunities</h3>
             {renderTable(
               ['Lead', 'Property', 'Plot', 'Stage', 'Updated'],
-              opportunities.map((item) => [
+              visibleOpportunities.map((item) => [
                 item.lead_name || item.name || item.lead_id || 'Lead',
                 item.property_name || item.property_id || 'Property',
                 item.plot_number || item.plot_id || '—',
@@ -818,7 +867,7 @@ export default function AgentDashboard() {
             <h3 style={{ marginTop: 0 }}>Tasks</h3>
             {renderTable(
               ['Task', 'Priority', 'Due', 'Status', 'Action'],
-              tasks.map((item) => [
+              visibleTasks.map((item) => [
                 <div>
                   <div style={{ fontWeight: 800 }}>{item.title || 'Task'}</div>
                   <div style={{ marginTop: '4px', color: '#6d7d6f', fontSize: '12px' }}>{item.description || item.task_type || ''}</div>
@@ -871,7 +920,7 @@ export default function AgentDashboard() {
               <h3 style={{ marginTop: 0 }}>Managed Site Visits</h3>
               {renderTable(
                 ['Customer', 'Property', 'Visit Date', 'Status', 'Actions'],
-                visits.map((item) => [
+                visibleVisits.map((item) => [
                   item.customer_name || item.name || 'Customer',
                   item.property_name || item.property_id || item.centre_name || 'Property',
                   `${formatDateOnly(item.visit_date)} ${item.visit_time ? `• ${item.visit_time}` : ''}`,
@@ -914,7 +963,7 @@ export default function AgentDashboard() {
               <h3 style={{ marginTop: 0 }}>Booking Pipeline</h3>
               {renderTable(
                 ['Customer', 'Property', 'Plot ID', 'Facing', 'Sq Yards', 'Status', 'Actions'],
-                bookings.map((item) => {
+                visibleBookings.map((item) => {
                   const asset = assetById.get(item.plot_id) || {};
                   return [
                     item.customer?.name || item.name || 'Customer',
@@ -940,7 +989,7 @@ export default function AgentDashboard() {
             <h3 style={{ marginTop: 0 }}>Assigned Properties & Plots</h3>
             {renderTable(
               ['Property', 'Plot', 'Facing', 'Size', 'Status'],
-              assets.map((item) => [
+              visibleAssets.map((item) => [
                 item.property_name || item.property_id || 'Property',
                 item.plot_number || item.id,
                 item.facing || '—',
@@ -959,10 +1008,10 @@ export default function AgentDashboard() {
                 Mark all read
               </button>
             </div>
-            {notifications.length === 0 ? (
-              <p style={{ margin: 0, color: '#6d7d6f' }}>No notifications yet.</p>
+            {visibleNotifications.length === 0 ? (
+              <p style={{ margin: 0, color: '#6d7d6f' }}>No notifications match the current filters.</p>
             ) : (
-              notifications.map((item) => (
+              visibleNotifications.map((item) => (
                 <div key={item.id} style={{ padding: '14px 0', borderTop: '1px solid #eef3ec', background: item.read ? '#fff' : '#f7fbf5' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
                     <div>
