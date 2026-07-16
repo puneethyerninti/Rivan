@@ -631,7 +631,7 @@ export default function AdminDashboard() {
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
         <div style={{ display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <img src="/RivanRealtyLogo.jpg" alt="Rivan Realty" style={{ width: isMobile ? '116px' : '152px', height: 'auto', borderRadius: '10px' }} />
+          <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{ width: isMobile ? '116px' : '152px', height: 'auto', borderRadius: '10px' }} />
           <p style={{ margin: '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5, display: isMobile ? 'none' : 'block' }}>
             Manage approvals, users, properties, bookings, and support activity from one place.
           </p>

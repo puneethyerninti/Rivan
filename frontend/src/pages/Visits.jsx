@@ -443,7 +443,7 @@ export default function Visits() {
         <div style={{'background': 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', 'padding': '56px 22px 20px', 'borderRadius': '0 0 26px 26px'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '10px'}}>
-              <img src="/RivanRealtyLogo.jpg" alt="Rivan Realty" style={{'height': '26px', 'width': '44px', 'objectFit': 'contain', 'borderRadius': '8px', 'opacity': '.95'}} />
+              <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{'height': '26px', 'width': '44px', 'objectFit': 'contain', 'borderRadius': '8px', 'opacity': '.95'}} />
               <span style={{'fontSize': '19px', 'fontWeight': '800', 'color': '#fff'}}>My Visits</span>
             </div>
             <button style={{'width': '40px', 'height': '40px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'cursor': 'pointer'}}>

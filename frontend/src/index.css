@@ -279,7 +279,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     display: block;
     width: 36px;
     height: 36px;
-    background: url('/RivanRealtyLogo.jpg') center/contain no-repeat;
+    background: url('/RivanRealtyLogo.png') center/contain no-repeat;
     border-radius: 8px;
     margin-bottom: 16px;
     opacity: .9;

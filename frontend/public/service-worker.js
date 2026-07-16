@@ -13,7 +13,7 @@ const CORE = [
   './index.html',
   './support.js',
   './manifest.json',
-  './RivanRealtyLogo.jpg',
+  './RivanRealtyLogo.png',
   './Property Image 1.jpeg',
   './Property Image 2.jpeg',
   './Map.jpeg',
