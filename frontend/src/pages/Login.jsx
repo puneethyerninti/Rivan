@@ -404,7 +404,7 @@ export default function Login() {
                 display: "flex",
                 flexDirection: "column",
                 background:
-                  "radial-gradient(circle at 50% 22%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 58%,#1f5a31 58%,#123f24 100%)",
+                  "radial-gradient(circle at 50% 22%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 66%,#1f5a31 66%,#123f24 100%)",
               }}
             >
               <span className="rv-splash-orb one" aria-hidden="true" />
@@ -574,13 +574,14 @@ export default function Login() {
                 </div>
               )}
               <div
+                className="rv-splash-brand-zone"
                 style={{
-                  flex: "0 0 58vh",
+                  flex: "0 0 clamp(430px, 66vh, 650px)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "flex-end",
-                  padding: "86px 34px 24px",
+                  justifyContent: "center",
+                  padding: "98px 34px 64px",
                   textAlign: "center",
                   position: "relative",
                   zIndex: 1,
@@ -591,7 +592,7 @@ export default function Login() {
                   src="/RivanRealtyLogo.png"
                   alt="Rivan Realty"
                   style={{
-                    width: "min(360px, 82vw)",
+                    width: "min(340px, 78vw)",
                     height: "auto",
                     borderRadius: "18px",
                     filter: "drop-shadow(0 18px 34px rgba(18,53,29,.22))",

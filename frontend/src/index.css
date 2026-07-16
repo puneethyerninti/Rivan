@@ -95,6 +95,9 @@ button, input, select, textarea { font: inherit; }
 .rv-splash-logo {
   animation: rvLogoRise .82s cubic-bezier(.18,.89,.32,1.16) .08s both;
 }
+.rv-splash-brand-zone {
+  min-height: 430px;
+}
 .rv-splash-tagline {
   animation: rvCardReveal .72s cubic-bezier(.2,.8,.2,1) .28s both;
 }
@@ -144,6 +147,12 @@ button, input, select, textarea { font: inherit; }
   .rv-primary-cta::after,
   .rv-primary-cta .rv-cta-arrow {
     animation: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .rv-splash-brand-zone {
+    min-height: 390px;
   }
 }
 
