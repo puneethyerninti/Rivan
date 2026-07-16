@@ -7,6 +7,7 @@ import {
   logoutSession,
   postJson,
   putJson,
+  restoreSession,
   saveSession,
   supportsLiveUpdates,
 } from '../lib/auth';
@@ -298,6 +299,47 @@ export default function AgentDashboard() {
   useEffect(() => {
     refreshAll();
   }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!session?.access_token) return undefined;
+    let syncing = false;
+
+    const syncSessionAndRefresh = async () => {
+      if (syncing) return;
+      syncing = true;
+      try {
+        const latestSession = await restoreSession().catch(() => loadSession());
+        if (!latestSession?.access_token || latestSession.user?.role !== 'agent') {
+          navigate('/login', { replace: true });
+          return;
+        }
+        const identityChanged = JSON.stringify(latestSession.user || {}) !== JSON.stringify(session.user || {});
+        if (latestSession.access_token !== session.access_token || identityChanged) {
+          setSession(latestSession);
+          return;
+        }
+        refreshAll(false);
+      } finally {
+        syncing = false;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncSessionAndRefresh();
+    };
+    const handleStorage = (event) => {
+      if (event.key === 'rivan_session') syncSessionAndRefresh();
+    };
+
+    window.addEventListener('focus', syncSessionAndRefresh);
+    window.addEventListener('storage', handleStorage);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', syncSessionAndRefresh);
+      window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [navigate, session?.access_token, session?.user]);
 
   useEffect(() => {
     if (!session?.access_token) return undefined;

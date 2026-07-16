@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, saveSession, supportsLiveUpdates } from '../lib/auth';
+import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, restoreSession, saveSession, supportsLiveUpdates } from '../lib/auth';
 
 const cardStyle = {
   background: '#fff',
@@ -298,6 +298,47 @@ export default function AdminDashboard() {
   useEffect(() => {
     refreshAll();
   }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!session?.access_token) return undefined;
+    let syncing = false;
+
+    const syncSessionAndRefresh = async () => {
+      if (syncing) return;
+      syncing = true;
+      try {
+        const latestSession = await restoreSession().catch(() => loadSession());
+        if (!latestSession?.access_token || latestSession.user?.role !== 'admin') {
+          navigate('/login', { replace: true });
+          return;
+        }
+        const identityChanged = JSON.stringify(latestSession.user || {}) !== JSON.stringify(session.user || {});
+        if (latestSession.access_token !== session.access_token || identityChanged) {
+          setSession(latestSession);
+          return;
+        }
+        refreshAll(false);
+      } finally {
+        syncing = false;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncSessionAndRefresh();
+    };
+    const handleStorage = (event) => {
+      if (event.key === 'rivan_session') syncSessionAndRefresh();
+    };
+
+    window.addEventListener('focus', syncSessionAndRefresh);
+    window.addEventListener('storage', handleStorage);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', syncSessionAndRefresh);
+      window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [navigate, session?.access_token, session?.user]);
 
   useEffect(() => {
     if (!session?.access_token) return undefined;
