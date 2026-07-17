@@ -6,7 +6,7 @@
    - Cross-origin (React/Babel CDN, Google Fonts): stale-while-revalidate so
      the app boots offline once it has been opened online at least once.
 */
-const CACHE = 'rivan-pwa-v5';
+const CACHE = 'rivan-pwa-v6';
 
 const CORE = [
   './',
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() =>
           caches.match(req, { ignoreSearch: true })
-            .then((r) => r || caches.match('./index.html'))
+            .then((r) => r || caches.match('./index.html') || new Response('Offline', { status: 503 }))
         )
     );
     return;
@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE).then((c) => c.put(req, copy));
           }
           return res;
-        })
+        }).catch(() => cached || new Response('', { status: 504 }))
       )
     );
     return;
@@ -98,7 +98,7 @@ self.addEventListener('fetch', (event) => {
           }
         }
         return res;
-      }).catch(() => cached);
+      }).catch(() => cached || new Response('', { status: 504 }));
       return cached || network;
     })
   );
