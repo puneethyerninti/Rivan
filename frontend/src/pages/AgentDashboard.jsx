@@ -189,6 +189,7 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     pageRef.current = page;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
   useEffect(() => {
@@ -464,6 +465,7 @@ export default function AgentDashboard() {
   const visibleNotifications = notifications.filter((item) => matchesPartnerSearch(item) && matchesPartnerStatus(item));
   const hasPartnerFilters = Boolean(partnerSearch.trim() || partnerStatusFilter !== 'all');
   const partnerEmptyMessage = hasPartnerFilters ? 'No records match the current filters.' : 'No assigned records yet.';
+  const showPartnerFilters = ['leads', 'opportunities', 'tasks', 'visits', 'bookings', 'properties', 'notifications'].includes(page);
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
@@ -477,30 +479,30 @@ export default function AgentDashboard() {
     overflow: 'visible',
   };
   const sidebarStyle = {
-    width: isMobile ? 'auto' : '260px',
+    width: isMobile ? 'auto' : '280px',
     background: '#1f5a31',
     color: '#fff',
-    padding: isMobile ? '12px 12px 10px' : '24px 16px',
+    padding: isMobile ? '12px 12px 10px' : '22px 18px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: isMobile ? '10px' : '18px',
+    gap: isMobile ? '10px' : '14px',
     position: isMobile ? 'relative' : 'sticky',
     flexShrink: 0,
     top: 0,
-    height: isMobile ? 'auto' : '100dvh',
-    maxHeight: isMobile ? 'none' : '100dvh',
-    overflowY: isMobile ? 'visible' : 'auto',
+    alignSelf: isMobile ? 'stretch' : 'flex-start',
+    minHeight: isMobile ? 'auto' : '100dvh',
+    overflow: 'visible',
     zIndex: 30,
     boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',
   };
   const navStyle = {
     display: 'flex',
     flexDirection: isMobile ? 'row' : 'column',
-    gap: '8px',
+    gap: isMobile ? '8px' : '7px',
     overflowX: isMobile ? 'auto' : 'visible',
     paddingBottom: isMobile ? '4px' : 0,
-    flex: 1,
+    flex: isMobile ? 1 : '0 0 auto',
     minWidth: 0,
     scrollbarWidth: 'none',
   };
@@ -521,7 +523,7 @@ export default function AgentDashboard() {
   const mainStyle = {
     flex: 1,
     minHeight: 0,
-    padding: isMobile ? '14px 12px 24px' : '24px',
+    padding: isMobile ? '14px 12px 28px' : '28px 32px 40px',
     minWidth: 0,
     overflowX: 'hidden',
     overflowY: 'visible',
@@ -539,6 +541,34 @@ export default function AgentDashboard() {
   };
   const twoColumnStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '18px' };
   const formGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' };
+  const controlStyle = {
+    width: '100%',
+    minWidth: 0,
+    height: isMobile ? '46px' : '50px',
+    borderRadius: '14px',
+    border: '1px solid #dfe8dc',
+    padding: '0 14px',
+    fontFamily: 'inherit',
+    fontSize: isMobile ? '14px' : '15px',
+    color: '#16231a',
+    background: '#fff',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+  const primaryButtonStyle = {
+    width: '100%',
+    minHeight: '48px',
+    border: 'none',
+    borderRadius: '14px',
+    background: 'linear-gradient(135deg,#236536,#2f7d48)',
+    color: '#fff',
+    fontFamily: 'inherit',
+    fontWeight: 800,
+    fontSize: '14px',
+    cursor: 'pointer',
+    boxShadow: '0 14px 28px -20px rgba(35,101,54,.75)',
+  };
+  const helperTextStyle = { margin: 0, color: '#6d7d6f', fontSize: '13px', lineHeight: 1.5 };
 
   const navItems = [
     ['dashboard', 'Dashboard'],
@@ -748,8 +778,8 @@ export default function AgentDashboard() {
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
         <div style={{ display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{ width: isMobile ? '116px' : '152px', height: 'auto', borderRadius: '10px' }} />
-          <p style={{ margin: isMobile ? '8px 0 0' : '18px 0 0', fontSize: '12px', color: '#bcd6bd', lineHeight: 1.5, display: isMobile ? 'none' : 'block' }}>
+          <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{ width: isMobile ? '108px' : '148px', height: 'auto', borderRadius: '10px', display: 'block', margin: isMobile ? 0 : '0 auto' }} />
+          <p style={{ margin: isMobile ? '8px 0 0' : '14px 0 0', fontSize: '12px', color: '#d8ead7', lineHeight: 1.45, display: isMobile ? 'none' : 'block' }}>
             Manage your leads, visits, bookings, and customer follow-ups in one place.
           </p>
           {isMobile && (
@@ -781,15 +811,17 @@ export default function AgentDashboard() {
                 style={{
                   border: 'none',
                   borderRadius: '12px',
-                  padding: '12px 14px',
+                  padding: '11px 14px',
                   textAlign: 'left',
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   fontSize: '13px',
                   fontWeight: 700,
+                  minHeight: '42px',
                   background: page === id ? '#fff' : 'rgba(255,255,255,.08)',
                   color: page === id ? '#1f5a31' : '#fff',
+                  boxShadow: page === id ? '0 10px 22px -18px rgba(255,255,255,.9)' : 'none',
                 }}
               >
                 {label}
@@ -799,7 +831,7 @@ export default function AgentDashboard() {
         )}
         <button
           onClick={logout}
-          style={{ display: isMobile ? 'none' : 'block', marginTop: 'auto', height: '46px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer' }}
+          style={{ display: isMobile ? 'none' : 'block', marginTop: '8px', minHeight: '44px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 16px 28px -22px rgba(226,130,42,.9)' }}
         >
           Logout
         </button>
@@ -845,19 +877,19 @@ export default function AgentDashboard() {
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
         {notice && <div style={{ ...cardStyle, marginBottom: '18px', color: '#1a8a4a', fontWeight: 700 }}>{notice}</div>}
         {loading && <div style={cardStyle}>Loading live partner data...</div>}
-        {!loading && (
+        {!loading && showPartnerFilters && (
           <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
             <div style={formGridStyle}>
               <input
                 value={partnerSearch}
                 onChange={(event) => setPartnerSearch(event.target.value)}
                 placeholder="Search customers, properties, bookings, visits..."
-                style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit', minWidth: 0 }}
+                style={controlStyle}
               />
               <select
                 value={partnerStatusFilter}
                 onChange={(event) => setPartnerStatusFilter(event.target.value)}
-                style={{ height: '44px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 12px', fontFamily: 'inherit', minWidth: 0 }}
+                style={controlStyle}
               >
                 <option value="all">All statuses</option>
                 <option value="new">New</option>
@@ -1113,17 +1145,52 @@ export default function AgentDashboard() {
         )}
 
         {!loading && page === 'profile' && (
-          <section style={{ ...cardStyle, maxWidth: '720px' }}>
-            <h3 style={{ marginTop: 0 }}>Partner Profile</h3>
-            <div style={{ display: 'grid', gap: '14px' }}>
-              <input value={profileForm.name} onChange={(event) => updateProfileField('name', event.target.value)} placeholder="Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.email} onChange={(event) => updateProfileField('email', event.target.value)} placeholder="Email" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={formatPhoneDisplay(displayedUser.phone)} readOnly style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit', background: '#f6faf4' }} />
-              <input value={profileForm.address} onChange={(event) => updateProfileField('address', event.target.value)} placeholder="Address" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.occupation} onChange={(event) => updateProfileField('occupation', event.target.value)} placeholder="Occupation" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.age} type="number" onChange={(event) => updateProfileField('age', event.target.value)} placeholder="Age" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Partner Brand Name" style={{ height: '48px', borderRadius: '12px', border: '1px solid #dfe8dc', padding: '0 14px', fontFamily: 'inherit' }} />
-              <button onClick={saveProfile} disabled={savingProfile} style={{ height: '46px', border: 'none', borderRadius: '12px', background: '#2b6d3d', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: savingProfile ? 0.7 : 1 }}>
+          <section style={{ ...cardStyle, maxWidth: '980px', margin: '0 auto', padding: isMobile ? '18px' : '24px' }}>
+            <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '16px', flexDirection: isMobile ? 'column' : 'row', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#16231a', fontSize: isMobile ? '22px' : '26px' }}>Partner Profile</h3>
+                <p style={{ ...helperTextStyle, marginTop: '6px' }}>Keep your Partner name and contact details updated for customer assignments.</p>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: '#f4faf2', border: '1px solid #dfe8dc', color: '#1f5a31', fontWeight: 800 }}>
+                <span style={{ width: '34px', height: '34px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: '#2f7d48', color: '#fff' }}>{initialsOf(displayedUser.name)}</span>
+                <span>{displayedUser.name || 'Profile setup needed'}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Full name
+                <input value={profileForm.name} onChange={(event) => updateProfileField('name', event.target.value)} placeholder="Enter partner name" style={controlStyle} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Email
+                <input value={profileForm.email} onChange={(event) => updateProfileField('email', event.target.value)} placeholder="Enter email address" style={controlStyle} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Mobile number
+                <input value={formatPhoneDisplay(displayedUser.phone)} readOnly style={{ ...controlStyle, background: '#f6faf4', color: '#53645a' }} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Occupation
+                <input value={profileForm.occupation} onChange={(event) => updateProfileField('occupation', event.target.value)} placeholder="Example: Sales Manager" style={controlStyle} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f', gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+                Address
+                <input value={profileForm.address} onChange={(event) => updateProfileField('address', event.target.value)} placeholder="Enter address" style={controlStyle} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Age
+                <input value={profileForm.age} type="number" onChange={(event) => updateProfileField('age', event.target.value)} placeholder="Age" style={controlStyle} />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', fontSize: '12px', fontWeight: 800, color: '#6d7d6f' }}>
+                Partner brand
+                <input value={profileForm.agent_brand_name} onChange={(event) => updateProfileField('agent_brand_name', event.target.value)} placeholder="Example: Rivan Realty" style={controlStyle} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '12px', flexDirection: isMobile ? 'column' : 'row', marginTop: '18px' }}>
+              <p style={helperTextStyle}>{profileDirty ? 'You have unsaved profile changes.' : 'Profile changes are saved to your Partner account.'}</p>
+              <button onClick={saveProfile} disabled={savingProfile} style={{ ...primaryButtonStyle, width: isMobile ? '100%' : '220px', opacity: savingProfile ? 0.7 : 1, cursor: savingProfile ? 'not-allowed' : 'pointer' }}>
                 {savingProfile ? 'Saving...' : 'Save Profile'}
               </button>
             </div>
