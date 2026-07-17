@@ -99,11 +99,15 @@ function firstRealValue(...values) {
   return values.find((value) => String(value || '').trim() && !isPlaceholderName(value)) || values.find((value) => String(value || '').trim()) || '';
 }
 
+function firstDisplayName(...values) {
+  return values.find((value) => String(value || '').trim() && !isPlaceholderName(value)) || '';
+}
+
 function mergePartnerIdentity(...sources) {
   const merged = Object.assign({}, ...sources.filter(Boolean));
   return {
     ...merged,
-    name: firstRealValue(...sources.map((source) => source?.name), merged.name),
+    name: firstDisplayName(...sources.map((source) => source?.name), merged.name),
     email: firstRealValue(...sources.map((source) => source?.email), merged.email),
     phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
   };

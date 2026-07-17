@@ -1598,7 +1598,15 @@ async def get_current_user(request: Request, token: Optional[str] = Depends(oaut
     else:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        if user_id == PRIMARY_AGENT_USER_ID and await is_database_available():
+            await ensure_primary_agent_seed()
+            user = await db.users.find_one({"id": PRIMARY_AGENT_USER_ID}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+    if user.get("id") == PRIMARY_AGENT_USER_ID and is_agent_role(user.get("role")):
+        repaired = await resolve_primary_agent_user()
+        if repaired:
+            user = repaired
     return apply_session_role(user, session)
 
 
