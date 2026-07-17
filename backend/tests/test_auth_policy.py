@@ -52,6 +52,8 @@ def test_only_otp_admin_login_routes_are_registered():
 def test_live_frontend_origins_are_allowed_for_cors():
     assert "https://rivanrealty.com" in CORS_ORIGINS
     assert "https://www.rivanrealty.com" in CORS_ORIGINS
+    assert "https://localhost" in CORS_ORIGINS
+    assert "capacitor://localhost" in CORS_ORIGINS
 
 
 def test_preflight_from_live_frontend_receives_cors_headers():
@@ -65,3 +67,16 @@ def test_preflight_from_live_frontend_receives_cors_headers():
     )
     assert response.status_code in {200, 204}
     assert response.headers["access-control-allow-origin"] == "https://rivanrealty.com"
+
+
+def test_preflight_from_capacitor_android_receives_cors_headers():
+    client = TestClient(app)
+    response = client.options(
+        "/api/auth/customer/firebase",
+        headers={
+            "Origin": "https://localhost",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.status_code in {200, 204}
+    assert response.headers["access-control-allow-origin"] == "https://localhost"

@@ -178,6 +178,9 @@ DEFAULT_CORS_ORIGINS = [
     "https://rivan.onrender.com",
     "https://rivanrealty.com",
     "https://www.rivanrealty.com",
+    "https://localhost",
+    "http://localhost",
+    "capacitor://localhost",
 ]
 
 

@@ -169,6 +169,21 @@ function shouldRetryRequest(method, status) {
   return method === "GET" && [408, 429, 500, 502, 503, 504].includes(status);
 }
 
+function friendlyNetworkError(error) {
+  const message = String(error?.message || error || "");
+  if (
+    message.toLowerCase().includes("failed to fetch") ||
+    error?.name === "TypeError"
+  ) {
+    return new ApiError(
+      "Unable to reach Rivan backend. Please check internet connection and ensure the backend allows the Android app origin.",
+      0,
+      { cause: message, backend: getBackendUrl() },
+    );
+  }
+  return error;
+}
+
 async function performJsonRequest(path, options = {}, token, attempt = 0) {
   const { method = "GET", body } = options;
   try {
@@ -193,7 +208,7 @@ async function performJsonRequest(path, options = {}, token, attempt = 0) {
       await wait(350 * (attempt + 1));
       return performJsonRequest(path, options, token, attempt + 1);
     }
-    throw error;
+    throw friendlyNetworkError(error);
   }
 }
 
