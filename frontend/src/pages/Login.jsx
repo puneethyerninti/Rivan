@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { useNavigate } from "react-router-dom";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { firebaseAuth } from "../lib/firebase";
@@ -36,6 +38,10 @@ function isPrimaryAgentPhone(digits) {
   return normalizePhone(digits) === PRIMARY_AGENT_PHONE;
 }
 
+function shouldUseNativePhoneAuth() {
+  return Boolean(Capacitor?.isNativePlatform?.());
+}
+
 function startGuestBrowsing(navigate) {
   clearSession();
   localStorage.setItem(
@@ -54,6 +60,8 @@ export default function Login() {
   const recaptchaRef = useRef(null);
   const confirmationRef = useRef(null);
   const roleRef = useRef("customer");
+  const nativePhoneListenerHandlesRef = useRef([]);
+  const nativePhoneVerificationIdRef = useRef("");
 
   const [screen, setScreen] = useState("splash");
   const [role, setRole] = useState("customer");
@@ -69,6 +77,30 @@ export default function Login() {
   const [recaptchaResetCount, setRecaptchaResetCount] = useState(0);
   const [staffAccessOpen, setStaffAccessOpen] = useState(false);
   const [, setRememberedStaffRole] = useState(() => localStorage.getItem(LAST_STAFF_ROLE_KEY) || "");
+
+  const clearNativePhoneListeners = async () => {
+    const handles = nativePhoneListenerHandlesRef.current || [];
+    nativePhoneListenerHandlesRef.current = [];
+    await Promise.all(handles.map((handle) => handle?.remove?.()).filter(Boolean));
+  };
+
+  const openDashboardForSession = (session) => {
+    if (session.user.role === "admin") {
+      localStorage.setItem(LAST_STAFF_ROLE_KEY, "admin");
+      setRememberedStaffRole("admin");
+      navigate("/admin", { replace: true });
+    } else if (session.user.role === "agent") {
+      localStorage.setItem(LAST_STAFF_ROLE_KEY, "agent");
+      setRememberedStaffRole("agent");
+      navigate("/agent", { replace: true });
+    } else {
+      navigate("/app", { replace: true });
+    }
+  };
+
+  useEffect(() => () => {
+    clearNativePhoneListeners().catch(() => {});
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +146,11 @@ export default function Login() {
   }, [countdown]);
 
   useEffect(() => {
+    if (shouldUseNativePhoneAuth()) {
+      setRecaptchaReady(true);
+      return undefined;
+    }
+
     if (!window.recaptchaVerifier) {
       try {
         window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, "rivan-login-recaptcha", {
@@ -243,12 +280,13 @@ export default function Login() {
 
   const requestOtp = async () => {
     const normalizedPhone = normalizePhone(phone);
+    const useNativePhoneAuth = shouldUseNativePhoneAuth();
     if (normalizedPhone.length !== 10) {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
 
-    if (!recaptchaRef.current || !recaptchaReady) {
+    if (!useNativePhoneAuth && (!recaptchaRef.current || !recaptchaReady)) {
       setError("Secure OTP check is still getting ready. Please try again in a moment.");
       return;
     }
@@ -267,6 +305,11 @@ export default function Login() {
 
       const fullPhone = `+91${normalizedPhone}`;
       setStatus("Sending OTP now...");
+      if (useNativePhoneAuth) {
+        await startNativePhoneOtp(fullPhone, normalizedPhone, precheck);
+        return;
+      }
+
       const confirmation = await signInWithPhoneNumber(
         firebaseAuth,
         fullPhone,
@@ -286,6 +329,46 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startNativePhoneOtp = async (fullPhone, normalizedPhone, precheck) => {
+    await clearNativePhoneListeners();
+    nativePhoneVerificationIdRef.current = "";
+    confirmationRef.current = null;
+
+    const codeSentHandle = await FirebaseAuthentication.addListener("phoneCodeSent", (event) => {
+      nativePhoneVerificationIdRef.current = event.verificationId;
+      confirmationRef.current = { native: true, verificationId: event.verificationId };
+      setCountdown(RESEND_SECONDS);
+      setStatus(precheck.statusMessage || `OTP sent to ${formatPhoneLabel(normalizedPhone)}.`);
+      setScreen("otp");
+      setLoading(false);
+    });
+
+    const completedHandle = await FirebaseAuthentication.addListener("phoneVerificationCompleted", async () => {
+      try {
+        setStatus("Opening your dashboard...");
+        const tokenResult = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+        const session = await exchangeToken(tokenResult.token, normalizedPhone);
+        openDashboardForSession(session);
+      } catch (err) {
+        setError(err?.message || "Phone verification completed, but login could not open.");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    const failedHandle = await FirebaseAuthentication.addListener("phoneVerificationFailed", (event) => {
+      setError(friendlyFirebaseError(event));
+      setLoading(false);
+    });
+
+    nativePhoneListenerHandlesRef.current = [codeSentHandle, completedHandle, failedHandle];
+    await FirebaseAuthentication.signInWithPhoneNumber({
+      phoneNumber: fullPhone,
+      timeout: 60,
+    });
+    setStatus("Waiting for SMS verification...");
   };
 
   const submitAgentApplication = async () => {
@@ -334,21 +417,25 @@ export default function Login() {
     setLoading(true);
     try {
       setStatus("Verifying OTP...");
-      const credential = await confirmationRef.current.confirm(code);
-      setStatus("Opening your dashboard...");
-      const firebaseIdToken = await credential.user.getIdToken();
-      const session = await exchangeToken(firebaseIdToken, normalizedPhone);
-      if (session.user.role === "admin") {
-        localStorage.setItem(LAST_STAFF_ROLE_KEY, "admin");
-        setRememberedStaffRole("admin");
-        navigate("/admin", { replace: true });
-      } else if (session.user.role === "agent") {
-        localStorage.setItem(LAST_STAFF_ROLE_KEY, "agent");
-        setRememberedStaffRole("agent");
-        navigate("/agent", { replace: true });
+      let firebaseIdToken;
+      if (confirmationRef.current?.native) {
+        const verificationId = confirmationRef.current.verificationId || nativePhoneVerificationIdRef.current;
+        if (!verificationId) {
+          throw new Error("OTP session expired. Please request a new OTP.");
+        }
+        await FirebaseAuthentication.confirmVerificationCode({
+          verificationId,
+          verificationCode: code,
+        });
+        const tokenResult = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+        firebaseIdToken = tokenResult.token;
       } else {
-        navigate("/app", { replace: true });
+        const credential = await confirmationRef.current.confirm(code);
+        firebaseIdToken = await credential.user.getIdToken();
       }
+      setStatus("Opening your dashboard...");
+      const session = await exchangeToken(firebaseIdToken, normalizedPhone);
+      openDashboardForSession(session);
     } catch (err) {
       setError(err?.message || "OTP verification failed.");
     } finally {
@@ -398,6 +485,9 @@ export default function Login() {
     const code = String(error?.code || "");
     if (code.includes("captcha-check-failed") || message.toLowerCase().includes("hostname match not found")) {
       return "Firebase domain setup issue: add rivanrealty.com and www.rivanrealty.com in Firebase Authentication > Settings > Authorized domains, then try OTP again.";
+    }
+    if (code.includes("invalid-app-credential") || message.includes("INVALID_APP_CREDENTIAL")) {
+      return "Firebase rejected this APK credential. Reinstall the latest release APK and confirm the Android app SHA-1/SHA-256 are added in Firebase.";
     }
     if (code.includes("too-many-requests")) {
       return "Firebase has temporarily blocked OTP attempts for this number/device. Please wait a few minutes and try again.";

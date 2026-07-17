@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# @capacitor-firebase/authentication ships optional provider handlers. We only
+# enable phone auth, so these Facebook SDK references are intentionally absent.
+-dontwarn com.facebook.CallbackManager$Factory
+-dontwarn com.facebook.CallbackManager
+-dontwarn com.facebook.FacebookCallback
+-dontwarn com.facebook.login.LoginManager
+-dontwarn com.facebook.login.widget.LoginButton

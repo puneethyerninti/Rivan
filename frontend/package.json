@@ -15,10 +15,11 @@
     "android:debug": "vite build && cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
-    "firebase": "^10.14.1",
+    "firebase": "^12.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.18.0"
