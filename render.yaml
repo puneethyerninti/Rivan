@@ -42,7 +42,7 @@ services:
       - key: DB_AVAILABILITY_TTL_SECONDS
         value: "10"
       - key: CORS_ORIGINS
-        value: http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006,https://rivan-auth-live.web.app,https://rivan-auth-live.firebaseapp.com,https://rivan.onrender.com,https://rivanreality.com,https://www.rivanreality.com
+        value: http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006,https://rivan-auth-live.web.app,https://rivan-auth-live.firebaseapp.com,https://rivan.onrender.com,https://rivanrealty.com,https://www.rivanrealty.com
       - key: FEATURED_PROPERTIES_CACHE_TTL_SECONDS
         value: "90"
       - key: CORS_ORIGIN_REGEX

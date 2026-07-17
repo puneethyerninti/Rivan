@@ -50,8 +50,8 @@ def test_only_otp_admin_login_routes_are_registered():
 
 
 def test_live_frontend_origins_are_allowed_for_cors():
-    assert "https://rivanreality.com" in CORS_ORIGINS
-    assert "https://www.rivanreality.com" in CORS_ORIGINS
+    assert "https://rivanrealty.com" in CORS_ORIGINS
+    assert "https://www.rivanrealty.com" in CORS_ORIGINS
 
 
 def test_preflight_from_live_frontend_receives_cors_headers():
@@ -59,9 +59,9 @@ def test_preflight_from_live_frontend_receives_cors_headers():
     response = client.options(
         "/api/auth/admin/status",
         headers={
-            "Origin": "https://rivanreality.com",
+            "Origin": "https://rivanrealty.com",
             "Access-Control-Request-Method": "POST",
         },
     )
     assert response.status_code in {200, 204}
-    assert response.headers["access-control-allow-origin"] == "https://rivanreality.com"
+    assert response.headers["access-control-allow-origin"] == "https://rivanrealty.com"

@@ -397,7 +397,7 @@ export default function Login() {
     const message = String(error?.message || error || "");
     const code = String(error?.code || "");
     if (code.includes("captcha-check-failed") || message.toLowerCase().includes("hostname match not found")) {
-      return "Firebase domain setup issue: add rivanreality.com and www.rivanreality.com in Firebase Authentication > Settings > Authorized domains, then try OTP again.";
+      return "Firebase domain setup issue: add rivanrealty.com and www.rivanrealty.com in Firebase Authentication > Settings > Authorized domains, then try OTP again.";
     }
     if (code.includes("too-many-requests")) {
       return "Firebase has temporarily blocked OTP attempts for this number/device. Please wait a few minutes and try again.";

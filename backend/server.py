@@ -90,9 +90,9 @@ ADMIN_DISPLAY_NAME = "Kollu Sravani"
 PRIMARY_ADMIN_PHONE = normalize_phone("9491348973")
 SECONDARY_ADMIN_PHONE = normalize_phone("9848129637")
 ADMIN_LOGIN_PHONES = (PRIMARY_ADMIN_PHONE, SECONDARY_ADMIN_PHONE)
-PRIMARY_ADMIN_EMAIL = "admin@rivanreality.com"
+PRIMARY_ADMIN_EMAIL = "admin@rivanrealty.com"
 PRIMARY_ADMIN_USER_ID = "admin-user-001"
-SECONDARY_ADMIN_EMAIL = "admin.secondary@rivanreality.com"
+SECONDARY_ADMIN_EMAIL = "admin.secondary@rivanrealty.com"
 SECONDARY_ADMIN_USER_ID = "admin-user-002"
 PRIMARY_AGENT_PHONE = normalize_phone("9052644345")
 PRIMARY_AGENT_EMAIL = ""
@@ -176,8 +176,8 @@ DEFAULT_CORS_ORIGINS = [
     "https://rivan-auth-live.web.app",
     "https://rivan-auth-live.firebaseapp.com",
     "https://rivan.onrender.com",
-    "https://rivanreality.com",
-    "https://www.rivanreality.com",
+    "https://rivanrealty.com",
+    "https://www.rivanrealty.com",
 ]
 
 
@@ -850,7 +850,7 @@ def ensure_local_demo_users() -> None:
         {
             "id": "admin-user-001",
             "name": ADMIN_DISPLAY_NAME,
-            "email": "admin@rivanreality.com",
+            "email": "admin@rivanrealty.com",
             "phone": "+919491348973",
             "role": "admin",
             "auth_methods": ["phone"],
@@ -991,7 +991,7 @@ async def sync_demo_auth_users_to_db() -> None:
         {
             "id": "admin-user-001",
             "name": ADMIN_DISPLAY_NAME,
-            "email": "admin@rivanreality.com",
+            "email": "admin@rivanrealty.com",
             "phone": "+919491348973",
             "role": "admin",
             "auth_methods": ["phone"],
@@ -8067,7 +8067,7 @@ async def seed_data():
             "id": demo_user_id,
             "phone": "+919999900001",
             "name": "Rajesh Kumar",
-            "email": "rajesh.demo@rivanreality.com",
+            "email": "rajesh.demo@rivanrealty.com",
             "address": "Plot 22, Jubilee Hills, Hyderabad",
             "kyc_status": "verified",
             "is_admin": False,
@@ -8171,7 +8171,7 @@ async def seed_data():
         "id": "admin-user-001",
         "phone": "+919491348973",
         "name": ADMIN_DISPLAY_NAME,
-        "email": "admin@rivanreality.com",
+        "email": "admin@rivanrealty.com",
         "address": "Rivan HQ, Hyderabad",
         "kyc_status": "verified",
         "is_admin": True,
