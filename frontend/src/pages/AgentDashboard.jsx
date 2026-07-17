@@ -180,6 +180,7 @@ export default function AgentDashboard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 820);
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerStatusFilter, setPartnerStatusFilter] = useState('all');
+  const shellRef = useRef(null);
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'agent') {
@@ -189,7 +190,7 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     pageRef.current = page;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    shellRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
   useEffect(() => {
@@ -469,20 +470,24 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    height: 'auto',
-    maxHeight: 'none',
+    height: '100dvh',
+    maxHeight: '100dvh',
     minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
-    overflow: 'visible',
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehaviorY: 'auto',
+    touchAction: 'pan-y',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '280px',
     background: '#1f5a31',
     color: '#fff',
-    padding: isMobile ? '12px 12px 10px' : '22px 18px',
+    padding: isMobile ? '10px 12px 12px' : '22px 18px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'stretch',
@@ -509,7 +514,7 @@ export default function AgentDashboard() {
   const mobileSectionSelectStyle = {
     display: isMobile ? 'block' : 'none',
     width: '100%',
-    height: '44px',
+    height: '42px',
     borderRadius: '14px',
     border: '1px solid rgba(255,255,255,.25)',
     background: '#fff',
@@ -522,22 +527,22 @@ export default function AgentDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: 0,
-    padding: isMobile ? '14px 12px 28px' : '28px 32px 40px',
+    minHeight: 'auto',
+    padding: isMobile ? '12px 10px 28px' : '28px 32px 40px',
     minWidth: 0,
     overflowX: 'hidden',
     overflowY: 'visible',
-    WebkitOverflowScrolling: 'touch',
-    overscrollBehavior: 'contain',
+    touchAction: 'pan-y',
   };
   const headerStyle = {
     ...cardStyle,
-    marginBottom: '18px',
+    marginBottom: isMobile ? '12px' : '18px',
+    padding: isMobile ? '16px' : cardStyle.padding,
     display: 'flex',
     alignItems: isMobile ? 'flex-start' : 'center',
     justifyContent: 'space-between',
     flexDirection: isMobile ? 'column' : 'row',
-    gap: '18px',
+    gap: isMobile ? '14px' : '18px',
   };
   const twoColumnStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '18px' };
   const formGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' };
@@ -775,17 +780,17 @@ export default function AgentDashboard() {
   };
 
   return (
-    <div style={shellStyle}>
+    <div ref={shellRef} style={shellStyle}>
       <aside style={sidebarStyle}>
         <div style={{ display: isMobile ? 'flex' : 'block', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{ width: isMobile ? '108px' : '148px', height: 'auto', borderRadius: '10px', display: 'block', margin: isMobile ? 0 : '0 auto' }} />
+          <img src="/RivanRealtyLogo.png" alt="Rivan Realty" style={{ width: isMobile ? '96px' : '148px', height: 'auto', borderRadius: '10px', display: 'block', margin: isMobile ? 0 : '0 auto' }} />
           <p style={{ margin: isMobile ? '8px 0 0' : '14px 0 0', fontSize: '12px', color: '#d8ead7', lineHeight: 1.45, display: isMobile ? 'none' : 'block' }}>
             Manage your leads, visits, bookings, and customer follow-ups in one place.
           </p>
           {isMobile && (
             <button
               onClick={logout}
-              style={{ height: '40px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 800, cursor: 'pointer', minWidth: '84px' }}
+              style={{ height: '38px', border: 'none', borderRadius: '12px', background: '#e2822a', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 800, cursor: 'pointer', minWidth: '82px' }}
             >
               Logout
             </button>
@@ -840,7 +845,7 @@ export default function AgentDashboard() {
       <main style={mainStyle}>
         <div style={headerStyle}>
           <div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? '26px' : '32px', color: '#1f5a31' }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? '24px' : '32px', color: '#1f5a31', lineHeight: 1.08 }}>
               {page === 'dashboard' ? 'Partner Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Partner'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
@@ -850,8 +855,8 @@ export default function AgentDashboard() {
               Welcome, {displayedUser.name || 'Partner'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-            <button onClick={() => setPage('notifications')} aria-label="Notifications" style={{ position: 'relative', width: '52px', height: '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: '#fff', color: '#1f5a31', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '14px', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
+            <button onClick={() => setPage('notifications')} aria-label="Notifications" style={{ position: 'relative', width: isMobile ? '48px' : '52px', height: isMobile ? '48px' : '52px', borderRadius: '16px', border: '1px solid #e7ede3', background: '#fff', color: '#1f5a31', cursor: 'pointer', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
                 <path d="M10 20a2 2 0 0 0 4 0" />
@@ -862,12 +867,12 @@ export default function AgentDashboard() {
                 </span>
               )}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff', minWidth: 0 }}>
-              <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#2b6d3d,#3f8a54)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: isMobile ? '7px 10px' : '8px 14px', borderRadius: '18px', border: '1px solid #e7ede3', background: '#fff', minWidth: 0, flex: isMobile ? '1 1 auto' : '0 0 auto' }}>
+              <div style={{ width: isMobile ? '40px' : '42px', height: isMobile ? '40px' : '42px', borderRadius: '14px', background: 'linear-gradient(160deg,#2b6d3d,#3f8a54)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 800, flex: '0 0 auto' }}>
                 {initialsOf(displayedUser.name)}
               </div>
-              <div>
-                <div style={{ fontWeight: 800 }}>{displayedUser.name || 'Partner'}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayedUser.name || 'Partner'}</div>
                 <div style={{ fontSize: '12px', color: '#8a9a8c' }}>{formatPhoneDisplay(displayedUser.phone) || 'Partner'}</div>
               </div>
             </div>
