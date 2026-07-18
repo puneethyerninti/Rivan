@@ -50,6 +50,9 @@ function formatCountdown(seconds) {
 }
 
 function shouldUseNativePhoneAuth() {
+  if (import.meta.env.VITE_ENABLE_NATIVE_PHONE_AUTH !== "true") {
+    return false;
+  }
   const platform = Capacitor?.getPlatform?.();
   return Boolean(
     Capacitor?.isNativePlatform?.() ||
