@@ -5,7 +5,20 @@ const config: CapacitorConfig = {
   appName: 'Rivan Realty',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    url: 'https://www.rivanrealty.com',
+    cleartext: false,
+    androidScheme: 'https',
+    allowNavigation: [
+      'www.rivanrealty.com',
+      'rivanrealty.com',
+      'rivan-auth-live.firebaseapp.com',
+      'rivan-auth-live.web.app',
+      '*.firebaseapp.com',
+      '*.googleapis.com',
+      '*.gstatic.com',
+      '*.google.com',
+      '*.recaptcha.net'
+    ]
   },
   plugins: {
     FirebaseAuthentication: {
