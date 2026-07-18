@@ -10,6 +10,7 @@ import {
   saveSession,
   supportsLiveUpdates,
 } from '../lib/auth';
+import { registerPushNotifications } from '../lib/pushNotifications';
 
 const G = [
   'linear-gradient(150deg,#2f6b3a 0%,#6ba15a 55%,#c7dc9c 100%)',
@@ -273,6 +274,12 @@ export default function AppDashboard() {
       navigate('/login', { replace: true });
     }
   }, [guestSession, navigate, session]);
+
+  useEffect(() => {
+    if (!guestSession?.guest && session?.access_token && session?.user?.role === 'customer') {
+      registerPushNotifications(session);
+    }
+  }, [guestSession?.guest, session?.access_token, session?.user?.role]);
 
   useEffect(() => {
     const isGuest = !!guestSession?.guest;

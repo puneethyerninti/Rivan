@@ -25,6 +25,15 @@ import re
 import requests
 from pymongo.errors import DuplicateKeyError, OperationFailure
 
+try:
+    import firebase_admin
+    from firebase_admin import credentials as firebase_credentials
+    from firebase_admin import messaging as firebase_messaging
+except Exception:  # pragma: no cover - push remains optional if dependency/env is absent.
+    firebase_admin = None
+    firebase_credentials = None
+    firebase_messaging = None
+
 from auth_service import (
     JWT_ALGORITHM,
     auth_methods_union,
@@ -120,8 +129,55 @@ GOOGLE_ALLOWED_CLIENT_IDS = [
 ]
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+FIREBASE_SERVICE_ACCOUNT_JSON = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "")
+FIREBASE_SERVICE_ACCOUNT_FILE = os.environ.get("FIREBASE_SERVICE_ACCOUNT_FILE", "")
+_firebase_push_initialized = False
+_firebase_push_unavailable_reason = ""
+
+
 def get_firebase_project_id() -> str:
     return os.environ.get("FIREBASE_PROJECT_ID", "")
+
+
+def initialize_firebase_push() -> bool:
+    global _firebase_push_initialized, _firebase_push_unavailable_reason
+    if _firebase_push_initialized:
+        return True
+    if firebase_admin is None or firebase_credentials is None or firebase_messaging is None:
+        _firebase_push_unavailable_reason = "firebase_admin_not_installed"
+        return False
+    if firebase_admin._apps:
+        _firebase_push_initialized = True
+        return True
+    try:
+        if FIREBASE_SERVICE_ACCOUNT_JSON.strip():
+            service_account = json.loads(FIREBASE_SERVICE_ACCOUNT_JSON)
+            private_key = service_account.get("private_key")
+            if isinstance(private_key, str):
+                service_account["private_key"] = private_key.replace("\\n", "\n")
+            cred = firebase_credentials.Certificate(service_account)
+        elif FIREBASE_SERVICE_ACCOUNT_FILE.strip():
+            cred = firebase_credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_FILE)
+        else:
+            _firebase_push_unavailable_reason = "missing_firebase_service_account"
+            return False
+        firebase_admin.initialize_app(cred, {"projectId": get_firebase_project_id() or None})
+        _firebase_push_initialized = True
+        _firebase_push_unavailable_reason = ""
+        return True
+    except Exception as exc:
+        _firebase_push_unavailable_reason = str(exc)
+        logger.warning("Firebase push initialization failed: %s", exc)
+        return False
+
+
+def firebase_push_status() -> Dict[str, Any]:
+    enabled = initialize_firebase_push()
+    return {
+        "configured": bool(FIREBASE_SERVICE_ACCOUNT_JSON.strip() or FIREBASE_SERVICE_ACCOUNT_FILE.strip()),
+        "enabled": enabled,
+        "reason": "" if enabled else _firebase_push_unavailable_reason,
+    }
 
 
 def get_google_client_ids() -> List[str]:
@@ -1770,6 +1826,16 @@ class UpdateProfileReq(BaseModel):
     biometric_login_enabled: Optional[bool] = None
     dark_mode_enabled: Optional[bool] = None
 
+class PushRegisterReq(BaseModel):
+    token: str = Field(min_length=20, max_length=4096)
+    platform: Optional[str] = "android"
+    device_id: Optional[str] = None
+    app_version: Optional[str] = None
+
+class PushUnregisterReq(BaseModel):
+    token: Optional[str] = None
+    device_id: Optional[str] = None
+
 class BookingReq(BaseModel):
     plot_id: str
     name: str
@@ -3080,6 +3146,59 @@ async def create_notification(user_id: str, title: str, body: str, type_: str = 
         {"notification": notification_payload},
         user_ids=[user_id],
     )
+    await send_push_to_user(user_id, normalized_title, normalized_body, {"type": type_, "notification_id": notification_payload["id"]})
+
+
+async def send_push_to_user(user_id: str, title: str, body: str, data: Optional[Dict[str, Any]] = None) -> None:
+    if not await is_database_available():
+        return
+    if not initialize_firebase_push():
+        return
+    tokens = await db.device_tokens.find(
+        {"user_id": user_id, "active": True},
+        {"_id": 0, "token": 1, "platform": 1},
+    ).to_list(20)
+    clean_tokens = [item.get("token") for item in tokens if item.get("token")]
+    if not clean_tokens:
+        return
+
+    payload_data = {str(k): str(v) for k, v in (data or {}).items() if v is not None}
+
+    def send_all() -> List[Dict[str, str]]:
+        failures: List[Dict[str, str]] = []
+        for token in clean_tokens:
+            message = firebase_messaging.Message(
+                token=token,
+                notification=firebase_messaging.Notification(title=title, body=body),
+                data=payload_data,
+                android=firebase_messaging.AndroidConfig(
+                    priority="high",
+                    notification=firebase_messaging.AndroidNotification(
+                        channel_id="rivan_updates",
+                        color="#1f5a31",
+                    ),
+                ),
+            )
+            try:
+                firebase_messaging.send(message)
+            except Exception as exc:
+                failures.append({"token": token, "error": str(exc)})
+        return failures
+
+    failures = await asyncio.to_thread(send_all)
+    if failures:
+        now = now_utc().isoformat()
+        for failure in failures:
+            await db.device_tokens.update_one(
+                {"token": failure["token"]},
+                {
+                    "$set": {
+                        "last_error": failure["error"],
+                        "last_error_at": now,
+                        "active": False if "registration-token-not-registered" in failure["error"] else True,
+                    }
+                },
+            )
 
 
 def build_local_agent_dashboard(user: Dict[str, Any]) -> Dict[str, Any]:
@@ -3955,6 +4074,8 @@ async def ensure_indexes() -> None:
         await db.visits.create_index("id", unique=True, sparse=True)
         await db.visits.create_index([("customer_id", 1), ("assigned_agent_id", 1), ("visit_date", 1)])
         await db.notifications.create_index([("user_id", 1), ("read", 1), ("created_at", -1)])
+        await db.device_tokens.create_index("token", unique=True)
+        await db.device_tokens.create_index([("user_id", 1), ("active", 1), ("updated_at", -1)])
         await db.documents.create_index("id", unique=True, sparse=True)
         await db.documents.create_index([("user_id", 1), ("property_id", 1)])
         await db.service_requests.create_index("id", unique=True, sparse=True)
@@ -5021,6 +5142,7 @@ async def health_check():
             "database": "connected",
             "mode": "mongo",
             "firebase_project_id_configured": bool(get_firebase_project_id()),
+            "push_notifications": firebase_push_status(),
             "live_updates_enabled": True,
             "live_updates_path": "/ws/live",
         }
@@ -5031,12 +5153,14 @@ async def health_check():
             "mode": "local-auth-fallback",
             "live_updates_enabled": True,
             "live_updates_path": "/ws/live",
+            "push_notifications": firebase_push_status(),
         }
     return {
         "ok": False,
         "database": "unavailable",
         "mode": "production-db-required",
         "firebase_project_id_configured": bool(get_firebase_project_id()),
+        "push_notifications": firebase_push_status(),
         "live_updates_enabled": False,
         "live_updates_path": "/ws/live",
         "detail": "Database unavailable",
@@ -5867,6 +5991,46 @@ async def read_all_notifications(user: Dict[str, Any] = Depends(get_current_user
         "notification.read",
         {"all": True, "user_id": user["id"]},
         user_ids=[user["id"]],
+    )
+    return {"success": True}
+
+
+@api_router.post("/push/register")
+async def register_push_token(payload: PushRegisterReq, user: Dict[str, Any] = Depends(get_current_user)):
+    await require_database("Push notification database is unavailable")
+    now = now_utc().isoformat()
+    record = {
+        "token": payload.token,
+        "user_id": user["id"],
+        "role": user.get("role"),
+        "phone": user.get("phone"),
+        "platform": payload.platform or "android",
+        "device_id": payload.device_id,
+        "app_version": payload.app_version,
+        "active": True,
+        "updated_at": now,
+    }
+    await db.device_tokens.update_one(
+        {"token": payload.token},
+        {"$set": record, "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now}},
+        upsert=True,
+    )
+    return {"success": True, "push": firebase_push_status()}
+
+
+@api_router.post("/push/unregister")
+async def unregister_push_token(payload: PushUnregisterReq, user: Dict[str, Any] = Depends(get_current_user)):
+    await require_database("Push notification database is unavailable")
+    query: Dict[str, Any] = {"user_id": user["id"]}
+    if payload.token:
+        query["token"] = payload.token
+    elif payload.device_id:
+        query["device_id"] = payload.device_id
+    else:
+        raise HTTPException(status_code=400, detail="token or device_id is required")
+    await db.device_tokens.update_many(
+        query,
+        {"$set": {"active": False, "updated_at": now_utc().isoformat()}},
     )
     return {"success": True}
 

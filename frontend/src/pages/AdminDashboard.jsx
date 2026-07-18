@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, restoreSession, saveSession, supportsLiveUpdates } from '../lib/auth';
+import { registerPushNotifications } from '../lib/pushNotifications';
 
 const cardStyle = {
   background: '#fff',
@@ -172,6 +173,12 @@ export default function AdminDashboard() {
       navigate('/login', { replace: true });
     }
   }, [navigate, session]);
+
+  useEffect(() => {
+    if (session?.access_token && session?.user?.role === 'admin') {
+      registerPushNotifications(session);
+    }
+  }, [session?.access_token, session?.user?.role]);
 
   useEffect(() => {
     pageRef.current = page;

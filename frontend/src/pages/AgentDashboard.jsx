@@ -11,6 +11,7 @@ import {
   saveSession,
   supportsLiveUpdates,
 } from '../lib/auth';
+import { registerPushNotifications } from '../lib/pushNotifications';
 
 const cardStyle = {
   background: '#fff',
@@ -187,6 +188,12 @@ export default function AgentDashboard() {
       navigate('/login', { replace: true });
     }
   }, [navigate, session]);
+
+  useEffect(() => {
+    if (session?.access_token && session?.user?.role === 'agent') {
+      registerPushNotifications(session);
+    }
+  }, [session?.access_token, session?.user?.role]);
 
   useEffect(() => {
     pageRef.current = page;
