@@ -10,6 +10,7 @@ import {
   saveSession,
   supportsLiveUpdates,
 } from '../lib/auth';
+import { formatIndianPhone } from '../lib/phone';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
 const G = [
@@ -783,7 +784,7 @@ export default function AppDashboard() {
 
   personalFields.splice(0, personalFields.length, ...[
     { label: 'Full Name', value: profileForm.name || session?.user?.name || '' },
-    { label: 'Phone Number', value: session?.user?.phone ? `+${String(session.user.phone).replace(/^\+/, '')}` : '' },
+    { label: 'Phone Number', value: formatIndianPhone(session?.user?.phone) },
     { label: 'Email Address', value: profileForm.email || '' },
     { label: 'City', value: profileForm.address || '' },
     { label: 'Date of Birth', value: profileForm.date_of_birth || '' },
@@ -1049,7 +1050,7 @@ export default function AppDashboard() {
   const contactActions = [
     {
       label: 'Request Callback',
-      sub: session?.user?.phone ? `Use ${String(session.user.phone).replace(/^\+/, '+')}` : 'Create a live callback request',
+      sub: session?.user?.phone ? `Use ${formatIndianPhone(session.user.phone)}` : 'Create a live callback request',
       color: '#2b6d3d',
       bg: '#eef6ea',
       icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12 19.79 19.79 0 0 1 1.07 3.18 2 2 0 0 1 3.05 1h3a2 2 0 0 1 2 1.72c.13 1.01.36 2 .71 2.96a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.35 1.95.58 2.96.71A2 2 0 0 1 21 16z',
@@ -1439,7 +1440,7 @@ export default function AppDashboard() {
             <div style={{'width': '62px', 'height': '62px', 'borderRadius': '20px', 'background': 'rgba(255,255,255,.16)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '24px', 'fontWeight': '800', 'color': '#fff'}}>{initials}</div>
             <div>
               <p style={{'margin': '0', 'fontSize': '17px', 'fontWeight': '800', 'color': '#fff'}}>{userName}</p>
-              <p style={{'margin': '4px 0 0', 'fontSize': '12.5px', 'color': '#bcd6bd', 'fontWeight': '500'}}>{session?.user?.phone ? `+${String(session.user.phone).replace(/^\+/, '')}` : 'Phone not available'}</p>
+              <p style={{'margin': '4px 0 0', 'fontSize': '12.5px', 'color': '#bcd6bd', 'fontWeight': '500'}}>{formatIndianPhone(session?.user?.phone, 'Phone not available')}</p>
               <p style={{'margin': '2px 0 0', 'fontSize': '12.5px', 'color': '#bcd6bd', 'fontWeight': '500'}}>{profileForm.email || 'Email not added'}</p>
             </div>
           </div>

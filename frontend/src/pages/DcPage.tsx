@@ -79,13 +79,8 @@ function ensureRuntime() {
 function formatPhoneForUi(rawPhone: unknown) {
   const digits = String(rawPhone || "").replace(/\D/g, "");
   if (!digits) return "";
-  if (digits.startsWith("91") && digits.length === 12) {
-    return `+91 ${digits.slice(2)}`;
-  }
-  if (digits.length === 10) {
-    return `+91 ${digits}`;
-  }
-  return String(rawPhone || "").trim();
+  const localDigits = digits.startsWith("91") && digits.length >= 12 ? digits.slice(-10) : digits.slice(-10);
+  return localDigits ? `+91 ${localDigits}` : "";
 }
 
 function replaceExactText(host: HTMLDivElement, matcher: (value: string) => boolean, nextValue: string) {

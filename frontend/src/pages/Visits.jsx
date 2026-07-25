@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getJson, loadSession, requestJson } from '../lib/auth';
+import { formatIndianPhone } from '../lib/phone';
 
 function customerVisitsCacheKey(session) {
   const identity = session?.user?.id || session?.user?.phone || session?.user?.uid;
@@ -730,7 +731,7 @@ export default function Visits() {
           <div style={{'marginTop': '20px', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '16px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
             <p style={{'margin': '0 0 10px', 'fontSize': '12px', 'fontWeight': '800', 'color': '#8a988c', 'textTransform': 'uppercase', 'letterSpacing': '.5px'}}>Your Details</p>
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'padding': '6px 0'}}><span style={{'fontSize': '12.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>Name</span><span style={{'fontSize': '13px', 'color': '#16231a', 'fontWeight': '700'}}>{session?.user?.name || 'Customer'}</span></div>
-            <div style={{'display': 'flex', 'justifyContent': 'space-between', 'padding': '6px 0'}}><span style={{'fontSize': '12.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>Mobile</span><span style={{'fontSize': '13px', 'color': '#16231a', 'fontWeight': '700'}}>{session?.user?.phone ? `+${String(session.user.phone).replace(/^\+/, '')}` : '—'}</span></div>
+            <div style={{'display': 'flex', 'justifyContent': 'space-between', 'padding': '6px 0'}}><span style={{'fontSize': '12.5px', 'color': '#6d7d6f', 'fontWeight': '500'}}>Mobile</span><span style={{'fontSize': '13px', 'color': '#16231a', 'fontWeight': '700'}}>{formatIndianPhone(session?.user?.phone, '—')}</span></div>
           </div>
 
           <button onClick={confirmBook} style={{'margin': '20px 0', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{confirmLabel} · {selectedVisitDateLabel}, {pickedTime}</button>

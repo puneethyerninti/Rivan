@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, restoreSession, saveSession, supportsLiveUpdates } from '../lib/auth';
+import { formatIndianPhone } from '../lib/phone';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
 const cardStyle = {
@@ -88,8 +89,7 @@ function mergeAdminIdentity(...sources) {
 }
 
 function formatPhoneDisplay(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(-10);
-  return digits ? `+91 ${digits}` : '';
+  return formatIndianPhone(value);
 }
 
 function formatMoney(value) {

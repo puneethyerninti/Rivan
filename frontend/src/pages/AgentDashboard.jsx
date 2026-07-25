@@ -11,6 +11,7 @@ import {
   saveSession,
   supportsLiveUpdates,
 } from '../lib/auth';
+import { formatIndianPhone } from '../lib/phone';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
 const cardStyle = {
@@ -20,6 +21,33 @@ const cardStyle = {
   padding: '18px',
   boxShadow: '0 14px 34px -28px rgba(18,53,29,.55)',
 };
+
+const PARTNER_DASHBOARD_CACHE_KEY = 'rivan_partner_dashboard_cache';
+const EMPTY_AGENT_DATA = { profile: {}, kpis: {}, assets: [], bookings: [], visits: [], leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
+const EMPTY_CRM_DATA = { leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
+
+function partnerCacheOwner(user) {
+  return String(user?.id || user?.phone || '').trim();
+}
+
+function loadPartnerDashboardCache(user) {
+  try {
+    const raw = localStorage.getItem(PARTNER_DASHBOARD_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed) return null;
+    return parsed.owner === partnerCacheOwner(user) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePartnerDashboardCache(payload) {
+  try {
+    localStorage.setItem(PARTNER_DASHBOARD_CACHE_KEY, JSON.stringify({ ...payload, cached_at: new Date().toISOString() }));
+  } catch {
+    // Cache is a speed optimization only; live API data remains the source of truth.
+  }
+}
 
 function badgeTone(value) {
   const key = String(value || '').trim().toLowerCase();
@@ -88,8 +116,7 @@ function initialsOf(name) {
 }
 
 function formatPhoneDisplay(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(-10);
-  return digits ? `+91 ${digits}` : '';
+  return formatIndianPhone(value);
 }
 
 function isPlaceholderName(value) {
@@ -111,6 +138,10 @@ function mergePartnerIdentity(...sources) {
     name: firstDisplayName(...sources.map((source) => source?.name), merged.name),
     email: firstRealValue(...sources.map((source) => source?.email), merged.email),
     phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
+    address: firstRealValue(...sources.map((source) => source?.address), merged.address),
+    occupation: firstRealValue(...sources.map((source) => source?.occupation), merged.occupation),
+    age: firstRealValue(...sources.map((source) => source?.age), merged.age),
+    agent_brand_name: firstRealValue(...sources.map((source) => source?.agent_brand_name), merged.agent_brand_name),
   };
 }
 
@@ -139,21 +170,28 @@ function isoNowLocalDate() {
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const [session, setSession] = useState(() => loadSession());
+  const cachedDashboardRef = useRef(loadPartnerDashboardCache(session?.user));
+  const cachedDashboard = cachedDashboardRef.current || {};
   const [page, setPage] = useState('dashboard');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [agentData, setAgentData] = useState({ profile: {}, kpis: {}, assets: [], bookings: [] });
-  const [crmData, setCrmData] = useState({ leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} });
-  const [visits, setVisits] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [agentData, setAgentData] = useState(() => ({
+    ...EMPTY_AGENT_DATA,
+    ...(cachedDashboard.agentData || {}),
+    profile: mergePartnerIdentity(cachedDashboard.agentData?.profile, session?.user),
+  }));
+  const [crmData, setCrmData] = useState(() => ({ ...EMPTY_CRM_DATA, ...(cachedDashboard.crmData || {}) }));
+  const [visits, setVisits] = useState(() => (Array.isArray(cachedDashboard.visits) ? cachedDashboard.visits : []));
+  const [notifications, setNotifications] = useState(() => (Array.isArray(cachedDashboard.notifications) ? cachedDashboard.notifications : []));
   const [profileForm, setProfileForm] = useState({
-    name: session?.user?.name || '',
-    email: session?.user?.email || '',
-    address: session?.user?.address || '',
-    occupation: session?.user?.occupation || '',
-    age: session?.user?.age || '',
-    agent_brand_name: session?.user?.agent_brand_name || '',
+    name: cleanPartnerName(session?.user?.name) || cleanPartnerName(cachedDashboard.agentData?.profile?.name) || '',
+    email: firstRealValue(session?.user?.email, cachedDashboard.agentData?.profile?.email),
+    address: firstRealValue(session?.user?.address, cachedDashboard.agentData?.profile?.address),
+    occupation: firstRealValue(session?.user?.occupation, cachedDashboard.agentData?.profile?.occupation),
+    age: firstRealValue(session?.user?.age, cachedDashboard.agentData?.profile?.age),
+    agent_brand_name: firstRealValue(session?.user?.agent_brand_name, cachedDashboard.agentData?.profile?.agent_brand_name),
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const profileDirtyRef = useRef(false);
@@ -222,7 +260,10 @@ export default function AgentDashboard() {
 
   const refreshAll = async (showLoader = true) => {
     if (!session?.access_token) return;
-    if (showLoader) setLoading(true);
+    if (showLoader) {
+      setSyncing(true);
+      setLoading(false);
+    }
     setError('');
     if (showLoader) setNotice('');
     const errors = [];
@@ -234,7 +275,7 @@ export default function AgentDashboard() {
         getJson('/api/notifications', session.access_token),
       ]);
 
-      const nextAgentData = results[0].status === 'fulfilled' ? results[0].value : { profile: {}, kpis: {}, assets: [], bookings: [], visits: [], leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
+      const nextAgentData = results[0].status === 'fulfilled' ? results[0].value : EMPTY_AGENT_DATA;
       const nextCrmData = results[1].status === 'fulfilled'
         ? results[1].value
         : {
@@ -273,6 +314,16 @@ export default function AgentDashboard() {
       setCrmData(nextCrmData);
       setVisits(Array.isArray(nextVisits) ? nextVisits : []);
       setNotifications(Array.isArray(nextNotifications) ? nextNotifications : []);
+      savePartnerDashboardCache({
+        owner: partnerCacheOwner(session.user),
+        agentData: {
+          ...EMPTY_AGENT_DATA,
+          ...nextAgentData,
+        },
+        crmData: nextCrmData,
+        visits: Array.isArray(nextVisits) ? nextVisits : [],
+        notifications: Array.isArray(nextNotifications) ? nextNotifications : [],
+      });
 
       const firstAsset = nextAgentData.assets?.[0];
       setVisitForm((current) => ({
@@ -317,7 +368,10 @@ export default function AgentDashboard() {
       console.error('[AgentDashboard] Fatal error loading dashboard:', err);
       setError(err?.message || 'Failed to load partner dashboard');
     } finally {
-      if (showLoader) setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+        setSyncing(false);
+      }
     }
   };
 
@@ -863,7 +917,7 @@ export default function AgentDashboard() {
               {page === 'dashboard' ? 'Partner Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Partner'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
-              {liveStatusLabel(liveStatus)}
+              {syncing ? 'Syncing latest Partner data' : liveStatusLabel(liveStatus)}
             </p>
             <p style={{ margin: '6px 0 0', color: '#6d7d6f', fontSize: '14px' }}>
               Welcome, {displayedUser.name || 'Partner'}
@@ -895,8 +949,7 @@ export default function AgentDashboard() {
 
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
         {notice && <div style={{ ...cardStyle, marginBottom: '18px', color: '#1a8a4a', fontWeight: 700 }}>{notice}</div>}
-        {loading && <div style={cardStyle}>Loading live partner data...</div>}
-        {!loading && showPartnerFilters && (
+        {showPartnerFilters && (
           <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
             <div style={formGridStyle}>
               <input
@@ -973,7 +1026,7 @@ export default function AgentDashboard() {
               ['Lead', 'Phone', 'Source', 'Tags', 'Updated'],
               visibleLeads.map((item) => [
                 item.name || 'Lead',
-                item.phone ? `+91 ${item.phone}` : '—',
+                formatPhoneDisplay(item.phone) || '—',
                 item.source || 'manual',
                 (item.tags || []).join(', ') || '—',
                 formatDateTime(item.updated_at),

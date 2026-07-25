@@ -873,6 +873,20 @@ def first_filled_profile_value(*values: Any) -> Any:
     return None
 
 
+def profile_completeness_score(item: Dict[str, Any]) -> int:
+    score = 0
+    if first_real_profile_name(item.get("name")):
+        score += 20
+    for field in ("email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name"):
+        if item.get(field) not in (None, ""):
+            score += 2
+    if item.get("approval_status") == APPROVAL_APPROVED:
+        score += 2
+    if item.get("status") == STATUS_ACTIVE:
+        score += 1
+    return score
+
+
 def local_find_user(*, user_id: Optional[str] = None, email: Optional[str] = None, phone: Optional[str] = None, google_sub: Optional[str] = None) -> Optional[Dict[str, Any]]:
     store = load_local_store()
     phone_variants = set(phone_identity_variants(phone))
@@ -2993,7 +3007,10 @@ async def resolve_agent_profile_identity(user: Dict[str, Any]) -> Dict[str, Any]
 
     candidates = sorted(
         candidates,
-        key=lambda item: str(item.get("updated_at") or item.get("last_login_at") or item.get("created_at") or ""),
+        key=lambda item: (
+            profile_completeness_score(item),
+            str(item.get("updated_at") or item.get("last_login_at") or item.get("created_at") or ""),
+        ),
         reverse=True,
     )
     by_id = next((item for item in candidates if item.get("id") == user.get("id")), user)
@@ -3007,6 +3024,19 @@ async def resolve_agent_profile_identity(user: Dict[str, Any]) -> Dict[str, Any]
         value = first_filled_profile_value(*(item.get(field) for item in candidates), user.get(field))
         if value not in (None, ""):
             merged[field] = value
+
+    sync_fields = {
+        key: value
+        for key, value in merged.items()
+        if key in AGENT_PROFILE_SYNC_FIELDS and value not in (None, "")
+    }
+    if sync_fields:
+        sync_fields["updated_at"] = now_utc().isoformat()
+        await db.users.update_many(
+            {"$or": query_parts, "role": ROLE_AGENT},
+            {"$set": sync_fields},
+        )
+        merged.update(sync_fields)
 
     return merged
 
@@ -3906,18 +3936,19 @@ async def reconcile_primary_agent_profile() -> Optional[Dict[str, Any]]:
     profile_fields = ("name", "email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name")
 
     def score(item: Dict[str, Any]) -> int:
-        value = 0
+        value = profile_completeness_score(item)
         if item.get("id") == PRIMARY_AGENT_USER_ID:
             value += 2
-        name = str(item.get("name") or "").strip().lower()
-        if name and name not in {"agent", PRIMARY_AGENT_PHONE}:
-            value += 8
-        for field in profile_fields:
-            if str(item.get(field) or "").strip():
-                value += 1
         return value
 
-    source = sorted(candidates, key=score, reverse=True)[0]
+    source = sorted(
+        candidates,
+        key=lambda item: (
+            score(item),
+            str(item.get("updated_at") or item.get("last_login_at") or item.get("created_at") or ""),
+        ),
+        reverse=True,
+    )[0]
     update: Dict[str, Any] = {
         "phone": PRIMARY_AGENT_PHONE,
         "role": ROLE_AGENT,
