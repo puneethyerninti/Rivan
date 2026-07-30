@@ -500,9 +500,9 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    height: isMobile ? 'auto' : '100dvh',
-    maxHeight: isMobile ? 'none' : '100dvh',
-    minHeight: '100dvh',
+    height: isMobile ? 'auto' : '100svh',
+    maxHeight: isMobile ? 'none' : '100svh',
+    minHeight: '100svh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
@@ -526,7 +526,7 @@ export default function AgentDashboard() {
     flexShrink: 0,
     top: 0,
     alignSelf: isMobile ? 'stretch' : 'flex-start',
-    minHeight: isMobile ? 'auto' : '100dvh',
+    minHeight: isMobile ? 'auto' : '100svh',
     overflow: 'visible',
     zIndex: 30,
     boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',

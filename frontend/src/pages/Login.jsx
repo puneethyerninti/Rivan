@@ -584,17 +584,28 @@ export default function Login() {
   return (
     <>
       <div className="rv-phone login-phone">
-        <div className="rv-scroll" style={{ position: "absolute", inset: "0", overflowY: "auto" }}>
+        <div
+          className="rv-scroll"
+          style={{
+            position: "relative",
+            minHeight: "100svh",
+            overflowX: "hidden",
+            overflowY: "visible",
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+          }}
+        >
           {screen === "splash" && (
             <div
               className="rv-screen rv-login-splash"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
+                overflow: "visible",
                 background:
-                  "radial-gradient(circle at 50% 22%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 66%,#1f5a31 66%,#123f24 100%)",
+                  "radial-gradient(circle at 50% 20%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 60%,#1f5a31 60%,#123f24 100%)",
               }}
             >
               <span className="rv-splash-orb one" aria-hidden="true" />
@@ -766,12 +777,12 @@ export default function Login() {
               <div
                 className="rv-splash-brand-zone"
                 style={{
-                  flex: "0 0 clamp(430px, 66vh, 650px)",
+                  flex: "0 0 clamp(310px, 52vh, 500px)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "98px 34px 64px",
+                  padding: "76px 24px 34px",
                   textAlign: "center",
                   position: "relative",
                   zIndex: 1,
@@ -782,9 +793,9 @@ export default function Login() {
                   src="/RivanRealtyLogo-fast.webp"
                   alt="Rivan Realty"
                   style={{
-                    width: "min(340px, 78vw)",
+                    width: "min(280px, 74vw)",
                     height: "auto",
-                    borderRadius: "18px",
+                    borderRadius: "16px",
                     filter: "drop-shadow(0 18px 34px rgba(18,53,29,.22))",
                   }}
                 />
@@ -792,12 +803,13 @@ export default function Login() {
               <div
                 className="rv-splash-actions"
                 style={{
-                  padding: "34px clamp(22px, 3vw, 52px) 46px",
+                  padding: "28px clamp(18px, 3vw, 52px) calc(42px + env(safe-area-inset-bottom))",
                   display: "flex",
                   flexDirection: "column",
                   gap: "14px",
                   position: "relative",
                   zIndex: 1,
+                  flex: "0 0 auto",
                 }}
               >
                 <button
@@ -852,10 +864,10 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 display: "flex",
                 flexDirection: "column",
-                padding: "50px 30px 34px",
+                padding: "50px 30px calc(34px + env(safe-area-inset-bottom))",
                 background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 28%)",
               }}
             >
@@ -955,10 +967,10 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 display: "flex",
                 flexDirection: "column",
-                padding: "64px 30px 34px",
+                padding: "64px 30px calc(34px + env(safe-area-inset-bottom))",
                 background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 30%)",
               }}
             >
@@ -1098,10 +1110,10 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 display: "flex",
                 flexDirection: "column",
-                padding: "42px 30px 34px",
+                padding: "42px 30px calc(34px + env(safe-area-inset-bottom))",
                 background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 20%)",
               }}
             >
@@ -1229,11 +1241,11 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                padding: "40px 30px",
+                padding: "40px 30px calc(40px + env(safe-area-inset-bottom))",
                 background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 30%)",
                 textAlign: "center",
               }}
@@ -1285,10 +1297,10 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100dvh",
+                minHeight: "100svh",
                 display: "flex",
                 flexDirection: "column",
-                padding: "64px 30px 34px",
+                padding: "64px 30px calc(34px + env(safe-area-inset-bottom))",
                 background: "linear-gradient(180deg,#f4f8f1 0%,#ffffff 30%)",
               }}
             >

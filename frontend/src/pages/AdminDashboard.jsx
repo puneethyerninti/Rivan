@@ -484,9 +484,9 @@ export default function AdminDashboard() {
   }).sort((a, b) => (b.closed - a.closed) || (b.bookings - a.bookings) || (b.visits - a.visits));
   const displayedUser = mergeAdminIdentity(user, profileDirty ? profileForm : null);
   const shellStyle = {
-    height: isMobile ? 'auto' : '100dvh',
-    maxHeight: isMobile ? 'none' : '100dvh',
-    minHeight: '100dvh',
+    height: isMobile ? 'auto' : '100svh',
+    maxHeight: isMobile ? 'none' : '100svh',
+    minHeight: '100svh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
