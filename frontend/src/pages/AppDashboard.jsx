@@ -2,15 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getJson,
-  getWebSocketUrl,
   loadSession,
   logoutSession,
   postJson,
   putJson,
   saveSession,
-  supportsLiveUpdates,
 } from '../lib/auth';
 import { formatIndianPhone } from '../lib/phone';
+import { connectLiveUpdates } from '../lib/liveUpdates';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
 const G = [
@@ -70,6 +69,30 @@ function formatCurrency(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) return 'Price on request';
   return `₹${Math.round(amount).toLocaleString('en-IN')}`;
+}
+
+function propertyPriceValue(property) {
+  const direct = [
+    property?.starting_price,
+    property?.base_price,
+    property?.market_value,
+    property?.price,
+    property?.price_per_sq_yard,
+    property?.price_per_sqyd,
+    property?.rate_per_sq_yard,
+    property?.rate_per_sqyd,
+  ].find((value) => Number(String(value || '').replace(/[^\d.]/g, '')) > 0);
+  if (direct) return Number(String(direct).replace(/[^\d.]/g, ''));
+
+  const identity = `${property?.id || ''} ${property?.name || ''} ${property?.location || ''}`.toLowerCase();
+  if (identity.includes('sirpuram') || identity.includes('achutapuram') || identity.includes('prop-1')) {
+    return DEFAULT_LIVE_PROPERTY.starting_price;
+  }
+  return 0;
+}
+
+function propertyDisplayPrice(property) {
+  return formatCurrency(propertyPriceValue(property));
 }
 
 function formatShortAmount(value) {
@@ -200,7 +223,7 @@ export default function AppDashboard() {
   const [years, setYears] = useState(10);
   const [toggles, setToggles] = useState({ push: true, biometric: true, promo: false, dark: false });
   const [liveStatus, setLiveStatus] = useState('connecting');
-  const [pageLoading, setPageLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState('');
   const [featuredRows, setFeaturedRows] = useState(() => initialDashboardCache.current.featuredRows?.length ? initialDashboardCache.current.featuredRows : [DEFAULT_LIVE_PROPERTY]);
   const [propertyRows, setPropertyRows] = useState(() => initialDashboardCache.current.propertyRows?.length ? initialDashboardCache.current.propertyRows : [DEFAULT_LIVE_PROPERTY]);
@@ -373,16 +396,12 @@ export default function AppDashboard() {
 
   useEffect(() => {
     if (!session?.access_token || guestSession?.guest) return undefined;
-    let socket = null;
-    let closed = false;
-    let poller = null;
 
     const syncDashboard = async () => {
       const [notificationsApi, myLandApi] = await Promise.all([
         getJson('/api/notifications', session.access_token).catch(() => []),
         getJson('/api/myland', session.access_token).catch(() => []),
       ]);
-      if (closed) return;
       setNotificationRows(Array.isArray(notificationsApi) ? notificationsApi : []);
       setLandRows(Array.isArray(myLandApi) ? myLandApi : []);
       const cachedDashboard = loadCustomerDashboardCache(cacheKey);
@@ -396,44 +415,16 @@ export default function AppDashboard() {
       });
     };
 
-    const beginPolling = () => {
-      if (closed) return;
-      setLiveStatus('offline');
-      if (!poller) {
-        poller = window.setInterval(() => {
-          syncDashboard();
-        }, 15000);
-      }
-    };
-
-    supportsLiveUpdates().then((enabled) => {
-      if (closed) return;
-      if (!enabled) {
-        beginPolling();
-        return;
-      }
-
-      socket = new WebSocket(getWebSocketUrl(session.access_token));
-      socket.addEventListener('open', () => setLiveStatus('live'));
-      socket.addEventListener('close', () => beginPolling());
-      socket.addEventListener('error', () => beginPolling());
-      socket.addEventListener('message', async (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (['notification.created', 'notification.read', 'visit.updated', 'booking.updated', 'service_request.updated'].includes(data?.event)) {
-            await syncDashboard();
-          }
-        } catch {
-          beginPolling();
+    return connectLiveUpdates({
+      token: session.access_token,
+      onStatus: (status) => setLiveStatus(status === 'connected' ? 'live' : 'offline'),
+      onRefresh: syncDashboard,
+      onMessage: async (data) => {
+        if (['notification.created', 'notification.read', 'visit.updated', 'booking.updated', 'service_request.updated'].includes(data?.event)) {
+          await syncDashboard();
         }
-      });
+      },
     });
-
-    return () => {
-      closed = true;
-      if (poller) window.clearInterval(poller);
-      socket?.close();
-    };
   }, [cacheKey, guestSession, session?.access_token]);
 
   useEffect(() => {
@@ -550,7 +541,7 @@ export default function AppDashboard() {
       name: property.name || 'Sirpuram Gardens',
       loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
       tag: propertyTag(property),
-      price: formatCurrency(property.starting_price || property.base_price || property.market_value || 0),
+      price: propertyDisplayPrice(property),
       grad: propertyGradient(index),
       property,
       open: () => openProject({
@@ -558,7 +549,7 @@ export default function AppDashboard() {
         name: property.name || 'Sirpuram Gardens',
         loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
         tag: propertyTag(property),
-        price: formatCurrency(property.starting_price || property.base_price || property.market_value || 0),
+        price: propertyDisplayPrice(property),
         grad: propertyGradient(index),
         property,
       }),
@@ -571,7 +562,7 @@ export default function AppDashboard() {
       id: property.id || `property-${index}`,
       name: property.name || 'Sirpuram Gardens',
       loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
-      price: formatCurrency(property.starting_price || property.base_price || property.market_value || 0),
+      price: propertyDisplayPrice(property),
       type: propertyType(property),
       grad: propertyGradient(index),
       property,
@@ -589,7 +580,7 @@ export default function AppDashboard() {
       status: land.purchase_complete ? 'Completed' : 'Active',
       grad: propertyGradient(index),
       loc: land.property?.location || land.location || 'Achutapuram, Visakhapatnam',
-      price: formatCurrency(land.property?.starting_price || land.market_value || land.total_amount || 0),
+      price: propertyDisplayPrice(land.property || land),
     })));
   }
 
@@ -647,7 +638,7 @@ export default function AppDashboard() {
     { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
   ].map((p, idx) => ({ ...p, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
-  const selData = sel || { name: 'Sirpuram Gardens', loc: 'Achutapuram, Visakhapatnam', price: formatCurrency(0), grad: G[0] };
+  const selData = sel || { name: 'Sirpuram Gardens', loc: 'Achutapuram, Visakhapatnam', price: propertyDisplayPrice(DEFAULT_LIVE_PROPERTY), grad: G[0] };
   const specGrid = [
     { k: 'Plot Size', v: '200 Sq.Yd' },
     { k: 'Facing', v: 'East' },
@@ -675,7 +666,7 @@ export default function AppDashboard() {
   if (selectedProperty) {
     selData.name = selectedProperty.name || selData.name;
     selData.loc = selectedProperty.location || selectedProperty.address || selData.loc;
-    selData.price = formatCurrency(selectedProperty.starting_price || selectedProperty.base_price || selectedProperty.market_value || 0);
+    selData.price = propertyDisplayPrice(selectedProperty);
     selData.property = selectedProperty;
   }
   specGrid.splice(0, specGrid.length,
@@ -893,12 +884,12 @@ export default function AppDashboard() {
     if (!session?.access_token) return;
     const propertyId = propertyIdForAction();
     if (!propertyId) {
-      openNotice('Property Unavailable', 'No live property is available for this request right now.');
+      openNotice('Property not ready', 'Live property data is still syncing for this request. Please try again in a moment.');
       return;
     }
     const plots = mode === 'booking' ? await loadActionPlots(propertyId) : [];
     if (mode === 'booking' && !plots.length) {
-      openNotice('Booking Unavailable', 'No available live plots are attached to this property right now.');
+      openNotice('Booking on hold', 'No available live plots are attached to this property right now.');
       return;
     }
     setActionForm({
@@ -963,7 +954,7 @@ export default function AppDashboard() {
     if (!session?.access_token) return;
     const propertyId = propertyIdForAction();
     if (!propertyId) {
-      openNotice('Property Unavailable', 'No live property is available for this request right now.');
+      openNotice('Property not ready', 'Live property data is still syncing for this request. Please try again in a moment.');
       return;
     }
     if (!actionForm.name.trim() || !actionForm.mobile.trim()) {
@@ -1343,7 +1334,7 @@ export default function AppDashboard() {
             <div style={{'background': 'rgba(255,255,255,.1)', 'border': '1px solid rgba(255,255,255,.16)', 'borderRadius': '16px', 'padding': '14px', 'textAlign': 'center'}}>
               <p style={{'margin': '0', 'fontSize': '10px', 'color': '#bcd6bd', 'fontWeight': '600', 'textTransform': 'uppercase', 'letterSpacing': '.4px'}}>Remaining</p>
               <p style={{'margin': '8px 0 0', 'fontSize': '24px', 'fontWeight': '800', 'color': '#eb9236'}}>Off</p>
-              <p style={{'margin': '4px 0 0', 'fontSize': '10px', 'color': '#8db991', 'fontWeight': '500'}}>payments disabled</p>
+              <p style={{'margin': '4px 0 0', 'fontSize': '10px', 'color': '#8db991', 'fontWeight': '500'}}>payments on hold</p>
             </div>
             <div style={{'background': 'rgba(255,255,255,.1)', 'border': '1px solid rgba(255,255,255,.16)', 'borderRadius': '16px', 'padding': '14px', 'textAlign': 'center'}}>
               <p style={{'margin': '0', 'fontSize': '10px', 'color': '#bcd6bd', 'fontWeight': '600', 'textTransform': 'uppercase', 'letterSpacing': '.4px'}}>Properties</p>
@@ -1359,11 +1350,11 @@ export default function AppDashboard() {
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '14px'}}>
               <div>
                 <p style={{'margin': '0', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '600'}}>Paid So Far</p>
-                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#2b6d3d'}}>Unavailable</p>
+                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#2b6d3d'}}>On hold</p>
               </div>
               <div style={{'textAlign': 'right'}}>
                 <p style={{'margin': '0', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '600'}}>Balance Due</p>
-                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#e2822a'}}>Unavailable</p>
+                <p style={{'margin': '6px 0 0', 'fontSize': '28px', 'fontWeight': '800', 'color': '#e2822a'}}>On hold</p>
               </div>
             </div>
             {/* Segmented progress bar */}
@@ -1405,7 +1396,7 @@ export default function AppDashboard() {
               <p style={{'margin': '0', 'fontSize': '12px', 'color': '#8a988c', 'fontWeight': '600'}}>Payment Status</p>
               <div style={{'display': 'flex', 'alignItems': 'baseline', 'gap': '6px', 'marginTop': '6px'}}>
                 <span style={{'fontSize': '26px', 'fontWeight': '800', 'color': '#16231a'}}>Not Live</span>
-                <span style={{'fontSize': '12px', 'color': '#9aa89c', 'fontWeight': '600'}}>payments are disabled in this phase</span>
+                <span style={{'fontSize': '12px', 'color': '#9aa89c', 'fontWeight': '600'}}>payments are on hold in this phase</span>
               </div>
               <p style={{'margin': '5px 0 0', 'fontSize': '11.5px', 'color': '#e2822a', 'fontWeight': '700'}}>Use live booking, visit scheduling, documents, and service requests for production testing</p>
             </div>

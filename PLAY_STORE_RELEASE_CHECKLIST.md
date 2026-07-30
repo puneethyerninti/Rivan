@@ -6,7 +6,7 @@ Important: open `frontend/android` in Android Studio for Play Store work. The ro
 
 ## Current Production Baseline
 
-- Android package ID: `com.rivan.reality`
+- Android package ID: `com.rivan.app`
 - App name: `Rivan Realty`
 - Minimum SDK: `24`
 - Compile SDK: `36`
@@ -17,13 +17,15 @@ Important: open `frontend/android` in Android Studio for Play Store work. The ro
 
 ## One-Time Play Console Setup
 
-1. Create the app in Google Play Console with package ID `com.rivan.reality`.
+1. Create the app in Google Play Console with package ID `com.rivan.app`.
 2. Enable Play App Signing.
 3. Generate a private upload key and keep it outside Git.
 4. Add store listing text, screenshots, feature graphic, app category, contact details, and privacy policy URL.
 5. Complete Data Safety based on actual app data collection: account/contact details, property enquiries, visits, bookings, CRM/admin activity, diagnostics, and authentication data.
 6. Complete content rating and target audience forms.
 7. Add testers for internal testing before production rollout.
+
+Do not rename the Android package ID after Firebase phone auth is working unless you also create/update the matching Firebase Android app, SHA-1, SHA-256, Play signing certificate, and package-name settings.
 
 ## Required Local Signing Variables
 
@@ -87,6 +89,35 @@ frontend/android/app/build/outputs/bundle/release/app-release.aab
 - Offline banner appears when network is unavailable and disappears after reconnection.
 - Back button behavior does not trap users on login/dashboard screens.
 - Privacy policy opens at `/privacy.html`.
+
+## Realtime Verification
+
+Run this before every production APK/AAB handoff:
+
+```powershell
+npm run verify:realtime
+```
+
+For an authenticated dashboard test, copy a fresh access token from a logged-in browser session and run:
+
+```powershell
+$env:ACCESS_TOKEN="paste_access_token_here"
+npm run verify:realtime
+```
+
+Expected result:
+
+- `/api/health` reports live updates enabled and exposes `/ws/live`.
+- `/api/ready` returns success, proving Render can reach required dependencies.
+- WebSocket connects to `wss://rivan.onrender.com/ws/live`.
+- If WebSocket fails in the app, dashboards must continue refreshing through API fallback.
+
+## Notification Readiness
+
+- Android 13+ shows the friendly Rivan permission explanation before the system notification prompt.
+- Customers, Partners, and Admin users can deny notifications without blocking login or dashboard use.
+- Accepted devices must store a Firebase Cloud Messaging token in the backend.
+- Test foreground and background notification delivery on at least one real Android phone before sharing the APK widely.
 
 ## Release Guardrails
 

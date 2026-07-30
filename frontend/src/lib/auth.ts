@@ -16,12 +16,16 @@ export function getWebSocketUrl(token) {
 }
 
 let liveUpdatesCapabilityPromise = null;
+let liveUpdatesCapabilityCheckedAt = 0;
+const LIVE_UPDATES_CAPABILITY_TTL_MS = 30000;
 
 export async function supportsLiveUpdates() {
   if (import.meta.env.VITE_ENABLE_WEBSOCKETS === "false") {
     return false;
   }
-  if (!liveUpdatesCapabilityPromise) {
+  const now = Date.now();
+  if (!liveUpdatesCapabilityPromise || now - liveUpdatesCapabilityCheckedAt > LIVE_UPDATES_CAPABILITY_TTL_MS) {
+    liveUpdatesCapabilityCheckedAt = now;
     liveUpdatesCapabilityPromise = fetch(`${getBackendUrl()}/api/health?_t=${Date.now()}`, {
       method: "GET",
       credentials: "include",

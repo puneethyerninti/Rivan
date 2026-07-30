@@ -3,6 +3,8 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { loadSession, postJson } from './auth';
 
 const DEVICE_ID_KEY = 'rivan_device_id';
+const PUSH_PERMISSION_PRIMER_KEY = 'rivan_push_permission_primer_seen';
+const PUSH_STATUS_KEY = 'rivan_push_status';
 let listenersAttached = false;
 let registering = false;
 
@@ -17,6 +19,14 @@ function getDeviceId() {
 
 function isNativePushAvailable() {
   return typeof window !== 'undefined' && Capacitor?.isNativePlatform?.();
+}
+
+function savePushStatus(status) {
+  try {
+    localStorage.setItem(PUSH_STATUS_KEY, JSON.stringify({ ...status, checked_at: new Date().toISOString() }));
+  } catch {
+    // Push diagnostics are helpful but should never block app use.
+  }
 }
 
 function attachListeners(session) {
@@ -36,13 +46,16 @@ function attachListeners(session) {
         session.access_token,
       );
       localStorage.setItem('rivan_push_registered_at', new Date().toISOString());
+      savePushStatus({ registered: true, platform: Capacitor.getPlatform(), reason: '' });
     } catch (error) {
       console.warn('[Push] Unable to register token with backend:', error);
+      savePushStatus({ registered: false, platform: Capacitor.getPlatform(), reason: error?.message || 'backend_registration_failed' });
     }
   });
 
   PushNotifications.addListener('registrationError', (error) => {
     console.warn('[Push] Device registration failed:', error);
+    savePushStatus({ registered: false, platform: Capacitor.getPlatform(), reason: error?.message || 'device_registration_failed' });
   });
 
   PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
@@ -59,7 +72,9 @@ function attachListeners(session) {
 
 export async function registerPushNotifications(session) {
   if (!session?.access_token || !isNativePushAvailable() || registering) {
-    return { registered: false, reason: 'not_available' };
+    const result = { registered: false, reason: 'not_available' };
+    savePushStatus(result);
+    return result;
   }
 
   registering = true;
@@ -67,10 +82,24 @@ export async function registerPushNotifications(session) {
     attachListeners(session);
     let permission = await PushNotifications.checkPermissions();
     if (permission.receive !== 'granted') {
+      const primerSeen = localStorage.getItem(PUSH_PERMISSION_PRIMER_KEY) === 'true';
+      if (!primerSeen) {
+        const accepted = window.confirm(
+          'Allow Rivan Realty to send visit, booking, approval, and account update notifications on this device?',
+        );
+        localStorage.setItem(PUSH_PERMISSION_PRIMER_KEY, 'true');
+        if (!accepted) {
+          const result = { registered: false, reason: 'primer_declined' };
+          savePushStatus(result);
+          return result;
+        }
+      }
       permission = await PushNotifications.requestPermissions();
     }
     if (permission.receive !== 'granted') {
-      return { registered: false, reason: 'permission_denied' };
+      const result = { registered: false, reason: 'permission_denied' };
+      savePushStatus(result);
+      return result;
     }
     if (Capacitor.getPlatform() === 'android') {
       await PushNotifications.createChannel({
@@ -84,10 +113,14 @@ export async function registerPushNotifications(session) {
       }).catch(() => null);
     }
     await PushNotifications.register();
-    return { registered: true };
+    const result = { registered: true, reason: 'native_registration_started' };
+    savePushStatus(result);
+    return result;
   } catch (error) {
     console.warn('[Push] Setup failed:', error);
-    return { registered: false, reason: error?.message || 'setup_failed' };
+    const result = { registered: false, reason: error?.message || 'setup_failed' };
+    savePushStatus(result);
+    return result;
   } finally {
     registering = false;
   }

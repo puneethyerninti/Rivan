@@ -193,8 +193,18 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   padding-right: env(safe-area-inset-right);
 }
 .rv-phone.login-phone {
-  overflow-y: auto;
+  height: auto;
+  max-height: none;
+  min-height: 100dvh;
+  overflow: visible;
   overflow-x: hidden;
+}
+
+.rv-phone.login-phone > .rv-scroll {
+  position: relative !important;
+  inset: auto !important;
+  min-height: 100dvh;
+  overflow-y: visible !important;
 }
 
 /* ─── Hide phone-shell chrome on desktop ─────────────────── */

@@ -2,15 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getJson,
-  getWebSocketUrl,
   loadSession,
   logoutSession,
   postJson,
   putJson,
   restoreSession,
   saveSession,
-  supportsLiveUpdates,
 } from '../lib/auth';
+import { connectLiveUpdates } from '../lib/liveUpdates';
 import { formatIndianPhone } from '../lib/phone';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
@@ -158,6 +157,7 @@ function formatSquareYards(item) {
 
 function liveStatusLabel(value) {
   if (value === 'connected') return 'Live updates are on';
+  if (value === 'reconnecting') return 'Reconnecting live updates';
   if (value === 'polling') return 'Refreshing automatically';
   if (value === 'disconnected') return 'Reconnecting updates';
   return 'Connecting updates';
@@ -223,7 +223,10 @@ export default function AgentDashboard() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 820);
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerStatusFilter, setPartnerStatusFilter] = useState('all');
+  const [actionBusy, setActionBusy] = useState('');
   const shellRef = useRef(null);
+  const mainRef = useRef(null);
+  const actionBusyRef = useRef(false);
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'agent') {
@@ -239,8 +242,12 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     pageRef.current = page;
-    shellRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [page]);
+    if (isMobile) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page, isMobile]);
 
   useEffect(() => {
     profileDirtyRef.current = profileDirty;
@@ -297,8 +304,9 @@ export default function AgentDashboard() {
         }
       });
 
+      const latestSession = loadSession();
+      const profileSource = mergePartnerIdentity(nextAgentData.profile, latestSession?.user, cachedDashboard.agentData?.profile, user);
       setAgentData({
-        profile: {},
         kpis: {},
         assets: [],
         bookings: [],
@@ -310,6 +318,7 @@ export default function AgentDashboard() {
         metrics: {},
         stage_counts: {},
         ...nextAgentData,
+        profile: profileSource,
       });
       setCrmData(nextCrmData);
       setVisits(Array.isArray(nextVisits) ? nextVisits : []);
@@ -319,6 +328,7 @@ export default function AgentDashboard() {
         agentData: {
           ...EMPTY_AGENT_DATA,
           ...nextAgentData,
+          profile: profileSource,
         },
         crmData: nextCrmData,
         visits: Array.isArray(nextVisits) ? nextVisits : [],
@@ -336,8 +346,6 @@ export default function AgentDashboard() {
         plot_id: current.plot_id || firstAsset?.id || '',
       }));
 
-      const latestSession = loadSession();
-      const profileSource = mergePartnerIdentity(nextAgentData.profile, latestSession?.user, user);
       if (latestSession?.access_token) {
         const nextSession = {
           ...latestSession,
@@ -422,72 +430,29 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (!session?.access_token) return undefined;
-    let closed = false;
-    let poller = null;
-    let ws = null;
+    return connectLiveUpdates({
+      token: session.access_token,
+      onStatus: setLiveStatus,
+      onRefresh: () => refreshAll(false),
+      onMessage: (message) => {
+        const type = message?.event;
+        const payload = message?.payload || {};
 
-    const beginPolling = () => {
-      if (closed) return;
-      setLiveStatus('polling');
-      if (!poller) {
-        poller = window.setInterval(() => {
+        if (type === 'notification.created' && payload.notification) {
+          setNotifications((current) => [payload.notification, ...current]);
+        } else if (type === 'notification.read') {
+          setNotifications((current) =>
+            current.map((item) =>
+              payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
+            ),
+          );
+        } else if (
+          ['booking.updated', 'visit.updated', 'dashboard.metrics_updated', 'agent.status_updated'].includes(type)
+        ) {
           refreshAll(false);
-        }, 15000);
-      }
-    };
-
-    supportsLiveUpdates().then((enabled) => {
-      if (closed) return;
-      if (!enabled) {
-        beginPolling();
-        return;
-      }
-
-      ws = new WebSocket(getWebSocketUrl(session.access_token));
-
-      ws.onopen = () => {
-        if (closed) return;
-        setLiveStatus('connected');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          const type = message?.event;
-          const payload = message?.payload || {};
-
-          if (type === 'notification.created' && payload.notification) {
-            setNotifications((current) => [payload.notification, ...current]);
-          } else if (type === 'notification.read') {
-            setNotifications((current) =>
-              current.map((item) =>
-                payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
-              ),
-            );
-          } else if (
-            ['booking.updated', 'visit.updated', 'dashboard.metrics_updated', 'agent.status_updated'].includes(type)
-          ) {
-            refreshAll(false);
-          }
-        } catch {}
-      };
-
-      ws.onerror = () => {
-        beginPolling();
-      };
-
-      ws.onclose = () => {
-        if (closed) return;
-        setLiveStatus((current) => (current === 'connected' ? 'disconnected' : 'polling'));
-        beginPolling();
-      };
+        }
+      },
     });
-
-    return () => {
-      closed = true;
-      if (poller) window.clearInterval(poller);
-      ws?.close();
-    };
   }, [session?.access_token]);
 
   const displayedUser = mergePartnerIdentity(profileDirty ? profileForm : null, agentData.profile, user);
@@ -535,17 +500,17 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
-    height: '100dvh',
-    maxHeight: '100dvh',
+    height: isMobile ? 'auto' : '100dvh',
+    maxHeight: isMobile ? 'none' : '100dvh',
     minHeight: '100dvh',
     display: 'flex',
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
     overflowX: 'hidden',
-    overflowY: 'auto',
+    overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
-    overscrollBehaviorY: 'auto',
+    overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
   };
   const sidebarStyle = {
@@ -592,11 +557,13 @@ export default function AgentDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: 'auto',
-    padding: isMobile ? '12px 10px 28px' : '28px 32px 40px',
+    minHeight: isMobile ? 'auto' : 0,
+    padding: isMobile ? '12px 10px calc(32px + env(safe-area-inset-bottom))' : '28px 32px 40px',
     minWidth: 0,
     overflowX: 'hidden',
-    overflowY: 'visible',
+    overflowY: isMobile ? 'visible' : 'auto',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
   };
   const headerStyle = {
@@ -672,7 +639,7 @@ export default function AgentDashboard() {
           {rows.map((row, rowIndex) => (
             <div key={rowIndex} style={{ border: '1px solid #eef3ec', borderRadius: '16px', padding: '14px', background: '#fbfdf9' }}>
               {row.map((cell, cellIndex) => (
-                <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: '94px minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
+                <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: 'minmax(78px,34%) minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
                   <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#8a9a8c', textTransform: 'uppercase' }}>{columns[cellIndex]}</span>
                   <div style={{ minWidth: 0, fontSize: '13px', color: '#16231a', overflowWrap: 'anywhere' }}>{cell}</div>
                 </div>
@@ -771,6 +738,9 @@ export default function AgentDashboard() {
   };
 
   const updateVisitStatus = async (visitId, status) => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`visit:${visitId}:${status}`);
     try {
       setError('');
       setNotice('');
@@ -779,10 +749,16 @@ export default function AgentDashboard() {
       setNotice('Visit status updated.');
     } catch (err) {
       setError(err?.message || 'Failed to update visit');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const updateBookingStatus = async (bookingId, status) => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`booking:${bookingId}:${status}`);
     try {
       setError('');
       setNotice('');
@@ -791,10 +767,16 @@ export default function AgentDashboard() {
       setNotice('Booking status updated.');
     } catch (err) {
       setError(err?.message || 'Failed to update booking');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const completeTask = async (taskId) => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`task:${taskId}:complete`);
     try {
       setError('');
       setNotice('');
@@ -803,10 +785,16 @@ export default function AgentDashboard() {
       setNotice('Task completed.');
     } catch (err) {
       setError(err?.message || 'Failed to complete task');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const saveProfile = async () => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy('profile:save');
     setSavingProfile(true);
     setError('');
     setNotice('');
@@ -824,6 +812,17 @@ export default function AgentDashboard() {
       saveSession(nextSession);
       setSession(nextSession);
       setAgentData((current) => ({ ...current, profile: mergedUser }));
+      savePartnerDashboardCache({
+        owner: partnerCacheOwner(mergedUser),
+        agentData: {
+          ...EMPTY_AGENT_DATA,
+          ...agentData,
+          profile: mergedUser,
+        },
+        crmData,
+        visits,
+        notifications,
+      });
       setProfileForm({
         name: mergedUser.name || '',
         email: mergedUser.email || '',
@@ -838,6 +837,8 @@ export default function AgentDashboard() {
       setError(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -910,7 +911,7 @@ export default function AgentDashboard() {
         </button>
       </aside>
 
-      <main style={mainStyle}>
+      <main ref={mainRef} style={mainStyle}>
         <div style={headerStyle}>
           <div>
             <h1 style={{ margin: 0, fontSize: isMobile ? '24px' : '32px', color: '#1f5a31', lineHeight: 1.08 }}>
@@ -980,7 +981,7 @@ export default function AgentDashboard() {
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fit,minmax(132px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
               {topCards.map((item) => (
                 <div key={item.label} style={{ ...cardStyle, padding: isMobile ? '14px' : cardStyle.padding }}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>

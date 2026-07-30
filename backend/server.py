@@ -594,7 +594,22 @@ def should_hide_demo_item(item: Dict[str, Any]) -> bool:
     return False
 
 
+def is_archived_item(item: Dict[str, Any]) -> bool:
+    return bool(item.get("archived") or item.get("is_archived") or item.get("deleted_at"))
+
+
+def active_record_query(extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    query = {"archived": {"$ne": True}, "is_archived": {"$ne": True}, "deleted_at": {"$in": [None, ""]}}
+    if extra:
+        query.update(extra)
+    return query
+
+
 def filter_live_customer_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [item for item in items if not should_hide_demo_item(item) and not is_archived_item(item)]
+
+
+def filter_live_admin_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [item for item in items if not should_hide_demo_item(item)]
 
 
@@ -847,6 +862,7 @@ def phone_identity_variants(phone: Optional[str]) -> List[str]:
 
 PROFILE_PLACEHOLDER_NAMES = {"agent", "partner", "admin", "customer", "user"}
 AGENT_PROFILE_SYNC_FIELDS = {"name", "address", "occupation", "age", "aadhaar_number", "agent_brand_name", "updated_at"}
+ADMIN_PROFILE_SYNC_FIELDS = {"name", "email", "address", "updated_at"}
 
 
 def is_placeholder_profile_name(value: Optional[str]) -> bool:
@@ -1680,6 +1696,10 @@ async def get_current_user(request: Request, token: Optional[str] = Depends(oaut
         repaired = await resolve_primary_agent_user()
         if repaired:
             user = repaired
+    if is_agent_role(user.get("role")):
+        user = await resolve_agent_profile_identity(user)
+    if has_admin_access(user):
+        user = await resolve_admin_profile_identity(user)
     return apply_session_role(user, session)
 
 
@@ -3041,6 +3061,56 @@ async def resolve_agent_profile_identity(user: Dict[str, Any]) -> Dict[str, Any]
     return merged
 
 
+async def resolve_admin_profile_identity(user: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the freshest same-phone admin profile without letting seed placeholders win."""
+    if not has_admin_access(user) or not await is_database_available():
+        return clean_user(user)
+
+    phone_variants = phone_identity_variants(user.get("phone"))
+    query_parts: List[Dict[str, Any]] = [{"id": user.get("id")}]
+    if phone_variants:
+        query_parts.append({"phone": {"$in": phone_variants}})
+
+    candidates = await db.users.find(
+        {"$or": query_parts, "role": ROLE_ADMIN},
+        {"_id": 0},
+    ).to_list(25)
+    if not candidates:
+        return clean_user(user)
+
+    candidates = sorted(
+        candidates,
+        key=lambda item: (
+            profile_completeness_score(item),
+            str(item.get("updated_at") or item.get("last_login_at") or item.get("created_at") or ""),
+        ),
+        reverse=True,
+    )
+    by_id = next((item for item in candidates if item.get("id") == user.get("id")), user)
+    merged = clean_user({**by_id})
+    merged["name"] = first_real_profile_name(*(item.get("name") for item in candidates), user.get("name"))
+
+    for field in ("email", "address"):
+        value = first_filled_profile_value(*(item.get(field) for item in candidates), user.get(field))
+        if value not in (None, ""):
+            merged[field] = value
+
+    sync_fields = {
+        key: value
+        for key, value in merged.items()
+        if key in ADMIN_PROFILE_SYNC_FIELDS and value not in (None, "")
+    }
+    if sync_fields:
+        sync_fields["updated_at"] = now_utc().isoformat()
+        await db.users.update_many(
+            {"$or": query_parts, "role": ROLE_ADMIN},
+            {"$set": sync_fields},
+        )
+        merged.update(sync_fields)
+
+    return merged
+
+
 def websocket_role_for_user(user: Optional[Dict[str, Any]]) -> str:
     if not user:
         return "guest"
@@ -3177,6 +3247,38 @@ async def create_notification(user_id: str, title: str, body: str, type_: str = 
         user_ids=[user_id],
     )
     await send_push_to_user(user_id, normalized_title, normalized_body, {"type": type_, "notification_id": notification_payload["id"]})
+
+
+async def create_notifications_for_users(user_ids: List[Optional[str]], title: str, body: str, type_: str = "system") -> None:
+    seen: set[str] = set()
+    for user_id in user_ids:
+        normalized_id = str(user_id or "").strip()
+        if not normalized_id or normalized_id in seen:
+            continue
+        seen.add(normalized_id)
+        await create_notification(normalized_id, title, body, type_)
+
+
+async def create_notifications_for_roles(roles: List[str], title: str, body: str, type_: str = "system") -> None:
+    normalized_roles = {str(role or "").strip().lower() for role in roles if str(role or "").strip()}
+    if not normalized_roles:
+        return
+    recipients: List[Dict[str, Any]] = []
+    if await is_database_available():
+        recipients = await db.users.find(
+            {
+                "role": {"$in": list(normalized_roles)},
+                "status": {"$ne": STATUS_SUSPENDED},
+                "approval_status": {"$nin": [APPROVAL_REJECTED, STATUS_SUSPENDED]},
+            },
+            {"_id": 0, "id": 1},
+        ).to_list(500)
+    elif ALLOW_LOCAL_AUTH_FALLBACK:
+        recipients = [
+            item for item in load_local_store().get("users", [])
+            if str(item.get("role") or "").lower() in normalized_roles
+        ]
+    await create_notifications_for_users([item.get("id") for item in recipients], title, body, type_)
 
 
 async def send_push_to_user(user_id: str, title: str, body: str, data: Optional[Dict[str, Any]] = None) -> None:
@@ -3569,6 +3671,8 @@ async def issue_token_response(
     clean = clean_user(user)
     if is_agent_role(clean.get("role")):
         clean = await resolve_agent_profile_identity(clean)
+    elif has_admin_access(clean):
+        clean = await resolve_admin_profile_identity(clean)
     current_session_id = session_id or str(uuid.uuid4())
     refresh_token, refresh_token_id = create_refresh_token(
         clean["id"],
@@ -3824,9 +3928,7 @@ async def ensure_primary_admin_seed() -> None:
         {"phone": PRIMARY_ADMIN_PHONE},
         {
             "$set": {
-                "name": ADMIN_DISPLAY_NAME,
                 "phone": PRIMARY_ADMIN_PHONE,
-                "email": PRIMARY_ADMIN_EMAIL,
                 "role": ROLE_ADMIN,
                 "approval_status": APPROVAL_NOT_REQUIRED,
                 "status": STATUS_ACTIVE,
@@ -3840,6 +3942,8 @@ async def ensure_primary_admin_seed() -> None:
             },
             "$setOnInsert": {
                 "id": PRIMARY_ADMIN_USER_ID,
+                "name": ADMIN_DISPLAY_NAME,
+                "email": PRIMARY_ADMIN_EMAIL,
                 "address": "Rivan HQ",
                 "created_at": timestamp,
                 "last_login_at": None,
@@ -3891,9 +3995,7 @@ async def ensure_primary_agent_seed() -> None:
         {"phone": SECONDARY_ADMIN_PHONE},
         {
             "$set": {
-                "name": ADMIN_DISPLAY_NAME,
                 "phone": SECONDARY_ADMIN_PHONE,
-                "email": SECONDARY_ADMIN_EMAIL,
                 "role": ROLE_ADMIN,
                 "approval_status": APPROVAL_NOT_REQUIRED,
                 "status": STATUS_ACTIVE,
@@ -3907,6 +4009,8 @@ async def ensure_primary_agent_seed() -> None:
             },
             "$setOnInsert": {
                 "id": SECONDARY_ADMIN_USER_ID,
+                "name": ADMIN_DISPLAY_NAME,
+                "email": SECONDARY_ADMIN_EMAIL,
                 "address": "Rivan HQ",
                 "created_at": timestamp,
                 "last_login_at": None,
@@ -4234,6 +4338,12 @@ async def apply_agent_access(req: AgentApplicationReq, request: Request):
         application_updates["approved_by_manager"] = None
         await db.users.update_one({"_id": existing["_id"]}, {"$set": application_updates})
         updated = await db.users.find_one({"_id": existing["_id"]}, {"_id": 0})
+        await create_notifications_for_roles(
+            [ROLE_ADMIN],
+            "Partner application updated",
+            f"{req.name.strip()} submitted Partner access details and is waiting for review.",
+            "agent",
+        )
         return {
             "success": True,
             "already_approved": False,
@@ -4263,6 +4373,12 @@ async def apply_agent_access(req: AgentApplicationReq, request: Request):
         entity_type="user",
         entity_id=agent["id"],
         metadata={"phone": phone},
+    )
+    await create_notifications_for_roles(
+        [ROLE_ADMIN],
+        "New Partner application",
+        f"{agent.get('name') or phone} submitted a Partner application for approval.",
+        "agent",
     )
 
     return {
@@ -4608,6 +4724,8 @@ async def refresh_auth_session(req: RefreshTokenReq, request: Request, response:
         raise HTTPException(status_code=401, detail="User not found")
     if is_agent_role(user.get("role")):
         user = await resolve_agent_profile_identity(user)
+    elif has_admin_access(user):
+        user = await resolve_admin_profile_identity(user)
 
     return await issue_token_response(user, response, request, session_id=session_id, session_role=session.get("session_role"))
 
@@ -4668,6 +4786,17 @@ async def update_profile(req: UpdateProfileReq, user: Dict[str, Any] = Depends(g
                 update["name"] = preserved_name
             else:
                 update.pop("name", None)
+        if has_admin_access(user) and "name" in update and is_placeholder_profile_name(update.get("name")):
+            phone_variants = phone_identity_variants(user.get("phone"))
+            query_parts: List[Dict[str, Any]] = [{"id": user["id"]}]
+            if phone_variants:
+                query_parts.append({"phone": {"$in": phone_variants}})
+            candidates = await db.users.find({"$or": query_parts, "role": ROLE_ADMIN}, {"_id": 0}).to_list(25)
+            preserved_name = first_real_profile_name(*(item.get("name") for item in candidates), user.get("name"))
+            if preserved_name:
+                update["name"] = preserved_name
+            else:
+                update.pop("name", None)
 
         if update.get("email"):
             existing_user = await db.users.find_one(
@@ -4708,6 +4837,21 @@ async def update_profile(req: UpdateProfileReq, user: Dict[str, Any] = Depends(g
                         {"phone": {"$in": phone_identity_variants(PRIMARY_AGENT_PHONE)}},
                         {"$set": {**sync_fields, "linked_primary_agent_id": PRIMARY_AGENT_USER_ID}},
                     )
+            if has_admin_access(user):
+                phone_variants = phone_identity_variants(user.get("phone"))
+                sync_fields = {
+                    key: value
+                    for key, value in update.items()
+                    if key in ADMIN_PROFILE_SYNC_FIELDS
+                }
+                if sync_fields:
+                    admin_filters: List[Dict[str, Any]] = [{"id": user["id"]}]
+                    if phone_variants:
+                        admin_filters.append({"phone": {"$in": phone_variants}})
+                    await db.users.update_many(
+                        {"$or": admin_filters, "role": ROLE_ADMIN},
+                        {"$set": sync_fields},
+                    )
         except DuplicateKeyError:
             logger.exception("Duplicate email conflict while updating profile for user %s", user["id"])
             raise HTTPException(
@@ -4718,6 +4862,8 @@ async def update_profile(req: UpdateProfileReq, user: Dict[str, Any] = Depends(g
         updated = await db.users.find_one({"id": user["id"]}, {"_id": 0})
         if is_agent_role((updated or user).get("role")):
             updated = await resolve_agent_profile_identity(updated or user)
+        elif has_admin_access(updated or user):
+            updated = await resolve_admin_profile_identity(updated or user)
         return apply_session_role(updated, {"session_role": user.get("portal_role")})
     if not ALLOW_LOCAL_AUTH_FALLBACK:
         raise HTTPException(status_code=503, detail="Authentication database is unavailable")
@@ -5177,6 +5323,7 @@ async def list_properties(
             {"location": {"$regex": search, "$options": "i"}},
             {"description": {"$regex": search, "$options": "i"}},
         ]
+    q = active_record_query(q)
     items = await db.properties.find(q, {"_id": 0}).to_list(200)
     return [normalize_live_property_record(item) for item in items]
 
@@ -5247,7 +5394,7 @@ async def featured_properties():
         local_items = [item for item in local_get_properties() if item.get("featured")]
         return update_featured_properties_cache(local_items)
 
-    items = await db.properties.find({"featured": True}, {"_id": 0}).to_list(20)
+    items = await db.properties.find(active_record_query({"featured": True}), {"_id": 0}).to_list(20)
     return update_featured_properties_cache([normalize_live_property_record(item) for item in items])
 
 
@@ -5260,7 +5407,7 @@ async def get_property(property_id: str):
         if not prop:
             raise HTTPException(status_code=404, detail="Property not found")
         return normalize_live_property_record(prop)
-    prop = await db.properties.find_one({"id": property_id}, {"_id": 0})
+    prop = await db.properties.find_one(active_record_query({"id": property_id}), {"_id": 0})
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
     return normalize_live_property_record(prop)
@@ -5272,7 +5419,7 @@ async def get_property_plots(property_id: str):
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Property database is unavailable")
         return local_get_plots(property_id)
-    plots = await db.plots.find({"property_id": property_id}, {"_id": 0}).to_list(500)
+    plots = await db.plots.find(active_record_query({"property_id": property_id}), {"_id": 0}).to_list(500)
     return plots
 
 
@@ -5285,7 +5432,7 @@ async def get_plot(plot_id: str):
         if not plot:
             raise HTTPException(status_code=404, detail="Plot not found")
         return plot
-    plot = await db.plots.find_one({"id": plot_id}, {"_id": 0})
+    plot = await db.plots.find_one(active_record_query({"id": plot_id}), {"_id": 0})
     if not plot:
         raise HTTPException(status_code=404, detail="Plot not found")
     return plot
@@ -5336,6 +5483,18 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
             f"Your booking request for {plot.get('plot_number') or 'the selected plot'} is pending agent review.",
             "booking",
         )
+        await create_notifications_for_users(
+            [assigned_agent_id or plot.get("agent_id")],
+            "New booking request",
+            f"{req.name} requested booking for {plot.get('plot_number') or 'a selected unit'}.",
+            "booking",
+        )
+        await create_notifications_for_roles(
+            [ROLE_ADMIN],
+            "New booking request",
+            f"{req.name} submitted a booking request awaiting review.",
+            "booking",
+        )
         await crm_sync_booking(
             booking=booking,
             customer=user,
@@ -5351,7 +5510,7 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
         await publish_dashboard_metrics_update(user_ids=[user["id"], *( [assigned_agent_id] if assigned_agent_id else [])], roles=["admin"])
         return {"success": True, "booking": booking, "message": "Booking request submitted. Your assigned agent will review it shortly."}
 
-    plot = await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
+    plot = await db.plots.find_one(active_record_query({"id": req.plot_id}), {"_id": 0})
     if not plot:
         raise HTTPException(status_code=404, detail="Plot not found")
     if plot.get("status") not in ("available", "reserved"):
@@ -5388,16 +5547,24 @@ async def create_booking(req: BookingReq, user: Dict[str, Any] = Depends(get_cur
     # Mark plot as reserved
     await db.plots.update_one({"id": req.plot_id}, {"$set": {"status": "reserved"}})
 
-    # Notification
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": "Booking Request Received",
-        "body": f"Your booking for plot {plot.get('plot_number')} is pending agent review.",
-        "type": "booking",
-        "read": False,
-        "created_at": now_utc().isoformat(),
-    })
+    await create_notification(
+        user["id"],
+        "Booking Request Received",
+        f"Your booking for plot {plot.get('plot_number') or 'the selected unit'} is pending agent review.",
+        "booking",
+    )
+    await create_notifications_for_users(
+        [assigned_agent_id or plot.get("agent_id")],
+        "New booking request",
+        f"{req.name} requested booking for {plot.get('plot_number') or 'a selected unit'}.",
+        "booking",
+    )
+    await create_notifications_for_roles(
+        [ROLE_ADMIN],
+        "New booking request",
+        f"{req.name} submitted a booking request awaiting review.",
+        "booking",
+    )
     await crm_sync_booking(
         booking=booking,
         customer=user,
@@ -5423,7 +5590,7 @@ async def my_bookings(user: Dict[str, Any] = Depends(get_current_user)):
         items = filter_live_customer_items(items)
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return [normalize_booking_record(normalize_live_property_record(item)) for item in items]
-    items = await db.bookings.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    items = await db.bookings.find(active_record_query({"user_id": user["id"]}), {"_id": 0}).to_list(100)
     items = filter_live_customer_items(items)
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return [normalize_booking_record(item) for item in items]
@@ -5435,13 +5602,13 @@ async def my_land(user: Dict[str, Any] = Depends(get_current_user)):
     """Return units owned/booked by this user with purchase progress"""
     await require_database("My land data is unavailable")
     plots = await db.plots.find(
-        {"owner_id": user["id"]}, {"_id": 0}
+        active_record_query({"owner_id": user["id"]}), {"_id": 0}
     ).to_list(100)
     plots = filter_live_customer_items(plots)
     enriched = []
     for plot in plots:
-        prop = await db.properties.find_one({"id": plot["property_id"]}, {"_id": 0})
-        if prop and should_hide_demo_item(prop):
+        prop = await db.properties.find_one(active_record_query({"id": plot["property_id"]}), {"_id": 0})
+        if not prop or should_hide_demo_item(prop):
             continue
         # Compute progress for this plot
         installments = await db.installments.find(
@@ -5483,7 +5650,7 @@ async def my_land(user: Dict[str, Any] = Depends(get_current_user)):
 async def can_request_services(user: Dict[str, Any] = Depends(get_current_user)):
     """Returns whether user is eligible to request property services (owns at least one plot with sufficient progress)"""
     await require_database("Property eligibility data is unavailable")
-    plots = await db.plots.find({"owner_id": user["id"]}, {"_id": 0}).to_list(100)
+    plots = await db.plots.find(active_record_query({"owner_id": user["id"]}), {"_id": 0}).to_list(100)
     if not plots:
         return {"eligible": False, "reason": "No properties purchased yet", "owned_plots": []}
     return {
@@ -5606,15 +5773,18 @@ async def request_service(req: ServiceReq, user: Dict[str, Any] = Depends(get_cu
     }
     await db.service_requests.insert_one(sr.copy())
     sr.pop("_id", None)
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": "Service Requested",
-        "body": f"Your {req.service_type} request has been received. Our team will contact you within 24 hours.",
-        "type": "service",
-        "read": False,
-        "created_at": now_utc().isoformat(),
-    })
+    await create_notification(
+        user["id"],
+        "Service Requested",
+        f"Your {req.service_type} request has been received. Our team will contact you within 24 hours.",
+        "service",
+    )
+    await create_notifications_for_roles(
+        [ROLE_ADMIN],
+        "New service request",
+        f"{user.get('name') or user.get('phone') or 'Customer'} requested {req.service_type}.",
+        "service",
+    )
     await crm_sync_service_request(
         service_request=sr,
         customer=user,
@@ -5737,15 +5907,18 @@ async def book_centre_visit(req: VisitBookingReq, user: Dict[str, Any] = Depends
     }
     await db.visits.insert_one(visit.copy())
     visit.pop("_id", None)
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": "Centre Visit Submitted",
-        "body": f"Your visit request to {centre.get('name')} on {req.visit_date} at {req.visit_time} is awaiting admin confirmation.",
-        "type": "visit",
-        "read": False,
-        "created_at": now_utc().isoformat(),
-    })
+    await create_notification(
+        user["id"],
+        "Centre Visit Submitted",
+        f"Your visit request to {centre.get('name')} on {req.visit_date} at {req.visit_time} is awaiting admin confirmation.",
+        "visit",
+    )
+    await create_notifications_for_roles(
+        [ROLE_ADMIN],
+        "New centre visit",
+        f"{req.name} requested a centre visit to {centre.get('name')}.",
+        "visit",
+    )
     await crm_sync_centre_visit(
         visit=visit,
         customer=user,
@@ -5809,6 +5982,18 @@ async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_
             f"Your visit request to {property_name} is pending agent approval.",
             "visit",
         )
+        await create_notifications_for_users(
+            [assigned_agent_id],
+            "New site visit request",
+            f"{req.name} requested a site visit to {property_name}.",
+            "visit",
+        )
+        await create_notifications_for_roles(
+            [ROLE_ADMIN],
+            "New site visit request",
+            f"{req.name} requested a site visit to {property_name}.",
+            "visit",
+        )
         await crm_sync_site_visit(
             visit=visit,
             customer=user,
@@ -5822,9 +6007,9 @@ async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_
         )
         return {"success": True, "visit": normalize_live_visit_record(visit)}
 
-    prop = await db.properties.find_one({"id": requested_property_id}, {"_id": 0})
+    prop = await db.properties.find_one(active_record_query({"id": requested_property_id}), {"_id": 0})
     if not prop and requested_property_id != str(req.property_id or "").strip():
-        prop = await db.properties.find_one({"id": req.property_id}, {"_id": 0})
+        prop = await db.properties.find_one(active_record_query({"id": req.property_id}), {"_id": 0})
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
     canonical_property_id = canonical_live_property_id(
@@ -5862,15 +6047,24 @@ async def book_site_visit(req: SiteVisitReq, user: Dict[str, Any] = Depends(get_
     }
     await db.visits.insert_one(visit.copy())
     visit.pop("_id", None)
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": "Site Visit Submitted",
-        "body": f"Your visit request to {property_name} on {req.visit_date} is pending agent approval.",
-        "type": "visit",
-        "read": False,
-        "created_at": now_utc().isoformat(),
-    })
+    await create_notification(
+        user["id"],
+        "Site Visit Submitted",
+        f"Your visit request to {property_name} on {req.visit_date} is pending agent approval.",
+        "visit",
+    )
+    await create_notifications_for_users(
+        [assigned_agent_id],
+        "New site visit request",
+        f"{req.name} requested a site visit to {property_name}.",
+        "visit",
+    )
+    await create_notifications_for_roles(
+        [ROLE_ADMIN],
+        "New site visit request",
+        f"{req.name} requested a site visit to {property_name}.",
+        "visit",
+    )
     await crm_sync_site_visit(
         visit=visit,
         customer=user,
@@ -5894,7 +6088,7 @@ async def my_visits(user: Dict[str, Any] = Depends(get_current_user)):
         items = filter_live_customer_items(items)
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return [normalize_live_visit_record(item) for item in items]
-    items = await db.visits.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    items = await db.visits.find(active_record_query({"user_id": user["id"]}), {"_id": 0}).to_list(100)
     items = filter_live_customer_items(items)
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return [normalize_live_visit_record(item) for item in items]
@@ -5943,16 +6137,13 @@ async def update_customer_visit(
         title = "Visit Rescheduled"
         body = f"Your site visit for {property_name} was updated to {updated.get('visit_date') or 'the selected date'}."
 
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": title,
-        "body": body,
-        "type": "visit",
-        "read": False,
-        "created_at": now_utc().isoformat(),
-        "updated_at": now_utc().isoformat(),
-    })
+    await create_notification(user["id"], title, body, "visit")
+    await create_notifications_for_users(
+        [updated.get("assigned_agent_id")],
+        title,
+        f"{user.get('name') or user.get('phone') or 'Customer'} updated a site visit for {property_name}.",
+        "visit",
+    )
     await publish_live_update(
         "visit.updated",
         {"visit": normalize_live_visit_record(updated), "scope": "customer_visit_update"},
@@ -6065,6 +6256,33 @@ async def register_push_token(payload: PushRegisterReq, user: Dict[str, Any] = D
     return {"success": True, "push": firebase_push_status()}
 
 
+@api_router.get("/push/status")
+async def push_status(user: Dict[str, Any] = Depends(get_current_user)):
+    if not await is_database_available():
+        return {"push": firebase_push_status(), "registered_devices": 0, "active_devices": 0}
+    tokens = await db.device_tokens.find(
+        {"user_id": user["id"]},
+        {"_id": 0, "token": 0},
+    ).sort("updated_at", -1).to_list(20)
+    return {
+        "push": firebase_push_status(),
+        "registered_devices": len(tokens),
+        "active_devices": len([item for item in tokens if item.get("active")]),
+        "devices": tokens,
+    }
+
+
+@api_router.post("/push/test")
+async def push_test(user: Dict[str, Any] = Depends(get_current_user)):
+    await create_notification(
+        user["id"],
+        "Rivan notifications are active",
+        "This device is ready to receive booking, visit, approval, and account updates.",
+        "system",
+    )
+    return {"success": True, "push": firebase_push_status()}
+
+
 @api_router.post("/push/unregister")
 async def unregister_push_token(payload: PushUnregisterReq, user: Dict[str, Any] = Depends(get_current_user)):
     await require_database("Push notification database is unavailable")
@@ -6169,9 +6387,12 @@ async def admin_stats(user: Dict[str, Any] = Depends(get_admin_user)):
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Admin statistics are unavailable")
-        plots = local_get_plots()
-        bookings = local_list_bookings()
-        visits = local_list_visits()
+        all_plots = local_get_plots()
+        all_bookings = local_list_bookings()
+        all_visits = local_list_visits()
+        plots = [item for item in all_plots if not is_archived_item(item)]
+        bookings = [item for item in all_bookings if not is_archived_item(item)]
+        visits = [item for item in all_visits if not is_archived_item(item)]
         users = load_local_store().get("users", [])
         return {
             "users": len(users),
@@ -6183,21 +6404,29 @@ async def admin_stats(user: Dict[str, Any] = Depends(get_admin_user)):
             "plots_reserved": len([item for item in plots if item.get("status") == "reserved"]),
             "plots_available": len([item for item in plots if item.get("status") == "available"]),
             "bookings": len(bookings),
+            "archived_records": len(all_plots) - len(plots) + len(all_bookings) - len(bookings) + len(all_visits) - len(visits),
             "service_requests": 0,
             "visits": len(visits),
         }
     return {
         "users": await db.users.count_documents({}),
         "agents": await db.users.count_documents({"role": ROLE_AGENT}),
-        "properties": await db.properties.count_documents({}),
-        "plots": await db.plots.count_documents({}),
-        "plots_sold": await db.plots.count_documents({"status": "sold"}),
-        "plots_booked": await db.plots.count_documents({"status": "booked"}),
-        "plots_reserved": await db.plots.count_documents({"status": "reserved"}),
-        "plots_available": await db.plots.count_documents({"status": "available"}),
-        "bookings": await db.bookings.count_documents({}),
-        "service_requests": await db.service_requests.count_documents({}),
-        "visits": await db.visits.count_documents({}),
+        "properties": await db.properties.count_documents(active_record_query()),
+        "plots": await db.plots.count_documents(active_record_query()),
+        "plots_sold": await db.plots.count_documents(active_record_query({"status": "sold"})),
+        "plots_booked": await db.plots.count_documents(active_record_query({"status": "booked"})),
+        "plots_reserved": await db.plots.count_documents(active_record_query({"status": "reserved"})),
+        "plots_available": await db.plots.count_documents(active_record_query({"status": "available"})),
+        "bookings": await db.bookings.count_documents(active_record_query()),
+        "archived_records": (
+            await db.properties.count_documents({"archived": True})
+            + await db.plots.count_documents({"archived": True})
+            + await db.bookings.count_documents({"archived": True})
+            + await db.visits.count_documents({"archived": True})
+            + await db.service_requests.count_documents({"archived": True})
+        ),
+        "service_requests": await db.service_requests.count_documents(active_record_query()),
+        "visits": await db.visits.count_documents(active_record_query()),
     }
 
 
@@ -6232,11 +6461,11 @@ async def admin_bookings(user: Dict[str, Any] = Depends(get_admin_user)):
             raise HTTPException(status_code=503, detail="Booking database is unavailable")
         items = [
             normalize_booking_record(item)
-            for item in filter_live_customer_items(local_list_bookings())
+            for item in filter_live_admin_items(local_list_bookings())
         ]
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return items
-    raw_items = filter_live_customer_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
+    raw_items = filter_live_admin_items(await db.bookings.find({}, {"_id": 0}).to_list(500))
     property_ids = sorted({item.get("property_id") for item in raw_items if item.get("property_id")})
     plot_ids = sorted({item.get("plot_id") for item in raw_items if item.get("plot_id")})
     customer_ids = sorted({item.get("user_id") or item.get("customer_id") for item in raw_items if item.get("user_id") or item.get("customer_id")})
@@ -6299,10 +6528,10 @@ async def admin_visits(user: Dict[str, Any] = Depends(get_admin_user)):
     if not await is_database_available():
         if not ALLOW_LOCAL_AUTH_FALLBACK:
             raise HTTPException(status_code=503, detail="Visit database is unavailable")
-        items = filter_live_customer_items(local_list_visits())
+        items = filter_live_admin_items(local_list_visits())
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return [normalize_live_visit_record(item) for item in items]
-    raw_items = filter_live_customer_items(await db.visits.find({}, {"_id": 0}).to_list(500))
+    raw_items = filter_live_admin_items(await db.visits.find({}, {"_id": 0}).to_list(500))
     property_ids = sorted({item.get("property_id") for item in raw_items if item.get("property_id")})
     plot_ids = sorted({item.get("plot_id") for item in raw_items if item.get("plot_id")})
     customer_ids = sorted({item.get("user_id") or item.get("customer_id") for item in raw_items if item.get("user_id") or item.get("customer_id")})
@@ -6781,7 +7010,7 @@ async def admin_overview(user: Dict[str, Any] = Depends(get_admin_user)):
         agents.sort(key=lambda x: (x.get("approval_status") != "pending", x.get("name", "")))
         visits = enrich_visits(
             filter_live_customer_items(local_list_visits()),
-            [item for item in local_get_properties() if not should_hide_demo_item(item)],
+            [item for item in local_get_properties() if not should_hide_demo_item(item) and not is_archived_item(item)],
             agents,
         )
         return {
@@ -6796,7 +7025,7 @@ async def admin_overview(user: Dict[str, Any] = Depends(get_admin_user)):
     agents = [clean_user(agent) for agent in agents if not should_hide_demo_item(agent)]
     agents.sort(key=lambda x: (x.get("approval_status") != "pending", x.get("name", "")))
     visits = filter_live_customer_items(await db.visits.find({}, {"_id": 0}).to_list(500))
-    properties = [item for item in await db.properties.find({}, {"_id": 0}).to_list(500) if not should_hide_demo_item(item)]
+    properties = [item for item in await db.properties.find(active_record_query(), {"_id": 0}).to_list(500) if not should_hide_demo_item(item)]
     enriched_visits = enrich_visits(visits, properties, agents)
     return {
         "generated_at": now_utc().isoformat(),
@@ -7080,11 +7309,11 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
                 {"agent_id": None},
                 {"agent_id": ""},
             ])
-        plots = await db.plots.find({"$or": plot_filters}, {"_id": 0}).to_list(500)
+        plots = await db.plots.find(active_record_query({"$or": plot_filters}), {"_id": 0}).to_list(500)
         plots = [plot for plot in plots if agent_can_access_plot(user, plot)]
         logger.info("Agent dashboard: found %d plots", len(plots))
         property_ids = sorted({plot["property_id"] for plot in plots if plot.get("property_id")})
-        properties = await db.properties.find({"id": {"$in": property_ids}}, {"_id": 0}).to_list(200)
+        properties = await db.properties.find(active_record_query({"id": {"$in": property_ids}}), {"_id": 0}).to_list(200)
         property_map = {prop["id"]: normalize_live_property_record(prop) for prop in properties}
 
         assets = []
@@ -7095,14 +7324,14 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
         asset_map = {asset["id"]: asset for asset in assets}
         asset_plot_ids = set(asset_map)
         bookings_raw = await db.bookings.find(
-            {
+            active_record_query({
                 "$or": [
                     {"agent_id": {"$in": list(accessible_agent_ids)}},
                     {"assigned_agent_id": {"$in": list(accessible_agent_ids)}},
                     {"created_by_agent_id": {"$in": list(accessible_agent_ids)}},
                     {"plot_id": {"$in": list(asset_plot_ids)}},
                 ]
-            },
+            }),
             {"_id": 0},
         ).to_list(300)
         logger.info("Agent dashboard: found %d total bookings in DB", len(bookings_raw))
@@ -7133,7 +7362,7 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
         assets.sort(key=lambda x: (x.get("status") != "available", x.get("plot_number", "")))
         crm_dashboard = await crm_build_agent_dashboard(user)
         visits_raw = await db.visits.find(
-            {
+            active_record_query({
                 "$or": [
                     {"assigned_agent_id": {"$in": list(accessible_agent_ids)}},
                     {"created_by_agent_id": {"$in": list(accessible_agent_ids)}},
@@ -7149,7 +7378,7 @@ async def agent_dashboard(user: Dict[str, Any] = Depends(get_agent_user)):
                         else []
                     ),
                 ]
-            },
+            }),
             {"_id": 0},
         ).to_list(300)
         visits = []
@@ -7285,7 +7514,7 @@ async def agent_create_booking(req: AgentBookingCreateReq, user: Dict[str, Any] 
         )
         return {"success": True, "booking": booking}
 
-    plot = await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
+    plot = await db.plots.find_one(active_record_query({"id": req.plot_id}), {"_id": 0})
     if not plot:
         raise HTTPException(status_code=404, detail="Plot not found")
     if not agent_can_access_plot(user, plot):
@@ -7387,10 +7616,10 @@ async def agent_update_booking_status(booking_id: str, req: AgentBookingStatusRe
         )
         return {"success": True, "booking": updated_booking}
 
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    booking = await db.bookings.find_one(active_record_query({"id": booking_id}), {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    plot = await db.plots.find_one({"id": booking.get("plot_id")}, {"_id": 0}) if booking.get("plot_id") else None
+    plot = await db.plots.find_one(active_record_query({"id": booking.get("plot_id")}), {"_id": 0}) if booking.get("plot_id") else None
     if not agent_can_access_booking(user, booking, plot):
         raise HTTPException(status_code=403, detail="You do not have access to this booking")
     await db.bookings.update_one({"id": booking_id}, {"$set": updates})
@@ -7457,11 +7686,11 @@ async def agent_site_visits(user: Dict[str, Any] = Depends(get_agent_user)):
             {"agent_id": None},
             {"agent_id": ""},
         ])
-    assigned_plots = await db.plots.find({"$or": plot_filters}, {"_id": 0}).to_list(500)
+    assigned_plots = await db.plots.find(active_record_query({"$or": plot_filters}), {"_id": 0}).to_list(500)
     assigned_plots = [plot for plot in assigned_plots if agent_can_access_plot(user, plot)]
     asset_map = {plot.get("id"): plot for plot in assigned_plots if plot.get("id")}
     visits = await db.visits.find(
-        {
+        active_record_query({
             "$or": [
                 {"assigned_agent_id": {"$in": accessible_agent_ids}},
                 {"created_by_agent_id": {"$in": accessible_agent_ids}},
@@ -7477,7 +7706,7 @@ async def agent_site_visits(user: Dict[str, Any] = Depends(get_agent_user)):
                     else []
                 ),
             ]
-        },
+        }),
         {"_id": 0},
     ).to_list(300)
     return [
@@ -7492,7 +7721,7 @@ async def agent_create_site_visit(req: AgentVisitReq, user: Dict[str, Any] = Dep
     if assigned_agent_id not in agent_accessible_ids(user):
         raise HTTPException(status_code=403, detail="You cannot assign this visit to that agent")
     if req.plot_id:
-        plot = local_get_plot(req.plot_id) if not await is_database_available() else await db.plots.find_one({"id": req.plot_id}, {"_id": 0})
+        plot = local_get_plot(req.plot_id) if not await is_database_available() else await db.plots.find_one(active_record_query({"id": req.plot_id}), {"_id": 0})
         if not plot:
             raise HTTPException(status_code=404, detail="Plot not found")
         if not agent_can_access_plot(user, plot):
@@ -7501,7 +7730,7 @@ async def agent_create_site_visit(req: AgentVisitReq, user: Dict[str, Any] = Dep
         if not await is_database_available():
             has_property_access = any(agent_can_access_plot(user, plot) for plot in local_get_plots(req.property_id))
         else:
-            has_property_access = await db.plots.count_documents({"property_id": req.property_id, "agent_id": {"$in": agent_accessible_ids(user)}}) > 0
+            has_property_access = await db.plots.count_documents(active_record_query({"property_id": req.property_id, "agent_id": {"$in": agent_accessible_ids(user)}})) > 0
         if not has_property_access:
             raise HTTPException(status_code=403, detail="You do not have access to this property")
     visit = {
@@ -7612,10 +7841,10 @@ async def agent_update_site_visit(visit_id: str, req: AgentVisitUpdateReq, user:
                 roles=["admin"],
             )
         return {"success": True, "visit": updated}
-    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    visit = await db.visits.find_one(active_record_query({"id": visit_id}), {"_id": 0})
     if not visit:
         raise HTTPException(status_code=404, detail="Visit not found")
-    plot = await db.plots.find_one({"id": visit.get("plot_id")}, {"_id": 0}) if visit.get("plot_id") else None
+    plot = await db.plots.find_one(active_record_query({"id": visit.get("plot_id")}), {"_id": 0}) if visit.get("plot_id") else None
     if not agent_can_access_visit(user, visit, plot):
         raise HTTPException(status_code=403, detail="You do not have access to this visit")
     await db.visits.update_one({"id": visit_id}, {"$set": updates})
@@ -7782,6 +8011,83 @@ async def admin_update_service_status(req_id: str, status_val: str = Query(...),
     )
     await publish_dashboard_metrics_update(user_ids=[updated.get("user_id")] if updated and updated.get("user_id") else None, roles=["admin"])
     return {"success": True, "request": updated}
+
+
+ARCHIVABLE_ADMIN_COLLECTIONS = {
+    "property": ("properties", "property"),
+    "properties": ("properties", "property"),
+    "plot": ("plots", "plot"),
+    "plots": ("plots", "plot"),
+    "booking": ("bookings", "booking"),
+    "bookings": ("bookings", "booking"),
+    "visit": ("visits", "visit"),
+    "visits": ("visits", "visit"),
+    "support": ("service_requests", "service_request"),
+    "service_request": ("service_requests", "service_request"),
+    "service-requests": ("service_requests", "service_request"),
+}
+
+
+async def set_admin_archive_state(record_type: str, record_id: str, archived: bool, user: Dict[str, Any]) -> Dict[str, Any]:
+    collection_name, entity_type = ARCHIVABLE_ADMIN_COLLECTIONS.get(record_type, (None, None))
+    if not collection_name:
+        raise HTTPException(status_code=400, detail="Unsupported archive record type")
+
+    now_iso = now_utc().isoformat()
+    updates: Dict[str, Any] = {
+        "archived": archived,
+        "is_archived": archived,
+        "updated_at": now_iso,
+        "archived_by_admin": user.get("name") or user.get("phone") or "Admin",
+    }
+    if archived:
+        updates["archived_at"] = now_iso
+        updates["deleted_at"] = now_iso
+    else:
+        updates["archived_at"] = None
+        updates["deleted_at"] = None
+
+    if not await is_database_available():
+        if not ALLOW_LOCAL_AUTH_FALLBACK:
+            raise HTTPException(status_code=503, detail="Archive database is unavailable")
+        existing = local_get_collection_item(collection_name, record_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Record not found")
+        updated = {**existing, **updates}
+        local_upsert_collection_item(collection_name, updated)
+    else:
+        collection = db[collection_name]
+        existing = await collection.find_one({"id": record_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Record not found")
+        await collection.update_one({"id": record_id}, {"$set": updates})
+        updated = await collection.find_one({"id": record_id}, {"_id": 0}) or {**existing, **updates}
+
+    action = "archived" if archived else "restored"
+    await create_audit_log(
+        actor_user_id=user["id"],
+        action=f"{entity_type}.{action}",
+        entity_type=entity_type,
+        entity_id=record_id,
+        metadata={"record_type": record_type},
+    )
+    await publish_live_update(
+        f"{entity_type}.{action}",
+        {"record_type": record_type, "record": updated},
+        roles=["admin", "agent", "customer"],
+    )
+    await publish_dashboard_metrics_update(roles=["admin", "agent", "customer"])
+    return {"success": True, "archived": archived, "record": updated}
+
+
+@api_router.post("/admin/archive/{record_type}/{record_id}")
+async def admin_archive_record(record_type: str, record_id: str, user: Dict[str, Any] = Depends(get_admin_user)):
+    return await set_admin_archive_state(record_type, record_id, True, user)
+
+
+@api_router.post("/admin/restore/{record_type}/{record_id}")
+async def admin_restore_record(record_type: str, record_id: str, user: Dict[str, Any] = Depends(get_admin_user)):
+    return await set_admin_archive_state(record_type, record_id, False, user)
 
 
 @api_router.post("/admin/properties")

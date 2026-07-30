@@ -290,6 +290,39 @@ cd frontend
 npm run build
 ```
 
+### Production Smoke Tests
+
+Run the public readiness and WebSocket check:
+
+```powershell
+npm run verify:realtime
+```
+
+Run the broader production workflow check:
+
+```powershell
+npm run verify:production
+```
+
+To verify authenticated Customer, Partner, or Admin data, pass a live JWT access token from the browser session:
+
+```powershell
+$env:ACCESS_TOKEN="paste-access-token-here"
+$env:EXPECTED_ROLE="agent"
+npm run verify:production
+```
+
+Use `EXPECTED_ROLE=admin` for Admin sessions and `EXPECTED_ROLE=customer` for Customer sessions. The workflow smoke test is read-only by default and checks role dashboards, notifications, push status, readiness, and the payments-on-hold boundary.
+
+If a local Windows machine reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE` while the site works normally in Chrome, first update local certificates and retry. For a temporary local-only smoke run, use:
+
+```powershell
+$env:ALLOW_INSECURE_TLS="true"
+npm run verify:production
+```
+
+Do not use `ALLOW_INSECURE_TLS=true` in production hosting.
+
 ### Critical Smoke Tests
 
 - Customer OTP login, session restore, logout.

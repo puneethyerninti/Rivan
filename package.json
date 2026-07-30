@@ -12,6 +12,8 @@
     "android:bundle": "npm --prefix frontend run android:bundle",
     "android:apk": "npm --prefix frontend run android:apk",
     "android:debug": "npm --prefix frontend run android:debug",
+    "verify:realtime": "node scripts/verify_production_realtime.js",
+    "verify:production": "node scripts/verify_production_workflows.js",
     "web": "npm --prefix frontend run dev -- --host 127.0.0.1 --port 8082",
     "lint": "npm --prefix frontend run lint"
   },

@@ -67,6 +67,7 @@ chainlit.md
 .chainlit
 .ipynb_checkpoints/
 .ac
+.history/
 
 # Deployment
 .vercel
@@ -99,4 +100,7 @@ android/app/debug.keystore
 # Local backend state
 backend/*.log
 backend/local_auth_store.json
+backend/server_backup.py
+backend/server_cleaned.py
+backend/cleanup_demo*.py
 .env*

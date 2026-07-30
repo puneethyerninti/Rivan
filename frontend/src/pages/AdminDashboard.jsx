@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ApiError, getJson, getWebSocketUrl, loadSession, logoutSession, postJson, putJson, requestJson, restoreSession, saveSession, supportsLiveUpdates } from '../lib/auth';
+import { ApiError, getJson, loadSession, logoutSession, postJson, putJson, requestJson, restoreSession, saveSession } from '../lib/auth';
+import { connectLiveUpdates } from '../lib/liveUpdates';
 import { formatIndianPhone } from '../lib/phone';
 import { registerPushNotifications } from '../lib/pushNotifications';
 
@@ -11,6 +12,32 @@ const cardStyle = {
   padding: '18px',
   boxShadow: '0 14px 34px -28px rgba(18,53,29,.55)',
 };
+
+const ADMIN_DASHBOARD_CACHE_KEY = 'rivan_admin_dashboard_cache';
+const EMPTY_ADMIN_SETTINGS = { permissions: {}, notification_preferences: {}, role_label: 'Admin' };
+
+function adminCacheOwner(user) {
+  return String(user?.id || user?.phone || '').trim();
+}
+
+function loadAdminDashboardCache(user) {
+  try {
+    const raw = localStorage.getItem(ADMIN_DASHBOARD_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed) return null;
+    return parsed.owner === adminCacheOwner(user) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAdminDashboardCache(payload) {
+  try {
+    localStorage.setItem(ADMIN_DASHBOARD_CACHE_KEY, JSON.stringify({ ...payload, cached_at: new Date().toISOString() }));
+  } catch {
+    // Cache only improves perceived startup speed; backend data remains authoritative.
+  }
+}
 
 const statusTone = {
   approved: ['#e6f4ea', '#1a8a4a'],
@@ -28,6 +55,7 @@ const statusTone = {
   booked: ['#eef2fb', '#2a6fdb'],
   reserved: ['#e9f4e6', '#2b6d3d'],
   sold: ['#e9f4e6', '#2b6d3d'],
+  archived: ['#f1f1f1', '#606b63'],
 };
 
 function tone(label) {
@@ -85,6 +113,7 @@ function mergeAdminIdentity(...sources) {
     name: firstRealValue(...sources.map((source) => source?.name), merged.name),
     email: firstRealValue(...sources.map((source) => source?.email), merged.email),
     phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
+    address: firstRealValue(...sources.map((source) => source?.address), merged.address),
   };
 }
 
@@ -104,6 +133,7 @@ function formatSize(value, fallback) {
 
 function liveStatusLabel(value) {
   if (value === 'connected') return 'Live updates are on';
+  if (value === 'reconnecting') return 'Reconnecting live updates';
   if (value === 'polling') return 'Refreshing automatically';
   if (value === 'disconnected') return 'Reconnecting updates';
   return 'Connecting updates';
@@ -112,27 +142,31 @@ function liveStatusLabel(value) {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [session, setSession] = useState(() => loadSession());
+  const cachedDashboardRef = useRef(loadAdminDashboardCache(session?.user));
+  const cachedDashboard = cachedDashboardRef.current || {};
   const [page, setPage] = useState('dashboard');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [agents, setAgents] = useState([]);
-  const [properties, setProperties] = useState([]);
-  const [plots, setPlots] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [visits, setVisits] = useState([]);
-  const [supportTickets, setSupportTickets] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [settings, setSettings] = useState({ permissions: {}, notification_preferences: {}, role_label: 'Admin' });
+  const [notice, setNotice] = useState('');
+  const [stats, setStats] = useState(() => cachedDashboard.stats || null);
+  const [users, setUsers] = useState(() => (Array.isArray(cachedDashboard.users) ? cachedDashboard.users : []));
+  const [agents, setAgents] = useState(() => (Array.isArray(cachedDashboard.agents) ? cachedDashboard.agents : []));
+  const [properties, setProperties] = useState(() => (Array.isArray(cachedDashboard.properties) ? cachedDashboard.properties : []));
+  const [plots, setPlots] = useState(() => (Array.isArray(cachedDashboard.plots) ? cachedDashboard.plots : []));
+  const [bookings, setBookings] = useState(() => (Array.isArray(cachedDashboard.bookings) ? cachedDashboard.bookings : []));
+  const [visits, setVisits] = useState(() => (Array.isArray(cachedDashboard.visits) ? cachedDashboard.visits : []));
+  const [supportTickets, setSupportTickets] = useState(() => (Array.isArray(cachedDashboard.supportTickets) ? cachedDashboard.supportTickets : []));
+  const [auditLogs, setAuditLogs] = useState(() => (Array.isArray(cachedDashboard.auditLogs) ? cachedDashboard.auditLogs : []));
+  const [notifications, setNotifications] = useState(() => (Array.isArray(cachedDashboard.notifications) ? cachedDashboard.notifications : []));
+  const [settings, setSettings] = useState(() => ({ ...EMPTY_ADMIN_SETTINGS, ...(cachedDashboard.settings || {}) }));
   const [selectedApprovalId, setSelectedApprovalId] = useState(null);
   const [approvalNotes, setApprovalNotes] = useState({});
   const [visitWorkflowForms, setVisitWorkflowForms] = useState({});
   const [profileForm, setProfileForm] = useState({
-    name: session?.user?.name || '',
-    email: session?.user?.email || '',
-    address: session?.user?.address || '',
+    name: firstRealValue(session?.user?.name, cachedDashboard.user?.name),
+    email: firstRealValue(session?.user?.email, cachedDashboard.user?.email),
+    address: firstRealValue(session?.user?.address, cachedDashboard.user?.address),
   });
   const [propertyForm, setPropertyForm] = useState({
     id: '',
@@ -165,8 +199,11 @@ export default function AdminDashboard() {
   const [adminSearch, setAdminSearch] = useState('');
   const [adminStatusFilter, setAdminStatusFilter] = useState('all');
   const [profileDirty, setProfileDirty] = useState(false);
+  const [actionBusy, setActionBusy] = useState('');
   const profileDirtyRef = useRef(false);
+  const actionBusyRef = useRef(false);
   const pageRef = useRef(page);
+  const mainRef = useRef(null);
 
   useEffect(() => {
     if (!session?.access_token || session?.user?.role !== 'admin') {
@@ -182,7 +219,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     pageRef.current = page;
-  }, [page]);
+    if (isMobile) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page, isMobile]);
 
   useEffect(() => {
     profileDirtyRef.current = profileDirty;
@@ -201,9 +243,7 @@ export default function AdminDashboard() {
   );
 
   const defaultSettings = {
-    permissions: {},
-    notification_preferences: {},
-    role_label: 'Admin',
+    ...EMPTY_ADMIN_SETTINGS,
   };
 
   const getOptional = async (path, fallback) => {
@@ -240,8 +280,12 @@ export default function AdminDashboard() {
 
   const refreshAll = async (showLoader = true) => {
     if (!session?.access_token) return;
-    if (showLoader) setLoading(true);
+    if (showLoader) {
+      setSyncing(true);
+      setLoading(false);
+    }
     setError('');
+    if (showLoader) setNotice('');
     try {
       const [
         nextStats,
@@ -282,12 +326,27 @@ export default function AdminDashboard() {
       setAuditLogs(nextAudit);
       setNotifications(nextNotifications);
       setSettings(nextSettings);
+      const profileSource = mergeAdminIdentity(user, nextMe, cachedDashboard.user);
+      saveAdminDashboardCache({
+        owner: adminCacheOwner(session.user),
+        stats: nextStats,
+        users: nextUsers,
+        agents: nextAgents,
+        properties: nextProperties,
+        plots: nextPlots,
+        bookings: nextBookings,
+        visits: nextVisits,
+        supportTickets: nextSupport,
+        auditLogs: nextAudit,
+        notifications: nextNotifications,
+        settings: nextSettings,
+        user: profileSource,
+      });
       if (nextMe) {
-        const nextSession = { ...session, user: mergeAdminIdentity(user, nextMe) };
+        const nextSession = { ...session, user: profileSource };
         saveSession(nextSession);
         setSession(nextSession);
       }
-      const profileSource = mergeAdminIdentity(user, nextMe);
       if (!profileDirtyRef.current || pageRef.current !== 'profile') {
         setProfileForm({
           name: profileSource.name || '',
@@ -298,7 +357,10 @@ export default function AdminDashboard() {
     } catch (err) {
       setError(err?.message || 'Failed to load admin dashboard');
     } finally {
-      if (showLoader) setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+        setSyncing(false);
+      }
     }
   };
 
@@ -349,72 +411,29 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!session?.access_token) return undefined;
-    let closed = false;
-    let poller = null;
-    let ws = null;
+    return connectLiveUpdates({
+      token: session.access_token,
+      onStatus: setLiveStatus,
+      onRefresh: () => refreshAll(false),
+      onMessage: (message) => {
+        const type = message?.event;
+        const payload = message?.payload || {};
 
-    const beginPolling = () => {
-      if (closed) return;
-      setLiveStatus('polling');
-      if (!poller) {
-        poller = window.setInterval(() => {
+        if (type === 'notification.created' && payload.notification) {
+          setNotifications((current) => [payload.notification, ...current]);
+        } else if (type === 'notification.read') {
+          setNotifications((current) =>
+            current.map((item) =>
+              payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
+            ),
+          );
+        } else if (
+          ['dashboard.metrics_updated', 'agent.status_updated', 'booking.updated', 'visit.updated', 'service_request.updated'].includes(type)
+        ) {
           refreshAll(false);
-        }, 15000);
-      }
-    };
-
-    supportsLiveUpdates().then((enabled) => {
-      if (closed) return;
-      if (!enabled) {
-        beginPolling();
-        return;
-      }
-
-      ws = new WebSocket(getWebSocketUrl(session.access_token));
-
-      ws.onopen = () => {
-        if (closed) return;
-        setLiveStatus('connected');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          const type = message?.event;
-          const payload = message?.payload || {};
-
-          if (type === 'notification.created' && payload.notification) {
-            setNotifications((current) => [payload.notification, ...current]);
-          } else if (type === 'notification.read') {
-            setNotifications((current) =>
-              current.map((item) =>
-                payload.all || item.id === payload.notification_id ? { ...item, read: true } : item,
-              ),
-            );
-          } else if (
-            ['dashboard.metrics_updated', 'agent.status_updated', 'booking.updated', 'visit.updated', 'service_request.updated'].includes(type)
-          ) {
-            refreshAll(false);
-          }
-        } catch {}
-      };
-
-      ws.onerror = () => {
-        beginPolling();
-      };
-
-      ws.onclose = () => {
-        if (closed) return;
-        setLiveStatus((current) => (current === 'connected' ? 'disconnected' : 'polling'));
-        beginPolling();
-      };
+        }
+      },
     });
-
-    return () => {
-      closed = true;
-      if (poller) window.clearInterval(poller);
-      ws?.close();
-    };
   }, [session?.access_token]);
 
   const pendingAgents = agents.filter((item) => item.approval_status === 'pending');
@@ -472,7 +491,11 @@ export default function AdminDashboard() {
     flexDirection: isMobile ? 'column' : 'row',
     background: '#eef2ec',
     color: '#16231a',
-    overflow: isMobile ? 'visible' : 'hidden',
+    overflowX: 'hidden',
+    overflowY: isMobile ? 'visible' : 'hidden',
+    WebkitOverflowScrolling: 'touch',
+    overscrollBehaviorY: isMobile ? 'auto' : 'contain',
+    touchAction: 'pan-y',
   };
   const sidebarStyle = {
     width: isMobile ? 'auto' : '260px',
@@ -516,13 +539,14 @@ export default function AdminDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: 0,
+    minHeight: isMobile ? 'auto' : 0,
     minWidth: 0,
-    padding: isMobile ? '14px 12px 24px' : '24px',
+    padding: isMobile ? '14px 12px calc(32px + env(safe-area-inset-bottom))' : '24px',
     overflowX: 'hidden',
     overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
-    overscrollBehavior: 'contain',
+    overscrollBehaviorY: isMobile ? 'auto' : 'contain',
+    touchAction: 'pan-y',
   };
   const dashboardGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1.35fr) minmax(300px,.65fr)', gap: '18px', alignItems: 'start' };
   const formGridStyle = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: '12px' };
@@ -549,12 +573,17 @@ export default function AdminDashboard() {
     { label: 'Needs Assignment', value: unassignedVisits.length },
     { label: 'Top Area', value: stats?.top_selling_area || topSellingArea },
     { label: 'Properties', value: stats?.properties ?? properties.length },
+    { label: 'Archived', value: stats?.archived_records ?? [...properties, ...plots, ...bookings, ...visits, ...supportTickets].filter((item) => item?.archived || item?.is_archived || item?.deleted_at).length },
   ];
 
   const latestBookings = bookings.slice(0, 6);
   const latestTickets = supportTickets.slice(0, 6);
   const latestAudit = auditLogs.slice(0, 8);
   const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
+  const isArchivedRecord = (item) => Boolean(item?.archived || item?.is_archived || item?.deleted_at);
+  const recordStatusLabel = (item, fallback = 'active') => (
+    isArchivedRecord(item) ? 'archived' : (item?.status || item?.availability || fallback)
+  );
   const matchesAdminSearch = (item) => {
     const query = normalizeSearch(adminSearch);
     if (!query) return true;
@@ -562,7 +591,7 @@ export default function AdminDashboard() {
   };
   const matchesAdminStatus = (item) => {
     if (adminStatusFilter === 'all') return true;
-    const statusText = normalizeSearch(`${item.status || ''} ${item.approval_status || ''} ${item.availability || ''}`);
+    const statusText = normalizeSearch(`${recordStatusLabel(item)} ${item.status || ''} ${item.approval_status || ''} ${item.availability || ''}`);
     return statusText.includes(adminStatusFilter);
   };
   const visibleCustomers = users.filter((item) => item.role === 'customer' && matchesAdminSearch(item) && matchesAdminStatus(item));
@@ -580,10 +609,16 @@ export default function AdminDashboard() {
   const markAllRead = async () => {
     await postJson('/api/notifications/read-all', {}, session.access_token).catch(() => null);
     setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+    setNotice('Notifications marked as read.');
   };
 
   const updateAgentStatus = async (agentId, approvalStatus, notes = '') => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`agent:${agentId}:${approvalStatus}`);
     try {
+      setError('');
+      setNotice('');
       const reviewNotes = String(notes || approvalNotes[agentId] || '').trim();
       try {
         await requestJson(
@@ -603,16 +638,23 @@ export default function AdminDashboard() {
       }
       setApprovalNotes((current) => ({ ...current, [agentId]: '' }));
       refreshAll(false);
+      setNotice(`Partner status updated to ${approvalStatus}.`);
     } catch (err) {
       setError(err?.message || 'Failed to update agent status');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const saveSettings = async () => {
     setSavingSettings(true);
+    setError('');
+    setNotice('');
     try {
       const response = await putJson('/api/admin/settings', settings, session.access_token);
       setSettings(response.settings || settings);
+      setNotice('Admin settings saved successfully.');
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setError('Settings are not available right now.');
@@ -625,15 +667,24 @@ export default function AdminDashboard() {
   };
 
   const updateVisitWorkflow = async (visitId, payload) => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`visit:${visitId}:${payload.status || 'update'}`);
     try {
+      setError('');
+      setNotice('');
       await requestJson(
         `/api/admin/visits/${visitId}/status`,
         { method: 'POST', body: payload },
         session.access_token,
       );
       refreshAll(false);
+      setNotice('Visit workflow updated successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to update visit workflow');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -669,15 +720,50 @@ export default function AdminDashboard() {
   };
 
   const updateSupportStatus = async (ticketId, status) => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy(`support:${ticketId}:${status}`);
     try {
+      setError('');
+      setNotice('');
       await requestJson(
         `/api/admin/service-requests/${ticketId}/status?status_val=${encodeURIComponent(status)}`,
         { method: 'POST' },
         session.access_token,
       );
       refreshAll(false);
+      setNotice(`Support ticket marked ${status.replace('_', ' ')}.`);
     } catch (err) {
       setError(err?.message || 'Failed to update support ticket');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
+    }
+  };
+
+  const updateArchiveState = async (recordType, item, archive = true) => {
+    if (actionBusy || actionBusyRef.current) return;
+    const recordId = item?.id;
+    if (!recordId) {
+      setError('Record id is missing, so this item cannot be archived.');
+      return;
+    }
+    const action = archive ? 'archive' : 'restore';
+    const label = item?.name || item?.property_name || item?.plot_number || item?.ticket_number || item?.id || 'this record';
+    if (!window.confirm(`Confirm ${action} for ${label}?`)) return;
+    actionBusyRef.current = true;
+    setActionBusy(`${action}:${recordType}:${recordId}`);
+    try {
+      setError('');
+      setNotice('');
+      await postJson(`/api/admin/${action}/${recordType}/${recordId}`, {}, session.access_token);
+      refreshAll(false);
+      setNotice(`${label} ${archive ? 'archived' : 'restored'} successfully.`);
+    } catch (err) {
+      setError(err?.message || `Failed to ${action} record`);
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -712,12 +798,16 @@ export default function AdminDashboard() {
   };
 
   const saveProperty = async () => {
+    if (actionBusy || actionBusyRef.current) return;
     if (!propertyForm.name.trim() || !propertyForm.location.trim() || !propertyForm.image.trim()) {
       setError('Property name, location, and image path are required.');
       return;
     }
+    actionBusyRef.current = true;
+    setActionBusy(propertyForm.id ? `property:${propertyForm.id}:save` : 'property:create');
     setSavingProperty(true);
     setError('');
+    setNotice('');
     try {
       const payload = {
         ...propertyForm,
@@ -732,10 +822,13 @@ export default function AdminDashboard() {
       }
       resetPropertyForm();
       refreshAll(false);
+      setNotice('Property saved successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to save property');
     } finally {
       setSavingProperty(false);
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -766,12 +859,16 @@ export default function AdminDashboard() {
   };
 
   const savePlot = async () => {
+    if (actionBusy || actionBusyRef.current) return;
     if (!plotForm.property_id || !plotForm.plot_number.trim()) {
       setError('Choose a property and enter plot number.');
       return;
     }
+    actionBusyRef.current = true;
+    setActionBusy(plotForm.id ? `plot:${plotForm.id}:save` : 'plot:create');
     setSavingPlot(true);
     setError('');
+    setNotice('');
     try {
       const payload = {
         ...plotForm,
@@ -785,31 +882,57 @@ export default function AdminDashboard() {
       }
       resetPlotForm();
       refreshAll(false);
+      setNotice('Plot saved successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to save plot');
     } finally {
       setSavingPlot(false);
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const saveProfile = async () => {
+    if (actionBusy || actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setActionBusy('profile:save');
     setSavingProfile(true);
+    setError('');
+    setNotice('');
     try {
       const updated = await putJson('/api/auth/profile', profileForm, session.access_token);
       const mergedUser = mergeAdminIdentity(user, updated, profileForm);
       const nextSession = { ...session, user: mergedUser };
       saveSession(nextSession);
       setSession(nextSession);
+      saveAdminDashboardCache({
+        owner: adminCacheOwner(mergedUser),
+        stats,
+        users,
+        agents,
+        properties,
+        plots,
+        bookings,
+        visits,
+        supportTickets,
+        auditLogs,
+        notifications,
+        settings,
+        user: mergedUser,
+      });
       setProfileForm({
         name: mergedUser.name || '',
         email: mergedUser.email || '',
         address: mergedUser.address || '',
       });
       setProfileDirty(false);
+      setNotice('Admin profile saved successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -820,24 +943,42 @@ export default function AdminDashboard() {
   };
 
   const confirmBooking = async (bookingId) => {
+    if (actionBusy || actionBusyRef.current) return;
     try {
+      setError('');
+      setNotice('');
       if (!window.confirm('Reserve this booking and mark the plot as booked?')) return;
+      actionBusyRef.current = true;
+      setActionBusy(`booking:${bookingId}:confirm`);
       await postJson(`/api/admin/bookings/${bookingId}/confirm`, {}, session.access_token);
       refreshAll(false);
+      setNotice('Booking reserved successfully.');
     } catch (err) {
       setError(err?.message || 'Failed to confirm booking');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
   const updateBookingStatus = async (bookingId, status) => {
+    if (actionBusy || actionBusyRef.current) return;
     try {
+      setError('');
+      setNotice('');
       const needsConfirm = ['completed', 'rejected', 'cancelled'].includes(status);
       if (needsConfirm && !window.confirm(`Confirm booking status change to ${status.replace('_', ' ')}?`)) return;
       const review_notes = needsConfirm ? window.prompt('Add review notes or reason for this booking update:', '') || '' : '';
+      actionBusyRef.current = true;
+      setActionBusy(`booking:${bookingId}:${status}`);
       await postJson(`/api/admin/bookings/${bookingId}/status`, { status, review_notes }, session.access_token);
       refreshAll(false);
+      setNotice(`Booking marked ${status.replace('_', ' ')}.`);
     } catch (err) {
       setError(err?.message || 'Failed to update booking');
+    } finally {
+      actionBusyRef.current = false;
+      setActionBusy('');
     }
   };
 
@@ -869,7 +1010,7 @@ export default function AdminDashboard() {
             {rows.map((row, rowIndex) => (
               <div key={rowIndex} style={{ border: '1px solid #eef3ec', borderRadius: '16px', padding: '14px', background: '#fbfdf9' }}>
                 {row.map((cell, cellIndex) => (
-                  <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: '92px minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
+                  <div key={cellIndex} style={{ display: 'grid', gridTemplateColumns: 'minmax(78px,34%) minmax(0,1fr)', gap: '10px', padding: cellIndex === 0 ? '0 0 8px' : '8px 0', borderTop: cellIndex === 0 ? 'none' : '1px solid #eef3ec' }}>
                     <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#8a9a8c', textTransform: 'uppercase' }}>{columns[cellIndex]}</span>
                     <div style={{ minWidth: 0, fontSize: '13px', color: '#16231a', overflowWrap: 'anywhere' }}>{cell}</div>
                   </div>
@@ -965,14 +1106,14 @@ export default function AdminDashboard() {
         </button>
       </aside>
 
-      <main style={mainStyle}>
+      <main ref={mainRef} style={mainStyle}>
         <div style={{ ...cardStyle, minWidth: 0, marginBottom: '18px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: isMobile ? '26px' : '32px', color: '#1f5a31' }}>
               {page === 'dashboard' ? 'Admin Dashboard' : navItems.find(([id]) => id === page)?.[1] || 'Admin'}
             </h1>
             <p style={{ margin: '6px 0 0', color: '#8a9a8c', fontSize: '12px' }}>
-              {liveStatusLabel(liveStatus)}
+              {syncing ? 'Syncing latest Admin data' : liveStatusLabel(liveStatus)}
             </p>
             <p style={{ margin: '6px 0 0', color: '#6d7d6f', fontSize: '14px' }}>
               Welcome, {displayedUser.name || 'Admin'} • {settings.role_label || 'Admin'}
@@ -1003,9 +1144,8 @@ export default function AdminDashboard() {
         </div>
 
         {error && <div style={{ ...cardStyle, marginBottom: '18px', color: '#c93b3b', fontWeight: 700 }}>{error}</div>}
-        {loading && <div style={cardStyle}>Loading live admin data...</div>}
-        {!loading && (
-          <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
+        {notice && <div style={{ ...cardStyle, marginBottom: '18px', color: '#108a43', fontWeight: 800 }}>{notice}</div>}
+        <section style={{ ...cardStyle, marginBottom: '18px', padding: isMobile ? '14px' : '16px' }}>
             <div style={formGridStyle}>
               <input
                 value={adminSearch}
@@ -1027,12 +1167,11 @@ export default function AdminDashboard() {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-          </section>
-        )}
+        </section>
 
         {!loading && page === 'dashboard' && (
           <div style={{ display: 'grid', gap: '18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fit,minmax(132px,1fr))' : 'repeat(auto-fit,minmax(180px,1fr))', gap: isMobile ? '10px' : '14px' }}>
               {dashboardCards.map((item) => (
                 <div key={item.label} style={{ ...cardStyle, padding: isMobile ? '14px' : cardStyle.padding }}>
                   <div style={{ fontSize: '12px', color: '#8a9a8c', fontWeight: 700 }}>{item.label}</div>
@@ -1273,9 +1412,16 @@ export default function AdminDashboard() {
                   item.location || '—',
                   item.category || '—',
                   item.starting_price ? formatMoney(item.starting_price) : '—',
-                  item.availability || 'Available',
+                  <span style={tone(recordStatusLabel(item, 'Available'))}>{recordStatusLabel(item, 'Available')}</span>,
                   formatShortDate(item.updated_at || item.created_at),
-                  <button onClick={() => editProperty(item)} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Edit</button>,
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={() => editProperty(item)} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Edit</button>
+                    {isArchivedRecord(item) ? (
+                      <button onClick={() => updateArchiveState('property', item, false)} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Restore</button>
+                    ) : (
+                      <button onClick={() => updateArchiveState('property', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '10px', background: '#fff7f7', color: '#b33b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
+                    )}
+                  </div>,
                 ]),
               )}
             </section>
@@ -1294,8 +1440,15 @@ export default function AdminDashboard() {
                   formatSize(item.size_sqy, item.size),
                   item.price ? formatMoney(item.price) : '—',
                   item.assigned_agent_name || item.agent_name || 'Unassigned',
-                  <span style={tone(item.status)}>{item.status || 'available'}</span>,
-                  <button onClick={() => editPlot(item)} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Edit</button>,
+                  <span style={tone(recordStatusLabel(item, 'available'))}>{recordStatusLabel(item, 'available')}</span>,
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={() => editPlot(item)} style={{ border: '1px solid #d7e4d4', borderRadius: '10px', background: '#fff', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Edit</button>
+                    {isArchivedRecord(item) ? (
+                      <button onClick={() => updateArchiveState('plot', item, false)} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Restore</button>
+                    ) : (
+                      <button onClick={() => updateArchiveState('plot', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '10px', background: '#fff7f7', color: '#b33b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
+                    )}
+                  </div>,
                 ]),
               )}
             </section>
@@ -1314,20 +1467,29 @@ export default function AdminDashboard() {
                 item.plot_number || item.plot_id || 'Plot',
                 item.facing || '—',
                 formatSize(item.size_sqy, item.size),
-                <span style={tone(item.status)}>{String(item.status || 'pending').replace('_', ' ')}</span>,
+                <span style={tone(recordStatusLabel(item, 'pending'))}>{String(recordStatusLabel(item, 'pending')).replace('_', ' ')}</span>,
                 formatDateTime(item.created_at),
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {['pending', 'agent_approved'].includes(String(item.status || '').toLowerCase()) && (
+                  {!isArchivedRecord(item) && ['pending', 'agent_approved'].includes(String(item.status || '').toLowerCase()) && (
                     <button onClick={() => confirmBooking(item.id)} style={{ border: 'none', borderRadius: '10px', background: '#2b6d3d', color: '#fff', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
                       Reserve
                     </button>
                   )}
-                  <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
-                    Close Sale
-                  </button>
-                  <button onClick={() => updateBookingStatus(item.id, 'rejected')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
-                    Reject
-                  </button>
+                  {!isArchivedRecord(item) && (
+                    <>
+                      <button onClick={() => updateBookingStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '10px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                        Close Sale
+                      </button>
+                      <button onClick={() => updateBookingStatus(item.id, 'rejected')} style={{ border: 'none', borderRadius: '10px', background: '#fdeaea', color: '#c93b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {isArchivedRecord(item) ? (
+                    <button onClick={() => updateArchiveState('booking', item, false)} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Restore</button>
+                  ) : (
+                    <button onClick={() => updateArchiveState('booking', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '10px', background: '#fff7f7', color: '#b33b3b', padding: '8px 12px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
+                  )}
                 </div>,
               ]),
             )}
@@ -1348,9 +1510,9 @@ export default function AdminDashboard() {
                 formatShortDate(item.visit_date || item.created_at),
                 item.visit_time || '—',
                 item.assigned_agent_name || 'Unassigned',
-                <span style={tone(item.status)}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
+                <span style={tone(recordStatusLabel(item, 'pending'))}>{String(recordStatusLabel(item, 'pending')).replaceAll('_', ' ')}</span>,
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <select
+                  {!isArchivedRecord(item) && <select
                     value={visitWorkflowForms[item.id]?.assigned_agent_id ?? item.assigned_agent_id ?? ''}
                     onChange={(event) => updateVisitWorkflowField(item.id, 'assigned_agent_id', event.target.value)}
                     style={{ height: '34px', borderRadius: '9px', border: '1px solid #dfe8dc', padding: '0 8px', fontFamily: 'inherit', maxWidth: '180px' }}
@@ -1359,29 +1521,38 @@ export default function AdminDashboard() {
                     {assignableAgents.map((agent) => (
                       <option key={agent.id} value={agent.id}>Assign to {agent.name || agent.phone || 'Partner'}</option>
                     ))}
-                  </select>
-                  <input
+                  </select>}
+                  {!isArchivedRecord(item) && <input
                     type="date"
                     value={visitWorkflowForms[item.id]?.visit_date ?? item.visit_date ?? ''}
                     onChange={(event) => updateVisitWorkflowField(item.id, 'visit_date', event.target.value)}
                     style={{ height: '34px', borderRadius: '9px', border: '1px solid #dfe8dc', padding: '0 8px', fontFamily: 'inherit' }}
-                  />
-                  <input
+                  />}
+                  {!isArchivedRecord(item) && <input
                     value={visitWorkflowForms[item.id]?.visit_time ?? item.visit_time ?? ''}
                     onChange={(event) => updateVisitWorkflowField(item.id, 'visit_time', event.target.value)}
                     placeholder="Time"
                     style={{ height: '34px', borderRadius: '9px', border: '1px solid #dfe8dc', padding: '0 8px', fontFamily: 'inherit', width: '90px' }}
-                  />
-                  <input
+                  />}
+                  {!isArchivedRecord(item) && <input
                     value={visitWorkflowForms[item.id]?.review_notes ?? ''}
                     onChange={(event) => updateVisitWorkflowField(item.id, 'review_notes', event.target.value)}
                     placeholder="Reason / notes"
                     style={{ height: '34px', borderRadius: '9px', border: '1px solid #dfe8dc', padding: '0 8px', fontFamily: 'inherit', minWidth: '150px' }}
-                  />
-                  <button onClick={() => submitVisitWorkflow(item, 'assigned')} style={{ border: 'none', borderRadius: '9px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Assign</button>
-                  <button onClick={() => submitVisitWorkflow(item, 'scheduled')} style={{ border: 'none', borderRadius: '9px', background: '#eef2fb', color: '#2a6fdb', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Schedule</button>
-                  <button onClick={() => submitVisitWorkflow(item, 'completed')} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Complete</button>
-                  <button onClick={() => submitVisitWorkflow(item, 'rejected')} style={{ border: 'none', borderRadius: '9px', background: '#fdeaea', color: '#c93b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Reject</button>
+                  />}
+                  {!isArchivedRecord(item) && (
+                    <>
+                      <button onClick={() => submitVisitWorkflow(item, 'assigned')} style={{ border: 'none', borderRadius: '9px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Assign</button>
+                      <button onClick={() => submitVisitWorkflow(item, 'scheduled')} style={{ border: 'none', borderRadius: '9px', background: '#eef2fb', color: '#2a6fdb', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Schedule</button>
+                      <button onClick={() => submitVisitWorkflow(item, 'completed')} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Complete</button>
+                      <button onClick={() => submitVisitWorkflow(item, 'rejected')} style={{ border: 'none', borderRadius: '9px', background: '#fdeaea', color: '#c93b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Reject</button>
+                    </>
+                  )}
+                  {isArchivedRecord(item) ? (
+                    <button onClick={() => updateArchiveState('visit', item, false)} style={{ border: 'none', borderRadius: '9px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Restore</button>
+                  ) : (
+                    <button onClick={() => updateArchiveState('visit', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '9px', background: '#fff7f7', color: '#b33b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
+                  )}
                 </div>,
               ]) : [[<span style={{ color: '#8a9a8c' }}>No visits available.</span>, '', '', '', '', '', '']],
             )}
@@ -1399,11 +1570,20 @@ export default function AdminDashboard() {
                     item.customer_name,
                     item.subject,
                     <span style={tone(item.priority)}>{item.priority}</span>,
-                    <span style={tone(item.status)}>{item.status}</span>,
+                    <span style={tone(recordStatusLabel(item, item.status))}>{String(recordStatusLabel(item, item.status)).replace('_', ' ')}</span>,
                     formatDateTime(item.created_at),
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <button onClick={() => updateSupportStatus(item.id, 'in_progress')} style={{ border: 'none', borderRadius: '9px', background: '#eef2fb', color: '#2a6fdb', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>In Progress</button>
-                      <button onClick={() => updateSupportStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Complete</button>
+                      {!isArchivedRecord(item) && (
+                        <>
+                          <button onClick={() => updateSupportStatus(item.id, 'in_progress')} style={{ border: 'none', borderRadius: '9px', background: '#eef2fb', color: '#2a6fdb', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>In Progress</button>
+                          <button onClick={() => updateSupportStatus(item.id, 'completed')} style={{ border: 'none', borderRadius: '9px', background: '#e6f4ea', color: '#1a8a4a', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Complete</button>
+                        </>
+                      )}
+                      {isArchivedRecord(item) ? (
+                        <button onClick={() => updateArchiveState('support', item, false)} style={{ border: 'none', borderRadius: '9px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Restore</button>
+                      ) : (
+                        <button onClick={() => updateArchiveState('support', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '9px', background: '#fff7f7', color: '#b33b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
+                      )}
                     </div>,
                   ])
                 : [[<span style={{ color: '#8a9a8c' }}>No support tickets match the current filters.</span>, '', '', '', '', '', '']],

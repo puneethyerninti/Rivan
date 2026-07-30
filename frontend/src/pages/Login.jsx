@@ -589,7 +589,7 @@ export default function Login() {
             <div
               className="rv-screen rv-login-splash"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
@@ -852,7 +852,7 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 padding: "50px 30px 34px",
@@ -955,7 +955,7 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 padding: "64px 30px 34px",
@@ -1098,7 +1098,7 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 padding: "42px 30px 34px",
@@ -1229,7 +1229,7 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
@@ -1285,7 +1285,7 @@ export default function Login() {
             <div
               className="rv-screen"
               style={{
-                minHeight: "100vh",
+                minHeight: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 padding: "64px 30px 34px",

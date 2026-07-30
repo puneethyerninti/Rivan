@@ -50,6 +50,34 @@ def test_admin_route_family_is_registered():
     assert "/api/admin/agents" in route_paths
 
 
+def test_production_workflow_routes_are_registered_with_expected_methods():
+    route_methods = {}
+    for route in app.routes:
+        route_methods.setdefault(route.path, set()).update(getattr(route, "methods", set()))
+    required_routes = {
+        "/api/auth/profile": {"PUT"},
+        "/api/admin/agents/{agent_id}/status": {"POST"},
+        "/api/admin/visits/{visit_id}/status": {"POST"},
+        "/api/admin/bookings/{booking_id}/confirm": {"POST"},
+        "/api/admin/bookings/{booking_id}/status": {"POST"},
+        "/api/admin/archive/{record_type}/{record_id}": {"POST"},
+        "/api/admin/restore/{record_type}/{record_id}": {"POST"},
+        "/api/admin/service-requests/{req_id}/status": {"POST"},
+        "/api/agent/site-visits": {"GET", "POST"},
+        "/api/agent/site-visits/{visit_id}": {"PUT"},
+        "/api/agent/bookings": {"POST"},
+        "/api/agent/bookings/{booking_id}/status": {"PUT"},
+    }
+
+    missing = []
+    for path, methods in required_routes.items():
+        registered = route_methods.get(path, set())
+        if not methods.issubset(registered):
+            missing.append((path, sorted(methods - registered), sorted(registered)))
+
+    assert not missing
+
+
 def test_websocket_route_is_registered():
     route_paths = {route.path for route in app.routes}
     assert "/ws/live" in route_paths
