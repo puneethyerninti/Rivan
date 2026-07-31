@@ -893,7 +893,8 @@ def first_filled_profile_value(*values: Any) -> Any:
 
 def profile_completeness_score(item: Dict[str, Any]) -> int:
     score = 0
-    if first_real_profile_name(item.get("name")):
+    name = str(item.get("name") or "").strip()
+    if name and not is_placeholder_profile_name(name):
         score += 20
     for field in ("email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name"):
         if item.get(field) not in (None, ""):

@@ -287,13 +287,13 @@ export function DcPage({ sourcePath, title }: DcPageProps) {
         try {
           const session = loadSession();
           if (session?.access_token) {
-            const [me, dashboard, leads, bookings, visits] = await Promise.all([
+            const [me, dashboard, leads, visits] = await Promise.all([
               getJson("/api/auth/me", session.access_token).catch(() => null),
               getJson('/api/agent/dashboard', session.access_token).catch(()=>null),
               getJson('/api/crm/leads', session.access_token).catch(()=>[]),
-              getJson('/api/agent/bookings', session.access_token).catch(()=>[]),
               getJson('/api/agent/site-visits', session.access_token).catch(()=>[]),
             ]);
+            const bookings = Array.isArray(dashboard?.bookings) ? dashboard.bookings : [];
             liveMe = me;
             agentDataStr = `<script>
               window.__AGENT_DATA = {

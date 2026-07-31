@@ -1,9 +1,46 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/Rivan%20Login.dc.html",
+      "destination": "/login",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20App.dc.html",
+      "destination": "/app",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20My%20Lands.dc.html",
+      "destination": "/app#my-lands",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20Visits.dc.html",
+      "destination": "/app#visits",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20Agent%20Dashboard.dc.html",
+      "destination": "/agent",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20Admin%20Dashboard.dc.html",
+      "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/Rivan%20Agent%20Dashboard.html",
+      "destination": "/agent",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!assets/|favicon.ico|icons/|manifest|robots.txt|sw.js).*)",
+      "source": "/((?!assets/|favicon.ico|icons/|manifest|robots.txt|service-worker.js|sw.js|google-services.json).*)",
       "destination": "/index.html"
     }
   ]

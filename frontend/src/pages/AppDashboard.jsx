@@ -32,7 +32,7 @@ const CUSTOMER_SERVICE_TYPES = [
 ];
 const DEFAULT_LIVE_PROPERTY = {
   id: 'prop-1',
-  name: 'Sirpuram Gardens Independent House',
+  name: 'Sripuram Gardens Independent House',
   location: 'Achutapuram, Visakhapatnam',
   category: 'Open Plots',
   property_type: 'Open Plots',
@@ -121,7 +121,7 @@ function propertyPriceValue(property) {
   if (direct) return Number(String(direct).replace(/[^\d.]/g, ''));
 
   const identity = `${property?.id || ''} ${property?.name || ''} ${property?.location || ''}`.toLowerCase();
-  if (identity.includes('sirpuram') || identity.includes('achutapuram') || identity.includes('prop-1')) {
+  if (identity.includes('sripuram') || identity.includes('siripuram') || identity.includes('sirpuram') || identity.includes('achutapuram') || identity.includes('prop-1')) {
     return DEFAULT_LIVE_PROPERTY.starting_price;
   }
   return 0;
@@ -215,6 +215,10 @@ function PropertyImage({ src, alt, eager = false, fallback = G[0], style = {}, c
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           fetchPriority={eager ? 'high' : 'auto'}
+          onError={(event) => {
+            if (event.currentTarget.src.includes(DEFAULT_PROPERTY_IMAGE)) return;
+            event.currentTarget.src = DEFAULT_PROPERTY_IMAGE;
+          }}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
       )}
@@ -812,7 +816,7 @@ export default function AppDashboard() {
     { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
   ].map((p, idx) => ({ ...p, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
 
-  const selData = sel || { name: 'Sirpuram Gardens', loc: 'Achutapuram, Visakhapatnam', price: propertyDisplayPrice(DEFAULT_LIVE_PROPERTY), grad: G[0] };
+  const selData = sel || { name: 'Sripuram Gardens', loc: 'Achutapuram, Visakhapatnam', price: propertyDisplayPrice(DEFAULT_LIVE_PROPERTY), grad: G[0] };
   const specGrid = [
     { k: 'Plot Size', v: '200 Sq.Yd' },
     { k: 'Facing', v: 'East' },

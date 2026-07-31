@@ -6,14 +6,13 @@
    - Cross-origin (React/Babel CDN, Google Fonts): stale-while-revalidate so
      the app boots offline once it has been opened online at least once.
 */
-const CACHE = 'rivan-pwa-v9';
+const CACHE = 'rivan-pwa-v10';
 
 const CORE = [
   './',
   './index.html',
   './support.js',
   './manifest.json',
-  './RivanRealtyLogo.png',
   './RivanRealtyLogo-fast.webp',
   './RivanRealtyLogo-fast.png',
   './RivanRealtyLogo-icon.webp',
@@ -56,13 +55,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.protocol === 'chrome-extension:') return;
 
+  const shouldCacheResponse = (res) => {
+    if (!res || !res.ok) return false;
+    const contentType = res.headers.get('content-type') || '';
+    return !contentType.includes('text/html') || req.mode === 'navigate';
+  };
+
   // Page navigations: network-first with offline fallback.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          if (req.url.startsWith('http')) {
+          if (req.url.startsWith('http') && shouldCacheResponse(res)) {
             caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
           return res;
@@ -81,7 +86,7 @@ self.addEventListener('fetch', (event) => {
       caches.match(req, { ignoreSearch: true }).then((cached) =>
         cached || fetch(req).then((res) => {
           const copy = res.clone();
-          if (req.url.startsWith('http')) {
+          if (req.url.startsWith('http') && shouldCacheResponse(res)) {
             caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
           return res;
@@ -97,7 +102,7 @@ self.addEventListener('fetch', (event) => {
       const network = fetch(req).then((res) => {
         if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
-          if (req.url.startsWith('http')) {
+          if (req.url.startsWith('http') && shouldCacheResponse(res)) {
             caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
         }
