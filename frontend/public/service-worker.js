@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           const copy = res.clone();
           if (req.url.startsWith('http')) {
-            caches.open(CACHE).then((c) => c.put(req, copy));
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
           return res;
         })
@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
         cached || fetch(req).then((res) => {
           const copy = res.clone();
           if (req.url.startsWith('http')) {
-            caches.open(CACHE).then((c) => c.put(req, copy));
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
           return res;
         }).catch(() => cached || new Response('', { status: 504 }))
@@ -98,7 +98,7 @@ self.addEventListener('fetch', (event) => {
         if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
           if (req.url.startsWith('http')) {
-            caches.open(CACHE).then((c) => c.put(req, copy));
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
         }
         return res;
