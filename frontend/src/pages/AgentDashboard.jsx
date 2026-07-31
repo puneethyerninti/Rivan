@@ -118,6 +118,12 @@ function formatPhoneDisplay(value) {
   return formatIndianPhone(value);
 }
 
+function phoneDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length === 10 ? `91${digits}` : digits;
+}
+
 function isPlaceholderName(value) {
   return ['agent', 'partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
 }
@@ -737,6 +743,17 @@ export default function AgentDashboard() {
     </div>
   );
 
+  const renderContactActions = (phone, message = 'Hello, this is Rivan Realty regarding your property request.') => {
+    const digits = phoneDigits(phone);
+    if (!digits) return <span style={{ color: '#8a9a8c', fontSize: '12px' }}>No phone</span>;
+    return (
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <a href={`tel:+${digits}`} style={{ textDecoration: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, fontSize: '12px' }}>Call</a>
+        <a href={`https://wa.me/${digits}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', borderRadius: '10px', background: '#edfbf1', color: '#168a42', padding: '8px 10px', fontWeight: 800, fontSize: '12px' }}>WhatsApp</a>
+      </div>
+    );
+  };
+
   const logout = async () => {
     await logoutSession();
     navigate('/login', { replace: true });
@@ -1198,11 +1215,12 @@ export default function AgentDashboard() {
             <section style={cardStyle}>
               <h3 style={{ marginTop: 0 }}>Managed Site Visits</h3>
               {renderTable(
-                ['Customer', 'Property', 'Visit Date', 'Status', 'Actions'],
+                ['Customer', 'Property', 'Visit Date', 'Contact', 'Status', 'Actions'],
                 visibleVisits.map((item) => [
                   item.customer_name || item.name || 'Customer',
                   item.property_name || item.property_id || item.centre_name || 'Property',
                   `${formatDateOnly(item.visit_date)} ${item.visit_time ? `• ${item.visit_time}` : ''}`,
+                  renderContactActions(item.customer_phone || item.phone, `Hello ${item.customer_name || item.name || ''}, this is Rivan Realty regarding your scheduled site visit.`),
                   <span style={badgeTone(item.status || 'scheduled')}>{String(item.status || 'scheduled').replaceAll('_', ' ')}</span>,
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={() => updateVisitStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
@@ -1241,7 +1259,7 @@ export default function AgentDashboard() {
             <section style={cardStyle}>
               <h3 style={{ marginTop: 0 }}>Booking Pipeline</h3>
               {renderTable(
-                ['Customer', 'Property', 'Plot ID', 'Facing', 'Sq Yards', 'Status', 'Actions'],
+                ['Customer', 'Property', 'Plot ID', 'Facing', 'Sq Yards', 'Contact', 'Status', 'Actions'],
                 visibleBookings.map((item) => {
                   const asset = assetById.get(item.plot_id) || {};
                   return [
@@ -1250,6 +1268,7 @@ export default function AgentDashboard() {
                     item.plot_number || asset.plot_number || item.plot_id || 'Plot',
                     item.facing || asset.facing || '—',
                     formatSquareYards({ ...asset, ...item }),
+                    renderContactActions(item.customer?.phone || item.customer_phone || item.phone, `Hello ${item.customer?.name || item.name || ''}, this is Rivan Realty regarding your booking request.`),
                     <span style={badgeTone(item.status || 'pending')}>{String(item.status || 'pending').replaceAll('_', ' ')}</span>,
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <button onClick={() => updateBookingStatus(item.id, 'agent_approved')} style={{ border: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 12px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>

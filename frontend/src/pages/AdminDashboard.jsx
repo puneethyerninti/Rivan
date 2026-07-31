@@ -121,6 +121,12 @@ function formatPhoneDisplay(value) {
   return formatIndianPhone(value);
 }
 
+function phoneDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length === 10 ? `91${digits}` : digits;
+}
+
 function formatMoney(value) {
   return `₹${Math.round(Number(value || 0)).toLocaleString('en-IN')}`;
 }
@@ -1104,6 +1110,29 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const renderContactActions = (phone, message = 'Hello, this is Rivan Realty regarding your property request.') => {
+    const digits = phoneDigits(phone);
+    if (!digits) return <span style={{ color: '#8a9a8c', fontSize: '12px' }}>No phone</span>;
+    return (
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <a
+          href={`tel:+${digits}`}
+          style={{ textDecoration: 'none', borderRadius: '10px', background: '#eef6ea', color: '#2b6d3d', padding: '8px 10px', fontWeight: 800, fontSize: '12px' }}
+        >
+          Call
+        </a>
+        <a
+          href={`https://wa.me/${digits}?text=${encodeURIComponent(message)}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ textDecoration: 'none', borderRadius: '10px', background: '#edfbf1', color: '#168a42', padding: '8px 10px', fontWeight: 800, fontSize: '12px' }}
+        >
+          WhatsApp
+        </a>
+      </div>
+    );
+  };
+
   return (
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
@@ -1543,7 +1572,7 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Bookings</h3>
             {renderTable(
-              ['Customer', 'Property', 'Code', 'Plot', 'Facing', 'Sq Yards', 'Status', 'Created', 'Actions'],
+              ['Customer', 'Property', 'Code', 'Plot', 'Facing', 'Sq Yards', 'Contact', 'Status', 'Created', 'Actions'],
               visibleBookings.map((item) => [
                 item.name || item.customer?.name || 'Customer',
                 item.property_name || item.property_id || 'Property',
@@ -1551,6 +1580,7 @@ export default function AdminDashboard() {
                 item.plot_number || item.plot_id || 'Plot',
                 item.facing || '—',
                 formatSize(item.size_sqy, item.size),
+                renderContactActions(item.customer?.phone || item.customer_phone || item.phone, `Hello ${item.customer?.name || item.name || ''}, this is Rivan Realty regarding your booking request.`),
                 <span style={tone(recordStatusLabel(item, 'pending'))}>{String(recordStatusLabel(item, 'pending')).replace('_', ' ')}</span>,
                 formatDateTime(item.created_at),
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1584,7 +1614,7 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Visits</h3>
             {renderTable(
-              ['Customer', 'Property', 'Date', 'Time', 'Partner', 'Status', 'Actions'],
+              ['Customer', 'Property', 'Date', 'Time', 'Contact', 'Partner', 'Status', 'Actions'],
               visibleVisits.length ? visibleVisits.map((item) => [
                 item.name || item.customer_name || 'Customer',
                 <div>
@@ -1593,6 +1623,7 @@ export default function AdminDashboard() {
                 </div>,
                 formatShortDate(item.visit_date || item.created_at),
                 item.visit_time || '—',
+                renderContactActions(item.customer_phone || item.phone, `Hello ${item.customer_name || item.name || ''}, this is Rivan Realty regarding your site visit.`),
                 item.assigned_agent_name || 'Unassigned',
                 <span style={tone(recordStatusLabel(item, 'pending'))}>{String(recordStatusLabel(item, 'pending')).replaceAll('_', ' ')}</span>,
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1638,7 +1669,7 @@ export default function AdminDashboard() {
                     <button onClick={() => updateArchiveState('visit', item, true)} style={{ border: '1px solid #ead2d2', borderRadius: '9px', background: '#fff7f7', color: '#b33b3b', padding: '8px 10px', fontWeight: 800, cursor: 'pointer' }}>Archive</button>
                   )}
                 </div>,
-              ]) : [[<span style={{ color: '#8a9a8c' }}>No visits available.</span>, '', '', '', '', '', '']],
+              ]) : [[<span style={{ color: '#8a9a8c' }}>No visits available.</span>, '', '', '', '', '', '', '']],
             )}
           </section>
         )}
