@@ -167,6 +167,17 @@ function isoNowLocalDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function localDateKey(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
+function isOpenStatus(value) {
+  return !['completed', 'cancelled', 'rejected', 'closed_lost', 'closed_won'].includes(String(value || '').toLowerCase());
+}
+
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const [session, setSession] = useState(() => loadSession());
@@ -502,6 +513,53 @@ export default function AgentDashboard() {
   const hasPartnerFilters = Boolean(partnerSearch.trim() || partnerStatusFilter !== 'all');
   const partnerEmptyMessage = hasPartnerFilters ? 'No records match the current filters.' : 'No assigned records yet.';
   const showPartnerFilters = ['leads', 'opportunities', 'tasks', 'visits', 'bookings', 'properties', 'notifications'].includes(page);
+  const todayKey = isoNowLocalDate();
+  const todayVisits = visits.filter((item) => localDateKey(item.visit_date || item.scheduled_at || item.created_at) === todayKey && isOpenStatus(item.status));
+  const pendingBookings = bookings.filter((item) => ['pending', 'agent_approved', 'booking_requested'].includes(String(item.status || '').toLowerCase()));
+  const overdueTasks = tasks.filter((item) => item.due_at && localDateKey(item.due_at) < todayKey && isOpenStatus(item.status));
+  const freshLeads = leads.filter((item) => ['new', 'open', 'contacted'].includes(String(item.status || item.stage || 'new').toLowerCase())).slice(0, 5);
+  const partnerWorkQueue = [
+    {
+      title: "Today's site visits",
+      value: todayVisits.length,
+      description: todayVisits[0] ? `${todayVisits[0].customer_name || todayVisits[0].name || 'Customer'} • ${todayVisits[0].property_name || todayVisits[0].property_id || 'Property'}` : 'No visit scheduled for today',
+      action: () => setPage('visits'),
+      actionLabel: 'Open visits',
+      tone: '#eef2fb',
+      color: '#2a6fdb',
+    },
+    {
+      title: 'Pending booking follow-up',
+      value: pendingBookings.length,
+      description: pendingBookings[0] ? `${pendingBookings[0].customer?.name || pendingBookings[0].name || 'Customer'} • ${pendingBookings[0].plot_number || pendingBookings[0].plot_id || 'Plot'}` : 'No booking follow-up pending',
+      action: () => setPage('bookings'),
+      actionLabel: 'Open bookings',
+      tone: '#fdf3e8',
+      color: '#c2711f',
+    },
+    {
+      title: 'Overdue tasks',
+      value: overdueTasks.length,
+      description: overdueTasks[0]?.title || 'No overdue tasks',
+      action: () => setPage('tasks'),
+      actionLabel: 'Open tasks',
+      tone: overdueTasks.length ? '#fdeaea' : '#e6f4ea',
+      color: overdueTasks.length ? '#c93b3b' : '#1a8a4a',
+    },
+    {
+      title: 'Fresh leads',
+      value: freshLeads.length,
+      description: freshLeads[0]?.name || freshLeads[0]?.phone || 'No fresh leads waiting',
+      action: () => setPage('leads'),
+      actionLabel: 'Open leads',
+      tone: '#eef6ea',
+      color: '#2b6d3d',
+    },
+  ];
+  const conversionBase = Math.max(1, leads.length + visits.length);
+  const conversionRate = Math.round(((bookings.length || 0) / conversionBase) * 100);
+  const profileFields = [displayedUser.name, displayedUser.phone, profileForm.email || displayedUser.email, profileForm.occupation || displayedUser.occupation, profileForm.address || displayedUser.address];
+  const profileCompletion = Math.round((profileFields.filter((value) => String(value || '').trim()).length / profileFields.length) * 100);
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
@@ -994,6 +1052,32 @@ export default function AgentDashboard() {
                 </div>
               ))}
             </div>
+
+            <section style={{ ...cardStyle, overflow: 'hidden', padding: isMobile ? '16px' : '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Today&apos;s Command Center</h3>
+                  <p style={{ ...helperTextStyle, marginTop: '6px' }}>Fast actions for visits, bookings, leads, and follow-ups pulled from live CRM data.</p>
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: '#f8fbf6', border: '1px solid #eef3ec', color: '#1f5a31', fontWeight: 800 }}>
+                  <span>{conversionRate}% conversion</span>
+                  <span style={{ width: '1px', height: '18px', background: '#dfe8dc' }}></span>
+                  <span>{profileCompletion}% profile</span>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,minmax(0,1fr))', gap: '12px' }}>
+                {partnerWorkQueue.map((item) => (
+                  <button key={item.title} onClick={item.action} style={{ textAlign: 'left', border: '1px solid #eef3ec', borderRadius: '18px', background: '#fbfdfa', padding: '15px', fontFamily: 'inherit', cursor: 'pointer', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 900, color: '#6d7d6f' }}>{item.title}</span>
+                      <span style={{ minWidth: '32px', height: '32px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: item.tone, color: item.color, fontWeight: 900 }}>{item.value}</span>
+                    </div>
+                    <p style={{ margin: '12px 0 0', color: '#16231a', fontSize: '13px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</p>
+                    <p style={{ margin: '10px 0 0', color: item.color, fontSize: '12px', fontWeight: 900 }}>{item.actionLabel} -&gt;</p>
+                  </button>
+                ))}
+              </div>
+            </section>
 
             <div style={twoColumnStyle}>
               <section style={cardStyle}>

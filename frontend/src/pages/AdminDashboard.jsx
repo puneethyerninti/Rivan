@@ -139,6 +139,17 @@ function liveStatusLabel(value) {
   return 'Connecting updates';
 }
 
+function isoNowLocalDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function localDateKey(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [session, setSession] = useState(() => loadSession());
@@ -579,6 +590,49 @@ export default function AdminDashboard() {
   const latestBookings = bookings.slice(0, 6);
   const latestTickets = supportTickets.slice(0, 6);
   const latestAudit = auditLogs.slice(0, 8);
+  const adminTodayKey = isoNowLocalDate();
+  const todaysVisits = visits.filter((item) => localDateKey(item.visit_date || item.created_at) === adminTodayKey);
+  const openSupportTickets = supportTickets.filter((item) => !['completed', 'resolved', 'closed', 'archived'].includes(String(item.status || (item?.archived || item?.is_archived || item?.deleted_at ? 'archived' : 'open')).toLowerCase()));
+  const pendingBookingDecisions = normalizedBookings.filter((item) => ['pending', 'agent_approved', 'booking_requested'].includes(String(item.status || 'pending').toLowerCase()));
+  const propertyIssues = properties.filter((item) => !item.property_code || !item.image || !item.location);
+  const adminOpsQueue = [
+    {
+      title: 'Assign visits',
+      value: unassignedVisits.length,
+      description: unassignedVisits[0] ? `${unassignedVisits[0].customer_name || unassignedVisits[0].name || 'Customer'} needs a partner` : 'All active visits have ownership',
+      action: () => setPage('visits'),
+      actionLabel: 'Open visits',
+      bg: '#eef2fb',
+      color: '#2a6fdb',
+    },
+    {
+      title: 'Booking decisions',
+      value: pendingBookingDecisions.length,
+      description: pendingBookingDecisions[0] ? `${pendingBookingDecisions[0].name || pendingBookingDecisions[0].customer?.name || 'Customer'} • ${pendingBookingDecisions[0].plot_number || pendingBookingDecisions[0].plot_id || 'Plot'}` : 'No booking approvals pending',
+      action: () => setPage('bookings'),
+      actionLabel: 'Open bookings',
+      bg: '#fdf3e8',
+      color: '#c2711f',
+    },
+    {
+      title: 'Support queue',
+      value: openSupportTickets.length,
+      description: openSupportTickets[0]?.subject || 'No active customer support tickets',
+      action: () => setPage('support'),
+      actionLabel: 'Open support',
+      bg: '#f3eefb',
+      color: '#7a4fce',
+    },
+    {
+      title: 'Property data health',
+      value: propertyIssues.length,
+      description: propertyIssues.length ? 'Some listings need code, image, or location cleanup' : 'Property records look complete',
+      action: () => setPage('properties'),
+      actionLabel: 'Review properties',
+      bg: propertyIssues.length ? '#fdeaea' : '#e6f4ea',
+      color: propertyIssues.length ? '#c93b3b' : '#1a8a4a',
+    },
+  ];
   const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
   const matchesSearchTokens = (item, query) => {
     const normalized = normalizeSearch(query);
@@ -1184,6 +1238,31 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+
+            <section style={{ ...cardStyle, padding: isMobile ? '16px' : '20px', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Ops Command Center</h3>
+                  <p style={{ margin: '6px 0 0', color: '#6d7d6f', fontSize: '13px', lineHeight: 1.5 }}>Priority work from visits, bookings, support, and property data health.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={tone(todaysVisits.length ? 'scheduled' : 'completed')}>Today visits: {todaysVisits.length}</span>
+                  <span style={tone(pendingAgents.length ? 'pending' : 'approved')}>Approvals: {pendingAgents.length}</span>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,minmax(0,1fr))', gap: '12px' }}>
+                {adminOpsQueue.map((item) => (
+                  <button key={item.title} onClick={item.action} style={{ textAlign: 'left', border: '1px solid #eef3ec', borderRadius: '18px', background: '#fbfdfa', padding: '15px', fontFamily: 'inherit', cursor: 'pointer', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <span style={{ color: '#6d7d6f', fontSize: '12px', fontWeight: 900 }}>{item.title}</span>
+                      <span style={{ minWidth: '32px', height: '32px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: item.bg, color: item.color, fontWeight: 900 }}>{item.value}</span>
+                    </div>
+                    <p style={{ margin: '12px 0 0', color: '#16231a', fontSize: '13px', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</p>
+                    <p style={{ margin: '10px 0 0', color: item.color, fontSize: '12px', fontWeight: 900 }}>{item.actionLabel} -&gt;</p>
+                  </button>
+                ))}
+              </div>
+            </section>
 
             <div style={dashboardGridStyle}>
               <section style={{ ...cardStyle, minWidth: 0 }}>
