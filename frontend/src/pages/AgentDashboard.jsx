@@ -36,7 +36,10 @@ function loadPartnerDashboardCache(user) {
     const raw = localStorage.getItem(PARTNER_DASHBOARD_CACHE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
     if (!parsed) return null;
-    return parsed.owner === partnerCacheOwner(user) ? parsed : null;
+    const owner = partnerCacheOwner(user);
+    const cachedPhone = phoneDigits(parsed.agentData?.profile?.phone || parsed.profile?.phone);
+    const currentPhone = phoneDigits(user?.phone);
+    return parsed.owner === owner || (cachedPhone && currentPhone && cachedPhone === currentPhone) ? parsed : null;
   } catch {
     return null;
   }
@@ -55,7 +58,11 @@ function loadPartnerProfileCache(user) {
     const raw = localStorage.getItem(PARTNER_PROFILE_CACHE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
     if (!parsed) return null;
-    return parsed.owner === partnerCacheOwner(user) ? parsed.profile : null;
+    const cachedPhone = phoneDigits(parsed.profile?.phone);
+    const currentPhone = phoneDigits(user?.phone);
+    return parsed.owner === partnerCacheOwner(user) || (cachedPhone && currentPhone && cachedPhone === currentPhone)
+      ? parsed.profile
+      : null;
   } catch {
     return null;
   }

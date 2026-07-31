@@ -687,7 +687,7 @@ export default function AppDashboard() {
   if (featuredRows.length || propertyRows.length) {
     const liveFeatured = (featuredRows.length ? featuredRows : propertyRows.slice(0, 2)).map((property, index) => ({
       id: property.id || `featured-${index}`,
-      name: property.name || 'Sirpuram Gardens',
+      name: property.name || 'Sripuram Gardens',
       loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
       tag: propertyTag(property),
       price: propertyDisplayPrice(property),
@@ -697,7 +697,7 @@ export default function AppDashboard() {
       property,
       open: () => openProject({
         id: property.id || `featured-${index}`,
-        name: property.name || 'Sirpuram Gardens',
+        name: property.name || 'Sripuram Gardens',
         loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
         tag: propertyTag(property),
         price: propertyDisplayPrice(property),
@@ -713,7 +713,7 @@ export default function AppDashboard() {
   if (propertyRows.length) {
     nearbyAll.splice(0, nearbyAll.length, ...propertyRows.map((property, index) => ({
       id: property.id || `property-${index}`,
-      name: property.name || 'Sirpuram Gardens',
+      name: property.name || 'Sripuram Gardens',
       loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
       price: propertyDisplayPrice(property),
       type: propertyType(property),
@@ -727,7 +727,7 @@ export default function AppDashboard() {
   if (landRows.length) {
     propsAll.splice(0, propsAll.length, ...landRows.map((land, index) => ({
       id: land.id || `land-${index}`,
-      name: land.property?.name || land.property_name || 'Sirpuram Gardens',
+      name: land.property?.name || land.property_name || 'Sripuram Gardens',
       plot: `Plot No. ${land.plot_number || land.unit_number || 'Allocated'}`,
       spec: `${land.area || land.plot_area || '—'}  |  ${land.facing || '—'} Facing`,
       date: formatDateOnly(land.created_at),
@@ -1483,7 +1483,7 @@ export default function AppDashboard() {
         </div>
 
         <div style={{'padding': '18px 22px 0'}}>
-          <div style={{'display': 'flex', 'gap': '9px', 'overflowX': 'auto'}} className="rv-scroll with-nav">
+          <div style={{'display': 'flex', 'gap': '9px', 'overflowX': 'auto'}} className="rv-scroll">
             { chips.map((c, index) => (
               <button onClick={c.pick} style={c.style}>{c.label}</button>
             ))}

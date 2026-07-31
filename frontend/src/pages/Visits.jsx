@@ -281,8 +281,8 @@ export default function Visits() {
       const isClosed = ['cancelled', 'rejected'].includes(status);
       return {
         id: visit.id || `visit-${index}`,
-        name: visit.property_name || property.name || 'Sirpuram Gardens',
-        project: visit.property_name || property.name || 'Sirpuram Gardens',
+        name: visit.property_name || property.name || 'Sripuram Gardens',
+        project: visit.property_name || property.name || 'Sripuram Gardens',
         plot: visit.plot_number || visit.plot_id || 'Site Visit',
         type: String(property.property_type || 'Plot / Land'),
         location: property.location || property.address || 'Achutapuram, Visakhapatnam',
@@ -297,7 +297,7 @@ export default function Visits() {
         assignedAgentName: visit.assigned_agent_name || 'Assigned after approval',
         assignedAgentPhone: visit.assigned_agent_phone || '',
         specs: [
-          ['Property', visit.property_name || property.name || 'Sirpuram Gardens'],
+          ['Property', visit.property_name || property.name || 'Sripuram Gardens'],
           ['Date', visit.visit_date ? new Date(visit.visit_date).toLocaleDateString('en-IN') : '—'],
           ['Time', visit.visit_time || '11:00 AM'],
           ['Status', String(visit.status || 'pending')],

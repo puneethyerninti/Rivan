@@ -3855,7 +3855,7 @@ def build_sirpuram_property_seed() -> Dict[str, Any]:
     timestamp = now_utc().isoformat()
     return {
         "id": "prop-1",
-        "name": "Sirpuram Gardens",
+        "name": "Sripuram Gardens",
         "category": "Open Plots",
         "location": "Achutapuram, Visakhapatnam",
         "starting_price": 1600000,
@@ -3869,7 +3869,7 @@ def build_sirpuram_property_seed() -> Dict[str, Any]:
             "/Features.jpeg",
             "/Map.jpeg",
         ],
-        "description": "Sirpuram Gardens is the live source-of-truth property for the current phase, with plot inventory, documents, approvals, and backend-ready references.",
+        "description": "Sripuram Gardens is the live source-of-truth property for the current phase, with plot inventory, documents, approvals, and backend-ready references.",
         "survey_number": "SY-No 234/3",
         "facing": "East / West / North / South",
         "road_width": "40-60 ft internal roads",
@@ -4149,14 +4149,14 @@ async def ensure_sirpuram_dataset() -> None:
         {
             "id": "sirpuram-doc-layout",
             "property_id": "prop-1",
-            "name": "Sirpuram Gardens Layout Plan",
+            "name": "Sripuram Gardens Layout Plan",
             "type": "layout",
             "url": "/Map.jpeg",
         },
         {
             "id": "sirpuram-doc-approval",
             "property_id": "prop-1",
-            "name": "Sirpuram Gardens Approval Summary",
+            "name": "Sripuram Gardens Approval Summary",
             "type": "approval",
             "url": "/Features.jpeg",
         },

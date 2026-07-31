@@ -35,6 +35,11 @@ function attachListeners(session) {
 
   PushNotifications.addListener('registration', async (token) => {
     try {
+      const activeSession = loadSession() || session;
+      if (!activeSession?.access_token) {
+        savePushStatus({ registered: false, platform: Capacitor.getPlatform(), reason: 'missing_active_session' });
+        return;
+      }
       await postJson(
         '/api/push/register',
         {
@@ -43,7 +48,7 @@ function attachListeners(session) {
           device_id: getDeviceId(),
           app_version: import.meta.env.VITE_APP_VERSION || '1.0.0',
         },
-        session.access_token,
+        activeSession.access_token,
       );
       localStorage.setItem('rivan_push_registered_at', new Date().toISOString());
       savePushStatus({ registered: true, platform: Capacitor.getPlatform(), reason: '' });

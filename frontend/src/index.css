@@ -269,8 +269,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   font-weight: 700;
   line-height: 1.12;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
   overflow: visible;
+  overflow-wrap: anywhere;
 }
 .rv-nav-btn svg {
   width: 21px;
@@ -319,7 +320,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     border-radius: 14px;
   }
 
-  .rv-nav-btn span.nav-label { font-size: 9.5px; }
+  .rv-nav-btn span.nav-label { font-size: 9.5px; white-space: normal; }
 
   .rv-scroll.with-nav {
     padding-bottom: 24px !important;
@@ -344,7 +345,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     width: 100%;
     border-radius: 14px;
   }
-  .rv-nav-btn span.nav-label { font-size: 13px; font-weight: 600; }
+  .rv-nav-btn span.nav-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
   .rv-nav-btn.active { background: rgba(255,255,255,.12); }
   .rv-scroll.with-nav {
     left: 200px !important;

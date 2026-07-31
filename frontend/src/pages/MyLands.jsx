@@ -222,7 +222,7 @@ export default function MyLands() {
 
   const liveLands = landRows.map((land, index) => ({
     id: land.id || `land-${index}`,
-    name: land.property?.name || land.property_name || 'Sirpuram Gardens',
+    name: land.property?.name || land.property_name || 'Sripuram Gardens',
     code: land.plot_number ? `Plot ${land.plot_number}` : 'Allocated Plot',
     spec: `${land.area || land.plot_area || '—'} • ${land.facing || '—'} Facing`,
     reg: land.property?.rera_number || land.rera_number || 'RERA available on request',
