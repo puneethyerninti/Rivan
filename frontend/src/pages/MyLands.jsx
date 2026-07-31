@@ -7,6 +7,7 @@ const G = [
   'linear-gradient(150deg,#356b52 0%,#5a9a7a 55%,#b6d7bf 100%)',
   'linear-gradient(150deg,#4a6b2f 0%,#84a95a 55%,#d3dfa0 100%)',
 ];
+const DEFAULT_PROPERTY_IMAGE = '/Property Image 1.jpeg';
 
 const LANDS_DATA = [
   {
@@ -82,6 +83,62 @@ const QUICK_ACTIONS_DETAIL = [
   { icon: 'M4 5h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', label: 'Contact' },
 ];
 
+function normalizeImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('http') || raw.startsWith('/') || raw.startsWith('data:')) return raw;
+  return `/${raw.replace(/^\.?\//, '')}`;
+}
+
+function firstImage(...sources) {
+  for (const source of sources) {
+    if (Array.isArray(source) && source.length) {
+      const image = firstImage(...source);
+      if (image) return image;
+    } else if (typeof source === 'string' && source.trim()) {
+      return source.trim();
+    }
+  }
+  return DEFAULT_PROPERTY_IMAGE;
+}
+
+function landImage(land = {}) {
+  return firstImage(
+    land.image,
+    land.image_url,
+    land.property_image,
+    land.property_image_url,
+    land.thumbnail,
+    land.property?.image,
+    land.property?.image_url,
+    land.property?.primary_image,
+    land.property?.thumbnail,
+    land.property?.images,
+  );
+}
+
+function PropertyImage({ src, alt, fallback, style = {}, children, eager = false }) {
+  const imageUrl = normalizeImageUrl(src || DEFAULT_PROPERTY_IMAGE);
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', background: fallback, ...style }}>
+      <img
+        src={imageUrl}
+        alt={alt || 'Property'}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={eager ? 'high' : 'auto'}
+        onError={(event) => {
+          if (event.currentTarget.src.includes(DEFAULT_PROPERTY_IMAGE)) return;
+          event.currentTarget.src = DEFAULT_PROPERTY_IMAGE;
+        }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,32,16,.08),rgba(9,32,16,.32))' }}></div>
+      {children}
+    </div>
+  );
+}
+
 export default function MyLands() {
   const navigate = useNavigate();
   const [session] = useState(() => loadSession());
@@ -135,6 +192,7 @@ export default function MyLands() {
     status: land.purchase_complete ? 'Completed' : 'Active',
     typeShort: String(land.property?.property_type || '').toLowerCase().includes('villa') ? 'Villa' : 'Plot',
     grad: G[index % G.length],
+    image: landImage(land),
     progress: `${Math.round((Number(land.payment_progress || 0)) * 100)}%`,
     progressW: Math.round((Number(land.payment_progress || 0)) * 100),
     paid: `₹${Math.round(Number(land.paid_amount || 0)).toLocaleString('en-IN')}`,
@@ -268,9 +326,9 @@ export default function MyLands() {
                     <div key={p.id} style={{ background: '#fff', borderRadius: '20px', border: '1px solid #eef3ec', overflow: 'hidden', boxShadow: '0 12px 30px -22px rgba(18,53,29,.5)' }}>
                       <div onClick={() => openProp(p)} style={{ padding: '14px', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', gap: '13px' }}>
-                          <div style={{ width: '78px', height: '78px', borderRadius: '14px', background: p.grad, flex: 'none', position: 'relative' }}>
+                          <PropertyImage src={p.image} alt={p.name} fallback={p.grad} style={{ width: '78px', height: '78px', borderRadius: '14px', flex: 'none' }}>
                             <span style={{ position: 'absolute', bottom: '6px', left: '6px', background: 'rgba(9,32,16,.6)', color: '#fff', fontSize: '9px', fontWeight: '700', padding: '2px 7px', borderRadius: '20px' }}>{p.typeShort}</span>
-                          </div>
+                          </PropertyImage>
                           <div style={{ flex: '1', minWidth: '0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                               <p style={{ margin: '0', fontSize: '15px', fontWeight: '800', color: '#16231a' }}>{p.name}</p>
@@ -305,7 +363,7 @@ export default function MyLands() {
         {/* ===================== PROPERTY DETAIL ===================== */}
         {isDetail && selD && (
           <div className="rv-screen">
-            <div style={{ position: 'relative', height: '210px', background: selD.grad }}>
+            <PropertyImage src={selD.image} alt={selD.name} eager fallback={selD.grad} style={{ height: '210px' }}>
               <div style={{ position: 'absolute', inset: '0', background: 'linear-gradient(180deg,rgba(9,32,16,.25),transparent 40%,rgba(9,32,16,.35))' }}></div>
               <div style={{ position: 'absolute', top: '52px', left: '20px', right: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <button onClick={back} style={{ width: '40px', height: '40px', borderRadius: '13px', border: 'none', background: 'rgba(255,255,255,.92)', color: '#1f5a31', fontSize: '18px', cursor: 'pointer' }}>←</button>
@@ -314,7 +372,7 @@ export default function MyLands() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f5a31" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
                 </button>
               </div>
-            </div>
+            </PropertyImage>
 
             <div style={{ padding: '20px 22px 0', marginTop: '-24px', background: '#f8fbf6', borderRadius: '24px 24px 0 0', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { getJson, loadSession, requestJson } from '../lib/auth';
 import { formatIndianPhone } from '../lib/phone';
 
+const DEFAULT_PROPERTY_IMAGE = '/Property Image 1.jpeg';
+
 function customerVisitsCacheKey(session) {
   const identity = session?.user?.id || session?.user?.phone || session?.user?.uid;
   return identity ? `rivan_customer_visits_${identity}` : null;
@@ -27,6 +29,62 @@ function saveVisitsCache(cacheKey, payload) {
   try {
     localStorage.setItem(cacheKey, JSON.stringify({ ...payload, cached_at: new Date().toISOString() }));
   } catch {}
+}
+
+function normalizeImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('http') || raw.startsWith('/') || raw.startsWith('data:')) return raw;
+  return `/${raw.replace(/^\.?\//, '')}`;
+}
+
+function firstImage(...sources) {
+  for (const source of sources) {
+    if (Array.isArray(source) && source.length) {
+      const image = firstImage(...source);
+      if (image) return image;
+    } else if (typeof source === 'string' && source.trim()) {
+      return source.trim();
+    }
+  }
+  return DEFAULT_PROPERTY_IMAGE;
+}
+
+function propertyImageFromRecord(visit = {}, property = {}) {
+  return firstImage(
+    visit.image,
+    visit.image_url,
+    visit.property_image,
+    visit.property_image_url,
+    visit.thumbnail,
+    property.image,
+    property.image_url,
+    property.primary_image,
+    property.thumbnail,
+    property.images,
+  );
+}
+
+function PropertyImage({ src, alt, fallback, style = {}, children, eager = false }) {
+  const imageUrl = normalizeImageUrl(src || DEFAULT_PROPERTY_IMAGE);
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', background: fallback, ...style }}>
+      <img
+        src={imageUrl}
+        alt={alt || 'Property'}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={eager ? 'high' : 'auto'}
+        onError={(event) => {
+          if (event.currentTarget.src.includes(DEFAULT_PROPERTY_IMAGE)) return;
+          event.currentTarget.src = DEFAULT_PROPERTY_IMAGE;
+        }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,32,16,.08),rgba(9,32,16,.34))' }}></div>
+      {children}
+    </div>
+  );
 }
 
 export default function Visits() {
@@ -176,9 +234,16 @@ export default function Visits() {
   const completed = [];
 
   if (visitRows.length) {
-    const propertyLookup = Object.fromEntries(propertyRows.map((item) => [item.id, item]));
+    const propertyLookup = Object.fromEntries(
+      propertyRows.flatMap((item) => [
+        [item.id, item],
+        [item.property_id, item],
+        [item.property_code, item],
+        [item.name, item],
+      ].filter(([key]) => key)),
+    );
     const mappedVisits = visitRows.map((visit, index) => {
-      const property = propertyLookup[visit.property_id] || {};
+      const property = propertyLookup[visit.property_id] || propertyLookup[visit.property_code] || propertyLookup[visit.property_name] || {};
       const status = String(visit.status || '').toLowerCase();
       const visitAt = new Date(visit.visit_date || visit.updated_at || Date.now()).getTime();
       const isDone = ['completed', 'confirmed', 'approved'].includes(status) && visitAt < Date.now();
@@ -196,6 +261,7 @@ export default function Visits() {
         status: isDone ? 'Completed' : (status === 'cancelled' ? 'Cancelled' : status === 'rescheduled' ? 'Rescheduled' : status === 'pending_agent_approval' ? 'Upcoming' : 'Confirmed'),
         countdown: 'Visit status synced live',
         grad: G[index % G.length],
+        image: propertyImageFromRecord(visit, property),
         phase: isDone || isClosed ? 'completed' : 'upcoming',
         assignedAgentName: visit.assigned_agent_name || 'Assigned after approval',
         assignedAgentPhone: visit.assigned_agent_phone || '',
@@ -255,6 +321,7 @@ export default function Visits() {
     status: 'Upcoming',
     countdown: 'Schedule a live visit to continue.',
     grad: G[0],
+    image: DEFAULT_PROPERTY_IMAGE,
     phase: tab === 'Completed' ? 'completed' : 'upcoming',
     assignedAgentName: 'Assigned after approval',
     assignedAgentPhone: '',
@@ -538,9 +605,9 @@ export default function Visits() {
                 )}
                 <div onClick={v.open} style={{'padding': '14px', 'cursor': 'pointer'}}>
                   <div style={{'display': 'flex', 'gap': '13px'}}>
-                    <div style={{width: '88px', height: '88px', borderRadius: '15px', background: v.grad, flex: 'none', position: 'relative'}}>
+                    <PropertyImage src={v.image} alt={v.name} fallback={v.grad} style={{width: '88px', height: '88px', borderRadius: '15px', flex: 'none'}}>
                       <span style={{'position': 'absolute', 'bottom': '6px', 'left': '6px', 'background': 'rgba(9,32,16,.6)', 'color': '#fff', 'fontSize': '9px', 'fontWeight': '700', 'padding': '2px 7px', 'borderRadius': '20px', 'backdropFilter': 'blur(4px)'}}>{v.type}</span>
-                    </div>
+                    </PropertyImage>
                     <div style={{'flex': '1', 'minWidth': '0'}}>
                       <div style={{'display': 'flex', 'alignItems': 'flex-start', 'justifyContent': 'space-between', 'gap': '8px'}}>
                         <p style={{'margin': '0', 'fontSize': '15.5px', 'fontWeight': '800', 'color': '#16231a'}}>{v.name}</p>
@@ -582,7 +649,7 @@ export default function Visits() {
       {/* ===================== VISIT DETAILS ===================== */}
       {isDetail && (
       <div className="rv-screen">
-          <div style={{position: 'relative', height: '230px', background: selData.grad}}>
+          <PropertyImage src={selData.image} alt={selData.name} eager fallback={selData.grad} style={{height: '230px'}}>
           <div style={{'position': 'absolute', 'inset': '0', 'background': 'linear-gradient(180deg,rgba(9,32,16,.3),transparent 40%,rgba(9,32,16,.5))'}}></div>
           <div style={{'position': 'absolute', 'top': '52px', 'left': '20px', 'right': '20px', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between'}}>
             <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.92)', 'color': '#1f5a31', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
@@ -599,7 +666,7 @@ export default function Visits() {
             <span style={{'width': '5px', 'height': '5px', 'borderRadius': '3px', 'background': 'rgba(255,255,255,.6)'}}></span>
             <span style={{'width': '5px', 'height': '5px', 'borderRadius': '3px', 'background': 'rgba(255,255,255,.6)'}}></span>
           </div>
-        </div>
+        </PropertyImage>
 
         <div style={{'padding': '20px 22px 0', 'marginTop': '-24px', 'background': '#f8fbf6', 'borderRadius': '24px 24px 0 0', 'position': 'relative'}}>
           {/* countdown */}
@@ -709,7 +776,7 @@ export default function Visits() {
 
         <div style={{'padding': '18px 22px 0'}}>
           <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '12px', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '12px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
-            <div style={{width: '52px', height: '52px', borderRadius: '13px', background: selData.grad, flex: 'none'}}></div>
+            <PropertyImage src={selData.image} alt={selData.name} fallback={selData.grad} style={{width: '52px', height: '52px', borderRadius: '13px', flex: 'none'}} />
             <div style={{'flex': '1'}}><p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{selData.name}</p><p style={{'margin': '3px 0 0', 'fontSize': '11.5px', 'color': '#8a988c', 'fontWeight': '500'}}>{selData.plot} · {selData.location}</p></div>
           </div>
 

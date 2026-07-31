@@ -586,6 +586,7 @@ export default function AppDashboard() {
       pct: Math.round((Number(land.payment_progress || 0)) * 100),
       status: land.purchase_complete ? 'Completed' : 'Active',
       grad: propertyGradient(index),
+      image: propertyPrimaryImage(land.property || land),
       loc: land.property?.location || land.location || 'Achutapuram, Visakhapatnam',
       price: propertyDisplayPrice(land.property || land),
     })));
@@ -1300,7 +1301,7 @@ export default function AppDashboard() {
             { myProps.map((m, index) => (
               <div onClick={m.open} style={{'background': '#fff', 'borderRadius': '20px', 'padding': '14px', 'border': '1px solid #eef3ec', 'boxShadow': '0 12px 30px -22px rgba(18,53,29,.5)', 'cursor': 'pointer'}}>
                 <div style={{'display': 'flex', 'gap': '13px'}}>
-                  <div style={{width: '88px', height: '88px', borderRadius: '14px', background: m.grad, flex: 'none'}}></div>
+                  <PropertyImage src={m.image} alt={m.name} fallback={m.grad} style={{width: '88px', height: '88px', borderRadius: '14px', flex: 'none'}} />
                   <div style={{'flex': '1'}}>
                     <p style={{'margin': '0', 'fontSize': '15px', 'fontWeight': '800', 'color': '#16231a'}}>{m.name}</p>
                     <p style={{'margin': '3px 0 6px', 'fontSize': '13px', 'fontWeight': '700', 'color': '#3d4f40'}}>{m.plot}</p>
