@@ -20,7 +20,7 @@ let liveUpdatesCapabilityCheckedAt = 0;
 const LIVE_UPDATES_CAPABILITY_TTL_MS = 90000;
 
 export async function supportsLiveUpdates() {
-  if (import.meta.env.VITE_ENABLE_WEBSOCKETS === "false") {
+  if (import.meta.env.VITE_ENABLE_WEBSOCKETS !== "true") {
     return false;
   }
   const now = Date.now();
