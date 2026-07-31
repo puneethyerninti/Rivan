@@ -371,7 +371,7 @@ LEGACY_DEMO_DOCUMENT_URLS = {
     "https://www.africau.edu/images/default/sample.pdf",
 }
 LIVE_PROPERTY_NAME_OVERRIDES = {
-    "prop-1": "Siripuram Gardens Independent House",
+    "prop-1": "Sripuram Gardens Independent House",
 }
 LIVE_PROPERTY_LOCATION_OVERRIDES = {
     "prop-1": "Achutapuram, Visakhapatnam",
@@ -403,7 +403,7 @@ def canonical_live_property_id(
     reference_blob = " ".join(str(value or "").strip().lower() for value in reference_values if str(value or "").strip())
     if not reference_blob:
         return ""
-    if any(token in reference_blob for token in ("siripuram gardens", "achutapuram", "rivan greens", "shadnagar")):
+    if any(token in reference_blob for token in ("siripuram gardens", "sripuram gardens", "achutapuram", "rivan greens", "shadnagar")):
         return "prop-1"
     return ""
 
@@ -423,6 +423,8 @@ def replace_live_property_labels(value: Optional[str]) -> str:
     if not text:
         return ""
     replacements = {
+        "Siripuram": "Sripuram",
+        "siripuram": "sripuram",
         "Rivan Greens": LIVE_PROPERTY_NAME_OVERRIDES["prop-1"],
         "rivan greens": LIVE_PROPERTY_NAME_OVERRIDES["prop-1"],
         "Shadnagar, Hyderabad": LIVE_PROPERTY_LOCATION_OVERRIDES["prop-1"],
@@ -1318,7 +1320,7 @@ async def purge_legacy_demo_records_from_db() -> None:
 LOCAL_FALLBACK_PROPERTIES: List[Dict[str, Any]] = [
     {
         "id": "prop-1",
-        "name": "Siripuram Gardens Independent House",
+        "name": "Sripuram Gardens Independent House",
         "category": "Independent House",
         "location": "Achutapuram, Visakhapatnam",
         "starting_price": 1600000,
@@ -1332,7 +1334,7 @@ LOCAL_FALLBACK_PROPERTIES: List[Dict[str, Any]] = [
             "/Features.jpeg",
             "/Map.jpeg",
         ],
-        "description": "A compact independent-house offering anchored in the Siripuram Gardens layout at Achutapuram with live availability, east-face and west-face plans, and project approval details.",
+        "description": "A compact independent-house offering anchored in the Sripuram Gardens layout at Achutapuram with live availability, east-face and west-face plans, and project approval details.",
         "survey_number": "Layout approved development",
         "facing": "East Face / West Face",
         "road_width": "40-60 ft internal roads",
@@ -5803,7 +5805,7 @@ async def request_service(req: ServiceReq, user: Dict[str, Any] = Depends(get_cu
 @api_router.post("/contact-sales")
 async def contact_sales(req: ContactSalesReq, user: Dict[str, Any] = Depends(get_current_user)):
     property_id = canonical_live_property_id(req.property_id) or str(req.property_id or "").strip() or None
-    property_name = live_property_name(property_id, "Siripuram Property") if property_id else "Rivan property"
+    property_name = live_property_name(property_id, "Sripuram Property") if property_id else "Rivan property"
     request_channel = str(req.request_channel or "contact_sales").strip().lower() or "contact_sales"
     request_type = {
         "callback": "Callback Request",
@@ -8250,7 +8252,7 @@ async def seed_data():
     properties = [
         {
             "id": "prop-1",
-            "name": "Siripuram Gardens Independent House",
+            "name": "Sripuram Gardens Independent House",
             "category": "Independent House",
             "location": "Achutapuram, Visakhapatnam",
             "starting_price": 1600000,
@@ -8261,7 +8263,7 @@ async def seed_data():
                 "/Property Image 2.jpeg",
                 "/Map.jpeg",
             ],
-            "description": "A compact independent-house offering anchored in the Siripuram Gardens layout at Achutapuram with live availability, east-face and west-face plans, and project approval details.",
+            "description": "A compact independent-house offering anchored in the Sripuram Gardens layout at Achutapuram with live availability, east-face and west-face plans, and project approval details.",
             "survey_number": "Layout approved development",
             "facing": "East Face / West Face",
             "road_width": "40-60 ft internal roads",
@@ -8423,7 +8425,7 @@ async def seed_data():
     ]
     await db.properties.insert_many([p.copy() for p in properties])
 
-    # ---- Plots for Siripuram Gardens (interactive layout) ----
+    # ---- Plots for Sripuram Gardens (interactive layout) ----
     plot_statuses = ["available"] * 10 + ["reserved"] * 4 + ["booked"] * 4 + ["sold"] * 6
     facings = ["East", "West", "North", "South", "North-East", "South-East"]
     plots = []

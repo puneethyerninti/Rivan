@@ -22,6 +22,7 @@ const cardStyle = {
 };
 
 const PARTNER_DASHBOARD_CACHE_KEY = 'rivan_partner_dashboard_cache';
+const PARTNER_PROFILE_CACHE_KEY = 'rivan_partner_profile_cache';
 const EMPTY_AGENT_DATA = { profile: {}, kpis: {}, assets: [], bookings: [], visits: [], leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
 const EMPTY_CRM_DATA = { leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
 
@@ -45,6 +46,29 @@ function savePartnerDashboardCache(payload) {
     localStorage.setItem(PARTNER_DASHBOARD_CACHE_KEY, JSON.stringify({ ...payload, cached_at: new Date().toISOString() }));
   } catch {
     // Cache is a speed optimization only; live API data remains the source of truth.
+  }
+}
+
+function loadPartnerProfileCache(user) {
+  try {
+    const raw = localStorage.getItem(PARTNER_PROFILE_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed) return null;
+    return parsed.owner === partnerCacheOwner(user) ? parsed.profile : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePartnerProfileCache(user, profile) {
+  try {
+    localStorage.setItem(PARTNER_PROFILE_CACHE_KEY, JSON.stringify({
+      owner: partnerCacheOwner(user),
+      profile,
+      cached_at: new Date().toISOString(),
+    }));
+  } catch {
+    // Local profile cache only prevents placeholder flashes while live data loads.
   }
 }
 
@@ -189,6 +213,8 @@ export default function AgentDashboard() {
   const [session, setSession] = useState(() => loadSession());
   const cachedDashboardRef = useRef(loadPartnerDashboardCache(session?.user));
   const cachedDashboard = cachedDashboardRef.current || {};
+  const cachedProfileRef = useRef(loadPartnerProfileCache(session?.user));
+  const cachedProfile = cachedProfileRef.current || {};
   const [page, setPage] = useState('dashboard');
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -197,18 +223,18 @@ export default function AgentDashboard() {
   const [agentData, setAgentData] = useState(() => ({
     ...EMPTY_AGENT_DATA,
     ...(cachedDashboard.agentData || {}),
-    profile: mergePartnerIdentity(cachedDashboard.agentData?.profile, session?.user),
+    profile: mergePartnerIdentity(cachedProfile, cachedDashboard.agentData?.profile, session?.user),
   }));
   const [crmData, setCrmData] = useState(() => ({ ...EMPTY_CRM_DATA, ...(cachedDashboard.crmData || {}) }));
   const [visits, setVisits] = useState(() => (Array.isArray(cachedDashboard.visits) ? cachedDashboard.visits : []));
   const [notifications, setNotifications] = useState(() => (Array.isArray(cachedDashboard.notifications) ? cachedDashboard.notifications : []));
   const [profileForm, setProfileForm] = useState({
-    name: cleanPartnerName(session?.user?.name) || cleanPartnerName(cachedDashboard.agentData?.profile?.name) || '',
-    email: firstRealValue(session?.user?.email, cachedDashboard.agentData?.profile?.email),
-    address: firstRealValue(session?.user?.address, cachedDashboard.agentData?.profile?.address),
-    occupation: firstRealValue(session?.user?.occupation, cachedDashboard.agentData?.profile?.occupation),
-    age: firstRealValue(session?.user?.age, cachedDashboard.agentData?.profile?.age),
-    agent_brand_name: firstRealValue(session?.user?.agent_brand_name, cachedDashboard.agentData?.profile?.agent_brand_name),
+    name: cleanPartnerName(cachedProfile.name, cachedDashboard.agentData?.profile?.name, session?.user?.name) || '',
+    email: firstRealValue(cachedProfile.email, session?.user?.email, cachedDashboard.agentData?.profile?.email),
+    address: firstRealValue(cachedProfile.address, session?.user?.address, cachedDashboard.agentData?.profile?.address),
+    occupation: firstRealValue(cachedProfile.occupation, session?.user?.occupation, cachedDashboard.agentData?.profile?.occupation),
+    age: firstRealValue(cachedProfile.age, session?.user?.age, cachedDashboard.agentData?.profile?.age),
+    agent_brand_name: firstRealValue(cachedProfile.agent_brand_name, session?.user?.agent_brand_name, cachedDashboard.agentData?.profile?.agent_brand_name),
   });
   const [profileDirty, setProfileDirty] = useState(false);
   const profileDirtyRef = useRef(false);
@@ -322,7 +348,7 @@ export default function AgentDashboard() {
       });
 
       const latestSession = loadSession();
-      const profileSource = mergePartnerIdentity(nextAgentData.profile, latestSession?.user, cachedDashboard.agentData?.profile, user);
+      const profileSource = mergePartnerIdentity(nextAgentData.profile, cachedProfileRef.current, latestSession?.user, cachedDashboard.agentData?.profile, user);
       setAgentData({
         kpis: {},
         assets: [],
@@ -351,6 +377,8 @@ export default function AgentDashboard() {
         visits: Array.isArray(nextVisits) ? nextVisits : [],
         notifications: Array.isArray(nextNotifications) ? nextNotifications : [],
       });
+      cachedProfileRef.current = profileSource;
+      savePartnerProfileCache(session.user, profileSource);
 
       const firstAsset = nextAgentData.assets?.[0];
       setVisitForm((current) => ({
@@ -472,7 +500,7 @@ export default function AgentDashboard() {
     });
   }, [session?.access_token]);
 
-  const displayedUser = mergePartnerIdentity(profileDirty ? profileForm : null, agentData.profile, user);
+  const displayedUser = mergePartnerIdentity(profileDirty ? profileForm : null, agentData.profile, cachedProfileRef.current, user);
   const assets = agentData.assets || [];
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
   const bookings = agentData.bookings || [];
@@ -892,6 +920,8 @@ export default function AgentDashboard() {
       saveSession(nextSession);
       setSession(nextSession);
       setAgentData((current) => ({ ...current, profile: mergedUser }));
+      cachedProfileRef.current = mergedUser;
+      savePartnerProfileCache(mergedUser, mergedUser);
       savePartnerDashboardCache({
         owner: partnerCacheOwner(mergedUser),
         agentData: {

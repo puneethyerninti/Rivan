@@ -363,8 +363,8 @@ export default function Visits() {
     .map(decorate);
   const emptyVisit = {
     id: 'empty-visit',
-    name: 'Siripuram Property Visit',
-    project: 'Siripuram Gardens',
+    name: 'Sripuram Property Visit',
+    project: 'Sripuram Gardens',
     plot: 'Visit will be assigned after scheduling',
     type: 'Plot / Land',
     location: 'Achutapuram, Visakhapatnam',
@@ -379,7 +379,7 @@ export default function Visits() {
     assignedAgentName: 'Assigned after approval',
     assignedAgentPhone: '',
     specs: [
-      ['Property', 'Siripuram Gardens'],
+      ['Property', 'Sripuram Gardens'],
       ['Date', '—'],
       ['Time', '11:00 AM'],
       ['Status', 'pending'],
