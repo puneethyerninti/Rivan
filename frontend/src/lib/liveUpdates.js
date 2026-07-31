@@ -3,8 +3,9 @@ import { getWebSocketUrl, supportsLiveUpdates } from './auth';
 const DEFAULT_POLL_INTERVAL_MS = 15000;
 const DEFAULT_HEARTBEAT_MS = 25000;
 const DEFAULT_STALE_MS = 65000;
-const DEFAULT_CAPABILITY_RETRY_MS = 30000;
-const DEFAULT_RECONNECT_DELAYS = [1000, 2500, 5000, 10000, 20000, 30000];
+const DEFAULT_CAPABILITY_RETRY_MS = 90000;
+const DEFAULT_RECONNECT_DELAYS = [5000, 15000, 30000];
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 3;
 
 export function connectLiveUpdates({
   token,
@@ -16,6 +17,7 @@ export function connectLiveUpdates({
   staleMs = DEFAULT_STALE_MS,
   capabilityRetryMs = DEFAULT_CAPABILITY_RETRY_MS,
   reconnectDelays = DEFAULT_RECONNECT_DELAYS,
+  maxReconnectAttempts = DEFAULT_MAX_RECONNECT_ATTEMPTS,
 }) {
   let closed = false;
   let socket = null;
@@ -54,6 +56,11 @@ export function connectLiveUpdates({
 
   const scheduleReconnect = () => {
     if (closed || reconnectTimer) return;
+    if (reconnectAttempt >= maxReconnectAttempts) {
+      startPolling();
+      scheduleCapabilityRetry();
+      return;
+    }
     const delay = reconnectDelays[Math.min(reconnectAttempt, reconnectDelays.length - 1)];
     reconnectAttempt += 1;
     setStatus('reconnecting');

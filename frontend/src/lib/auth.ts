@@ -17,7 +17,7 @@ export function getWebSocketUrl(token) {
 
 let liveUpdatesCapabilityPromise = null;
 let liveUpdatesCapabilityCheckedAt = 0;
-const LIVE_UPDATES_CAPABILITY_TTL_MS = 30000;
+const LIVE_UPDATES_CAPABILITY_TTL_MS = 90000;
 
 export async function supportsLiveUpdates() {
   if (import.meta.env.VITE_ENABLE_WEBSOCKETS === "false") {
@@ -202,14 +202,14 @@ async function performJsonRequest(path, options = {}, token, attempt = 0) {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const data = await response.json().catch(() => ({}));
-    if (attempt < 2 && shouldRetryRequest(method, response.status)) {
-      await wait(350 * (attempt + 1));
+    if (attempt < 3 && shouldRetryRequest(method, response.status)) {
+      await wait([700, 1500, 3000][attempt] || 3000);
       return performJsonRequest(path, options, token, attempt + 1);
     }
     return { response, data };
   } catch (error) {
-    if (attempt < 2 && method === "GET") {
-      await wait(350 * (attempt + 1));
+    if (attempt < 3 && method === "GET") {
+      await wait([700, 1500, 3000][attempt] || 3000);
       return performJsonRequest(path, options, token, attempt + 1);
     }
     throw friendlyNetworkError(error);
