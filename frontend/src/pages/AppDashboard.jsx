@@ -66,6 +66,32 @@ function saveCustomerDashboardCache(cacheKey, payload) {
   } catch {}
 }
 
+function customerPreferenceKey(session, guestSession, suffix) {
+  const identity = guestSession?.guest ? 'guest' : (session?.user?.id || session?.user?.phone || session?.user?.uid || 'anonymous');
+  return `rivan_customer_${suffix}_${identity}`;
+}
+
+function loadLocalList(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalList(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(Array.isArray(value) ? value.slice(0, 12) : []));
+  } catch {}
+}
+
+function propertyRecordId(item = {}) {
+  const property = item?.property || item || {};
+  return String(property.id || property.property_code || property.code || item.id || item.name || property.name || '').trim();
+}
+
 function initialsFromName(name) {
   return String(name || 'CU')
     .split(/\s+/)
@@ -219,12 +245,16 @@ export default function AppDashboard() {
   const [guestSession, setGuestSession] = useState(() => loadGuestSession());
   const cacheKey = customerDashboardCacheKey(session, guestSession);
   const initialDashboardCache = useRef(loadCustomerDashboardCache(cacheKey));
+  const savedPropertiesKey = customerPreferenceKey(session, guestSession, 'saved_properties');
+  const recentPropertiesKey = customerPreferenceKey(session, guestSession, 'recent_properties');
   const [stack, setStack] = useState(['home']);
   const [chip, setChip] = useState('All');
   const [myTab, setMyTab] = useState('Active');
   const [sel, setSel] = useState(null);
   const [exploreLoading, setExploreLoading] = useState(false);
-  const [liked, setLiked] = useState({});
+  const [liked, setLiked] = useState(() => Object.fromEntries(loadLocalList(savedPropertiesKey).map((item) => [propertyRecordId(item), true])));
+  const [savedProperties, setSavedProperties] = useState(() => loadLocalList(savedPropertiesKey));
+  const [recentProperties, setRecentProperties] = useState(() => loadLocalList(recentPropertiesKey));
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('Request Submitted');
   const [modalMessage, setModalMessage] = useState('Your latest request has been recorded successfully.');
@@ -264,6 +294,9 @@ export default function AppDashboard() {
   const [serviceSubmitting, setServiceSubmitting] = useState(false);
   const [homeSearch, setHomeSearch] = useState('');
   const [exploreSearch, setExploreSearch] = useState('');
+  const [budgetFilter, setBudgetFilter] = useState('all');
+  const [facingFilter, setFacingFilter] = useState('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all');
   const [actionFormMode, setActionFormMode] = useState(null);
   const [actionSubmitting, setActionSubmitting] = useState(false);
   const [actionPlots, setActionPlots] = useState([]);
@@ -296,6 +329,22 @@ export default function AppDashboard() {
     if (el) el.scrollTop = 0;
   };
   const openProject = (p) => {
+    const normalized = {
+      id: propertyRecordId(p),
+      name: p?.name || p?.property?.name || 'Rivan property',
+      loc: p?.loc || p?.property?.location || p?.property?.address || 'Visakhapatnam',
+      price: p?.price || propertyDisplayPrice(p?.property || p),
+      type: p?.type || propertyType(p?.property || p),
+      code: p?.code || p?.property?.property_code || p?.property?.code || '',
+      grad: p?.grad || propertyGradient(0),
+      property: p?.property || p,
+      viewed_at: new Date().toISOString(),
+    };
+    setRecentProperties((current) => {
+      const next = [normalized, ...current.filter((item) => propertyRecordId(item) !== normalized.id)].slice(0, 8);
+      saveLocalList(recentPropertiesKey, next);
+      return next;
+    });
     setSel(p);
     setStack((st) => [...st, 'propDetail']);
     setTimeout(scrollTop, 10);
@@ -327,6 +376,14 @@ export default function AppDashboard() {
       registerPushNotifications(session);
     }
   }, [guestSession?.guest, session?.access_token, session?.user?.role]);
+
+  useEffect(() => {
+    const nextSaved = loadLocalList(savedPropertiesKey);
+    const nextRecent = loadLocalList(recentPropertiesKey);
+    setSavedProperties(nextSaved);
+    setRecentProperties(nextRecent);
+    setLiked(Object.fromEntries(nextSaved.map((item) => [propertyRecordId(item), true])));
+  }, [savedPropertiesKey, recentPropertiesKey]);
 
   useEffect(() => {
     const isGuest = !!guestSession?.guest;
@@ -550,6 +607,21 @@ export default function AppDashboard() {
       propertyPriceValue(property),
     ], query);
   };
+  const propertyMatchesAdvancedFilters = (item) => {
+    const property = item?.property || item || {};
+    const price = propertyPriceValue(property);
+    const priceOk =
+      budgetFilter === 'all' ||
+      (budgetFilter === 'under20' && price > 0 && price <= 2000000) ||
+      (budgetFilter === '20to50' && price >= 2000000 && price <= 5000000) ||
+      (budgetFilter === 'above50' && price >= 5000000) ||
+      (budgetFilter === 'request' && price <= 0);
+    const facingText = normalizeSearch(`${property.facing || ''} ${property.direction || ''} ${item.spec || ''} ${property.plots ? JSON.stringify(property.plots) : ''}`);
+    const facingOk = facingFilter === 'all' || facingText.includes(facingFilter);
+    const statusText = normalizeSearch(`${property.status || ''} ${property.availability_status || ''} ${property.availability_label || ''} ${item.status || ''}`);
+    const availabilityOk = availabilityFilter === 'all' || statusText.includes(availabilityFilter);
+    return priceOk && facingOk && availabilityOk;
+  };
 
   const featured = [
     { name: 'Emerald Estate', loc: 'Visakhapatnam', tag: 'Vizag', price: '₹4,500', grad: G[0] },
@@ -578,7 +650,7 @@ export default function AppDashboard() {
 
   const firstLiveLocation = propertyTag(propertyRows[0] || featuredRows[0] || DEFAULT_LIVE_PROPERTY);
   const filterIcons = [
-    { label: 'All', icon: 'M4 6h16M7 12h10M10 18h4', go: () => { setChip('All'); setExploreSearch(''); setHomeSearch(''); } },
+    { label: 'All', icon: 'M4 6h16M7 12h10M10 18h4', go: () => { setChip('All'); setExploreSearch(''); setHomeSearch(''); setBudgetFilter('all'); setFacingFilter('all'); setAvailabilityFilter('all'); } },
     { label: 'Location', icon: 'M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', go: () => setExploreSearch(firstLiveLocation) },
     { label: 'Visits', icon: 'M8 7V3M16 7V3M4 11h16M5 5h14v16H5z', go: () => go('visits') },
     { label: 'Plots', icon: 'M7 4h10l2 4v12H5V8zM9 13h6M9 17h4', go: () => setChip('Plots') },
@@ -671,15 +743,34 @@ export default function AppDashboard() {
   const activePropertyQuery = exploreQuery || homeQuery;
   const nearby = nearbyAll
     .filter((n) => chip === 'All' || n.type === chip)
+    .filter(propertyMatchesAdvancedFilters)
     .filter((n) => propertyMatches(n, activePropertyQuery))
     .map((n) => {
-      const isLiked = !!liked[n.name];
+      const recordId = propertyRecordId(n);
+      const isLiked = !!liked[recordId];
       return {
         ...n,
         open: () => openProject(n),
         like: (e) => {
           e.stopPropagation();
-          setLiked((st) => ({ ...st, [n.name]: !st[n.name] }));
+          const savedRecord = {
+            id: recordId,
+            name: n.name,
+            loc: n.loc,
+            price: n.price,
+            type: n.type,
+            code: n.code,
+            grad: n.grad,
+            property: n.property,
+            saved_at: new Date().toISOString(),
+          };
+          setSavedProperties((current) => {
+            const exists = current.some((item) => propertyRecordId(item) === recordId);
+            const next = exists ? current.filter((item) => propertyRecordId(item) !== recordId) : [savedRecord, ...current].slice(0, 20);
+            saveLocalList(savedPropertiesKey, next);
+            return next;
+          });
+          setLiked((st) => ({ ...st, [recordId]: !st[recordId] }));
         },
         heartFill: isLiked ? '#e2822a' : 'none',
         heartStroke: isLiked ? '#e2822a' : '#c2cdc0',
@@ -759,6 +850,8 @@ export default function AppDashboard() {
     { k: 'Status', v: selectedProperty?.availability_label || 'Live inventory' },
   );
   amenities.splice(0, amenities.length, ...amenityList(selectedProperty));
+  const selectedRecordId = propertyRecordId({ ...selData, property: selectedProperty });
+  const isSelectedSaved = savedProperties.some((item) => propertyRecordId(item) === selectedRecordId);
 
   const history = [
     { title: 'Installment #6', date: '12 May 2025', mode: 'UPI', amt: '₹1,00,000' },
@@ -936,6 +1029,8 @@ export default function AppDashboard() {
     { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
     { icon: 'M6 4h12v16l-6-3-6 3z', label: 'Contact Sales', go: () => go('contact') },
   ];
+  const savedPreview = savedProperties.slice(0, 4);
+  const recentPreview = recentProperties.filter((item) => !savedPreview.some((saved) => propertyRecordId(saved) === propertyRecordId(item))).slice(0, 4);
 
   const userName = String(session?.user?.name || profileForm.name || 'Customer').trim();
   const initials = initialsFromName(userName);
@@ -970,6 +1065,27 @@ export default function AppDashboard() {
     setTimeout(() => setExploreLoading(false), 1300);
   };
   const payNow = () => openNotice('Payments On Hold', 'Online payments are not active yet. This section is kept for visibility and will go live after payment gateway approval. Booking requests, visits, documents, notifications, and support workflows remain live.');
+  const toggleSelectedPropertySaved = () => {
+    if (!selectedRecordId) return;
+    const savedRecord = {
+      id: selectedRecordId,
+      name: selData?.name || selectedProperty?.name || 'Rivan property',
+      loc: selData?.loc || selectedProperty?.location || selectedProperty?.address || 'Visakhapatnam',
+      price: selData?.price || propertyDisplayPrice(selectedProperty || selData),
+      type: selData?.type || propertyType(selectedProperty || selData),
+      code: selectedProperty?.property_code || selectedProperty?.code || selData?.code || '',
+      grad: selData?.grad || propertyGradient(0),
+      property: selectedProperty || selData?.property || selData,
+      saved_at: new Date().toISOString(),
+    };
+    setSavedProperties((current) => {
+      const exists = current.some((item) => propertyRecordId(item) === selectedRecordId);
+      const next = exists ? current.filter((item) => propertyRecordId(item) !== selectedRecordId) : [savedRecord, ...current].slice(0, 20);
+      saveLocalList(savedPropertiesKey, next);
+      return next;
+    });
+    setLiked((current) => ({ ...current, [selectedRecordId]: !current[selectedRecordId] }));
+  };
   const propertyIdForAction = () => selectedProperty?.id || selData?.property?.id || featuredRows[0]?.id || propertyRows[0]?.id;
   const loadActionPlots = async (propertyId) => {
     if (!session?.access_token || !propertyId) return [];
@@ -1365,6 +1481,28 @@ export default function AppDashboard() {
               <button onClick={c.pick} style={c.style}>{c.label}</button>
             ))}
           </div>
+          <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(3,minmax(0,1fr))', 'gap': '8px', 'marginTop': '12px'}}>
+            <select value={budgetFilter} onChange={(event) => setBudgetFilter(event.target.value)} style={{'height': '42px', 'minWidth': 0, 'border': '1px solid #e2e8e0', 'borderRadius': '12px', 'background': '#fff', 'padding': '0 9px', 'fontFamily': 'inherit', 'fontSize': '11.5px', 'fontWeight': '800', 'color': '#1f5a31'}}>
+              <option value="all">Any budget</option>
+              <option value="under20">Under 20L</option>
+              <option value="20to50">20L-50L</option>
+              <option value="above50">Above 50L</option>
+              <option value="request">Price request</option>
+            </select>
+            <select value={facingFilter} onChange={(event) => setFacingFilter(event.target.value)} style={{'height': '42px', 'minWidth': 0, 'border': '1px solid #e2e8e0', 'borderRadius': '12px', 'background': '#fff', 'padding': '0 9px', 'fontFamily': 'inherit', 'fontSize': '11.5px', 'fontWeight': '800', 'color': '#1f5a31'}}>
+              <option value="all">Any facing</option>
+              <option value="east">East</option>
+              <option value="west">West</option>
+              <option value="north">North</option>
+              <option value="south">South</option>
+            </select>
+            <select value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value)} style={{'height': '42px', 'minWidth': 0, 'border': '1px solid #e2e8e0', 'borderRadius': '12px', 'background': '#fff', 'padding': '0 9px', 'fontFamily': 'inherit', 'fontSize': '11.5px', 'fontWeight': '800', 'color': '#1f5a31'}}>
+              <option value="all">Any status</option>
+              <option value="available">Available</option>
+              <option value="reserved">Reserved</option>
+              <option value="sold">Sold</option>
+            </select>
+          </div>
 
           <div style={{'display': 'flex', 'justifyContent': 'space-between', 'margin': '18px 2px 6px'}}>
             { filterIcons.map((fi, index) => (
@@ -1681,8 +1819,8 @@ export default function AppDashboard() {
           <div style={{'position': 'absolute', 'inset': '0', 'background': 'linear-gradient(180deg,rgba(9,32,16,.28),transparent 30%,rgba(9,32,16,.5))'}}></div>
           <div style={{'position': 'absolute', 'top': '52px', 'left': '20px', 'right': '20px', 'display': 'flex', 'justifyContent': 'space-between'}}>
             <button onClick={back} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'color': '#1f5a31', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
-            <button style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1f5a31" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
+            <button onClick={toggleSelectedPropertySaved} aria-label={isSelectedSaved ? 'Remove saved property' : 'Save property'} style={{'width': '40px', 'height': '40px', 'borderRadius': '13px', 'border': 'none', 'background': 'rgba(255,255,255,.9)', 'cursor': 'pointer', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill={isSelectedSaved ? '#e2822a' : 'none'} stroke={isSelectedSaved ? '#e2822a' : '#1f5a31'} stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/></svg>
             </button>
           </div>
           <div style={{'position': 'absolute', 'bottom': '18px', 'left': '20px'}}>
@@ -1717,6 +1855,28 @@ export default function AppDashboard() {
             { amenities.map((a, index) => (
               <span style={{'fontSize': '12.5px', 'fontWeight': '600', 'color': '#3d4f40', 'background': '#fff', 'border': '1px solid #e6ede2', 'padding': '9px 14px', 'borderRadius': '12px'}}>{a}</span>
             ))}
+          </div>
+
+          <div style={{'marginTop': '22px', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '16px', 'boxShadow': '0 12px 28px -24px rgba(18,53,29,.45)'}}>
+            <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'gap': '12px', 'flexWrap': 'wrap'}}>
+              <div>
+                <p style={{'margin': '0', 'fontSize': '15px', 'fontWeight': '900', 'color': '#1f5a31'}}>Buyer checklist</p>
+                <p style={{'margin': '5px 0 0', 'fontSize': '12.5px', 'lineHeight': '1.45', 'color': '#6d7d6f'}}>Save this property, schedule a visit, then request booking after plot confirmation.</p>
+              </div>
+              <button onClick={toggleSelectedPropertySaved} style={{'border': '1px solid #dfeadd', 'borderRadius': '14px', 'background': isSelectedSaved ? '#fff4e5' : '#f8fbf6', 'color': isSelectedSaved ? '#b8651b' : '#1f5a31', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '900', 'padding': '11px 14px', 'cursor': 'pointer'}}>{isSelectedSaved ? 'Saved' : 'Save property'}</button>
+            </div>
+            <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(3,minmax(0,1fr))', 'gap': '9px', 'marginTop': '14px'}}>
+              {[
+                { label: 'Code', value: selectedProperty?.property_code || selectedProperty?.code || 'Pending' },
+                { label: 'Inventory', value: selectedProperty?.availability_label || selectedProperty?.status || 'Live' },
+                { label: 'Support', value: RIVAN_SUPPORT_PHONE_DISPLAY },
+              ].map((item) => (
+                <div key={item.label} style={{'minWidth': 0, 'background': '#f8fbf6', 'border': '1px solid #eef3ec', 'borderRadius': '14px', 'padding': '12px'}}>
+                  <p style={{'margin': '0', 'fontSize': '10.5px', 'fontWeight': '900', 'letterSpacing': '.4px', 'textTransform': 'uppercase', 'color': '#8a988c'}}>{item.label}</p>
+                  <p style={{'margin': '5px 0 0', 'fontSize': '12.5px', 'fontWeight': '900', 'color': '#16231a', 'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'}}>{item.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {selectedGallery.length > 0 && (
@@ -1925,6 +2085,44 @@ export default function AppDashboard() {
               </button>
             ))}
           </div>
+
+          {savedPreview.length > 0 && (
+          <>
+            <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'margin': '24px 0 12px'}}>
+              <span style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31'}}>Saved Properties</span>
+              <a onClick={goExplore} style={{'fontSize': '13px', 'fontWeight': '700', 'color': '#e2822a', 'cursor': 'pointer'}}>Manage</a>
+            </div>
+            <div style={{'display': 'flex', 'gap': '12px', 'overflowX': 'auto', 'paddingBottom': '4px'}} className="rv-scroll">
+              {savedPreview.map((item) => (
+                <button key={propertyRecordId(item)} onClick={() => openProject(item)} style={{'width': '190px', 'flex': 'none', 'textAlign': 'left', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '10px', 'fontFamily': 'inherit', 'cursor': 'pointer', 'boxShadow': '0 10px 28px -22px rgba(18,53,29,.5)'}}>
+                  <PropertyImage src={propertyPrimaryImage(item.property || item)} alt={item.name} fallback={item.grad || G[0]} style={{'height': '88px', 'borderRadius': '14px'}} />
+                  <p style={{'margin': '10px 0 3px', 'fontSize': '13px', 'fontWeight': '800', 'color': '#16231a', 'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'}}>{item.name}</p>
+                  <p style={{'margin': '0', 'fontSize': '11.5px', 'fontWeight': '600', 'color': '#8a988c', 'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'}}>{item.loc}</p>
+                  <p style={{'margin': '7px 0 0', 'fontSize': '12.5px', 'fontWeight': '900', 'color': '#2b6d3d'}}>{item.price}</p>
+                </button>
+              ))}
+            </div>
+          </>
+          )}
+
+          {recentPreview.length > 0 && (
+          <>
+            <div style={{'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'margin': '24px 0 12px'}}>
+              <span style={{'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31'}}>Recently Viewed</span>
+              <a onClick={() => { saveLocalList(recentPropertiesKey, []); setRecentProperties([]); }} style={{'fontSize': '13px', 'fontWeight': '700', 'color': '#e2822a', 'cursor': 'pointer'}}>Clear</a>
+            </div>
+            <div style={{'display': 'flex', 'gap': '12px', 'overflowX': 'auto', 'paddingBottom': '4px'}} className="rv-scroll">
+              {recentPreview.map((item) => (
+                <button key={propertyRecordId(item)} onClick={() => openProject(item)} style={{'width': '190px', 'flex': 'none', 'textAlign': 'left', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '10px', 'fontFamily': 'inherit', 'cursor': 'pointer', 'boxShadow': '0 10px 28px -22px rgba(18,53,29,.5)'}}>
+                  <PropertyImage src={propertyPrimaryImage(item.property || item)} alt={item.name} fallback={item.grad || G[1]} style={{'height': '88px', 'borderRadius': '14px'}} />
+                  <p style={{'margin': '10px 0 3px', 'fontSize': '13px', 'fontWeight': '800', 'color': '#16231a', 'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'}}>{item.name}</p>
+                  <p style={{'margin': '0', 'fontSize': '11.5px', 'fontWeight': '600', 'color': '#8a988c', 'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'}}>{item.loc}</p>
+                  <p style={{'margin': '7px 0 0', 'fontSize': '12.5px', 'fontWeight': '900', 'color': '#2b6d3d'}}>{item.price}</p>
+                </button>
+              ))}
+            </div>
+          </>
+          )}
         </div>
       </div>
       )}
