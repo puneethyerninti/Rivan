@@ -823,7 +823,10 @@ export default function AppDashboard() {
   const exploreReady = !exploreLoading;
   const myEmpty = shownProps.length === 0;
   const myHasList = shownProps.length > 0;
-  const amountLabel = fmtL(amount);
+  const loanAmount = Number.isFinite(Number(amount)) ? Number(amount) : 2000000;
+  const annualRate = Number.isFinite(Number(rate)) ? Number(rate) : 9;
+  const tenureYears = Number.isFinite(Number(years)) ? Number(years) : 10;
+  const amountLabel = fmtL(loanAmount);
   const amenities = ['Gated Security', 'Clubhouse', 'Landscaped Parks', 'Wide Roads', 'Water Supply', 'Power Backup'];
   const selectedProperty = selData.property
     || propertyRows.find((item) => item.id === selData.id)
@@ -863,9 +866,9 @@ export default function AppDashboard() {
 
   history.splice(0, history.length);
 
-  const P = amount,
-    r = rate / 1200,
-    n = years * 12;
+  const P = loanAmount,
+    r = annualRate / 1200,
+    n = Math.max(1, tenureYears * 12);
   const emiVal = r === 0 ? P / n : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
   const total = emiVal * n,
     interest = total - P;
@@ -1947,18 +1950,18 @@ export default function AppDashboard() {
           <div style={{'marginTop': '22px', 'display': 'flex', 'flexDirection': 'column', 'gap': '24px'}}>
             <div>
               <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Loan Amount</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{amountLabel}</span></div>
-              <input type="range" min="500000" max="10000000" step="100000" value={amount} onInput={setAmount} style={{'width': '100%'}}/>
+              <input type="range" min="500000" max="10000000" step="100000" value={loanAmount} onChange={(event) => setAmount(Number(event.target.value))} style={{'width': '100%'}}/>
             </div>
             <div>
-              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Interest Rate</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{rate}%</span></div>
-              <input type="range" min="6" max="15" step="0.25" value={rate} onInput={setRate} style={{'width': '100%'}}/>
+              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Interest Rate</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{annualRate}%</span></div>
+              <input type="range" min="6" max="15" step="0.25" value={annualRate} onChange={(event) => setRate(Number(event.target.value))} style={{'width': '100%'}}/>
             </div>
             <div>
-              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Tenure</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{years} yrs</span></div>
-              <input type="range" min="1" max="30" step="1" value={years} onInput={setYears} style={{'width': '100%'}}/>
+              <div style={{'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '12px'}}><span style={{'fontSize': '13.5px', 'fontWeight': '700', 'color': '#3d4f40'}}>Tenure</span><span style={{'fontSize': '14px', 'fontWeight': '800', 'color': '#2b6d3d'}}>{tenureYears} yrs</span></div>
+              <input type="range" min="1" max="30" step="1" value={tenureYears} onChange={(event) => setYears(Number(event.target.value))} style={{'width': '100%'}}/>
             </div>
           </div>
-          <button style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(226,130,42,.6)'}}>Apply for Loan</button>
+          <button onClick={() => openNotice('Loan Assistance', `Your estimated EMI is ${emi}. Our team will call you with loan partner options and required documents.`)} style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(226,130,42,.6)'}}>Request Loan Assistance</button>
         </div>
       </div>
       )}
