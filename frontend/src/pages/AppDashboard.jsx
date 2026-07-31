@@ -221,7 +221,13 @@ export default function AppDashboard() {
   const [amount, setAmount] = useState(2000000);
   const [rate, setRate] = useState(9);
   const [years, setYears] = useState(10);
-  const [toggles, setToggles] = useState({ push: true, biometric: true, promo: false, dark: false });
+  const [toggles, setToggles] = useState({
+    push: true,
+    booking: true,
+    service: true,
+    whatsapp: true,
+    promo: false,
+  });
   const [liveStatus, setLiveStatus] = useState('connecting');
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState('');
@@ -356,9 +362,10 @@ export default function AppDashboard() {
         });
         setToggles({
           push: me?.notification_preferences?.push_notifications ?? true,
-          biometric: me?.biometric_login_enabled ?? false,
+          booking: me?.notification_preferences?.booking_updates ?? true,
+          service: me?.notification_preferences?.service_updates ?? true,
+          whatsapp: me?.communication_preferences?.whatsapp_updates ?? true,
           promo: me?.communication_preferences?.promotional_emails ?? false,
-          dark: me?.dark_mode_enabled ?? false,
         });
         const nextFeaturedRows = Array.isArray(featuredApi) && featuredApi.length ? featuredApi : [DEFAULT_LIVE_PROPERTY];
         const nextPropertyRows = Array.isArray(propertiesApi) && propertiesApi.length ? propertiesApi : [DEFAULT_LIVE_PROPERTY];
@@ -507,9 +514,9 @@ export default function AppDashboard() {
   const filterIcons = [
     { label: 'Filter', icon: 'M4 6h16M7 12h10M10 18h4', go: () => openNotice('Filter by search', 'Use the search box to filter live properties by project, location, or plot.') },
     { label: 'Location', icon: 'M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', go: () => setExploreSearch('Achutapuram') },
-    { label: 'Budget', icon: 'M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H9a2.5 2.5 0 0 0 0 5h7', go: () => openNotice('Budget filter', 'Budget filtering will be available after more live properties are added.') },
-    { label: 'Size', icon: 'M4 20L20 4M4 9V4h5M20 15v5h-5', go: () => openNotice('Plot size filter', 'Plot size filtering will be available after more live plots are added.') },
-    { label: 'More', icon: 'M5 12h.01M12 12h.01M19 12h.01', go: () => openNotice('More filters', 'More filters will appear here as new property options go live.') },
+    { label: 'Visits', icon: 'M8 7V3M16 7V3M4 11h16M5 5h14v16H5z', go: () => go('visits') },
+    { label: 'Bookings', icon: 'M7 4h10l2 4v12H5V8zM9 13h6M9 17h4', go: () => go('props') },
+    { label: 'Contact', icon: 'M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z', go: () => go('contact') },
   ];
 
   const getMyTab = (l) => ({
@@ -718,20 +725,31 @@ export default function AppDashboard() {
   };
   const togglesArr = [
     tg('push', 'Push Notifications', 'M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0', 0),
-    tg('biometric', 'Biometric Login', 'M12 11a4 4 0 0 0-4 4M7 8a7 7 0 0 1 10 0M12 11v6', 1),
-    tg('promo', 'Promotional Emails', 'M4 6h16v12H4zM4 7l8 6 8-6', 2),
-    tg('dark', 'Dark Mode', 'M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10z', 3),
+    tg('booking', 'Booking Updates', 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4', 1),
+    tg('service', 'Visit & Service Updates', 'M5 12l4 4 10-10M4 20h16', 2),
+    tg('whatsapp', 'WhatsApp Updates', 'M7 20l1.5-3A7 7 0 1 1 12 19a7.5 7.5 0 0 1-3.5-.9M9 9c.5 2.3 2.2 4 4.7 4.8l1.3-1.3', 3),
+    tg('promo', 'Project Offers & News', 'M4 6h16v12H4zM4 7l8 6 8-6', 4),
   ];
-  const settingLinks = [
-    { icon: 'M3 5h18M8 12h13M8 19h13M4 12h.01M4 19h.01', label: 'Language', value: 'English' },
-    { icon: 'M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H9a2.5 2.5 0 0 0 0 5h7', label: 'Currency', value: 'INR ₹' },
-    { icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.5 9a2.5 2.5 0 0 1 4 2c0 1.5-2 2-2 3.5M12 17h.01', label: 'Privacy Policy', value: '' },
-    { icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 8v5M12 16h.01', label: 'About Rivan', value: 'v1.0.0' },
+  const visibleSettingLinks = [
+    {
+      icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.5 9a2.5 2.5 0 0 1 4 2c0 1.5-2 2-2 3.5M12 17h.01',
+      label: 'Privacy & Data',
+      value: '',
+      go: () => openNotice('Privacy & Data', 'Rivan Realty uses your profile, visit, booking, and support details only to manage property enquiries, site visits, booking assistance, and account communication. KYC, bank, and nominee details are not collected in the customer app.'),
+    },
+    {
+      icon: 'M4 5h16v12H7l-3 3V5zM8 9h8M8 13h5',
+      label: 'Help & Support',
+      value: '',
+      go: () => go('contact'),
+    },
+    {
+      icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 8v5M12 16h.01',
+      label: 'About Rivan Realty',
+      value: 'v1.0.0',
+      go: () => openNotice('About Rivan Realty', 'Rivan Realty helps customers discover property opportunities, schedule site visits, manage bookings, and stay connected with the sales team through a secure web and Android-ready experience. The platform is built around trust, transparent property information, and responsive customer support.'),
+    },
   ].map((x, idx) => ({ ...x, border: idx === 0 ? 'none' : '1px solid #f0f4ee' }));
-
-  settingLinks.forEach((item) => {
-    item.go = () => openNotice(item.label, `${item.label} is connected to your live account settings and will continue expanding with future releases.`);
-  });
 
   const personalFields = [
     { label: 'Full Name', value: 'Sravani K' },
@@ -915,15 +933,13 @@ export default function AppDashboard() {
       const updated = await putJson('/api/auth/profile', {
         notification_preferences: {
           push_notifications: nextToggles.push,
-          booking_updates: nextToggles.push,
-          service_updates: nextToggles.push,
+          booking_updates: nextToggles.booking,
+          service_updates: nextToggles.service,
         },
         communication_preferences: {
           promotional_emails: nextToggles.promo,
-          whatsapp_updates: true,
+          whatsapp_updates: nextToggles.whatsapp,
         },
-        biometric_login_enabled: nextToggles.biometric,
-        dark_mode_enabled: nextToggles.dark,
       }, session.access_token);
       const nextSession = { ...session, user: { ...session.user, ...updated } };
       setSession(nextSession);
@@ -1345,6 +1361,43 @@ export default function AppDashboard() {
         </div>
 
         <div style={{'padding': '20px 22px 0'}}>
+          <div style={{'position': 'relative', 'overflow': 'hidden', 'background': 'linear-gradient(135deg,#ffffff 0%,#f8fbf6 45%,#fff4e5 100%)', 'borderRadius': '24px', 'padding': '22px', 'border': '1px solid #eef3ec', 'boxShadow': '0 18px 48px -28px rgba(18,53,29,.55)'}}>
+            <div style={{'position': 'absolute', 'right': '-54px', 'top': '-58px', 'width': '170px', 'height': '170px', 'borderRadius': '999px', 'background': 'rgba(226,130,42,.13)'}}></div>
+            <div style={{'position': 'absolute', 'right': '28px', 'bottom': '-44px', 'width': '120px', 'height': '120px', 'borderRadius': '36px', 'background': 'rgba(43,109,61,.09)', 'transform': 'rotate(18deg)'}}></div>
+            <div style={{'position': 'relative', 'display': 'flex', 'alignItems': 'center', 'gap': '16px', 'flexWrap': 'wrap', 'justifyContent': 'space-between'}}>
+              <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '14px', 'minWidth': '240px', 'flex': '1'}}>
+                <span style={{'width': '58px', 'height': '58px', 'borderRadius': '20px', 'background': '#fff', 'boxShadow': '0 12px 28px -18px rgba(18,53,29,.7)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v10H4zM4 11h16M8 15h3M16 15h.01"/></svg>
+                </span>
+                <div>
+                  <p style={{'margin': '0', 'fontSize': '12px', 'fontWeight': '900', 'letterSpacing': '.9px', 'textTransform': 'uppercase', 'color': '#e2822a'}}>Coming Soon</p>
+                  <h2 style={{'margin': '5px 0 0', 'fontSize': '26px', 'lineHeight': '1.05', 'color': '#16231a'}}>Secure online payments are on hold</h2>
+                  <p style={{'margin': '8px 0 0', 'fontSize': '14px', 'lineHeight': '1.5', 'color': '#6d7d6f', 'maxWidth': '640px'}}>We are keeping payment collection offline for now. Your live property search, visit scheduling, bookings, notifications, support, and partner updates continue to work normally.</p>
+                </div>
+              </div>
+              <button onClick={() => go('contact')} style={{'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '800', 'padding': '14px 22px', 'cursor': 'pointer', 'boxShadow': '0 14px 24px -13px rgba(18,68,35,.8)'}}>Contact Sales</button>
+            </div>
+            <div style={{'position': 'relative', 'marginTop': '22px', 'background': 'rgba(255,255,255,.78)', 'border': '1px solid rgba(43,109,61,.12)', 'borderRadius': '18px', 'padding': '14px'}}>
+              <div style={{'height': '12px', 'borderRadius': '999px', 'background': '#eef3ec', 'overflow': 'hidden'}}>
+                <div style={{'width': '66%', 'height': '100%', 'borderRadius': '999px', 'background': 'linear-gradient(90deg,#2b6d3d 0%,#7da96d 55%,#e2822a 100%)'}}></div>
+              </div>
+              <div style={{'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit,minmax(150px,1fr))', 'gap': '10px', 'marginTop': '14px'}}>
+                <div>
+                  <p style={{'margin': '0', 'fontSize': '12px', 'fontWeight': '900', 'color': '#2b6d3d'}}>Live CRM</p>
+                  <p style={{'margin': '4px 0 0', 'fontSize': '11.5px', 'color': '#7c8c7e', 'fontWeight': '600'}}>Bookings and visits are active</p>
+                </div>
+                <div>
+                  <p style={{'margin': '0', 'fontSize': '12px', 'fontWeight': '900', 'color': '#2b6d3d'}}>Gateway Setup</p>
+                  <p style={{'margin': '4px 0 0', 'fontSize': '11.5px', 'color': '#7c8c7e', 'fontWeight': '600'}}>Approval and compliance stage</p>
+                </div>
+                <div>
+                  <p style={{'margin': '0', 'fontSize': '12px', 'fontWeight': '900', 'color': '#e2822a'}}>Receipts</p>
+                  <p style={{'margin': '4px 0 0', 'fontSize': '11.5px', 'color': '#7c8c7e', 'fontWeight': '600'}}>Will unlock with payments</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {false && (<>
           {/* Payment progress card: percentage only */}
           <div style={{'background': '#fff', 'borderRadius': '20px', 'padding': '18px', 'border': '1px solid #eef3ec', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
             <div style={{'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '14px'}}>
@@ -1414,6 +1467,7 @@ export default function AppDashboard() {
               </button>
             ))}
           </div>
+          </>)}
         </div>
       </div>
       )}
@@ -1633,7 +1687,7 @@ export default function AppDashboard() {
 
           <p style={{'fontSize': '12px', 'fontWeight': '700', 'color': '#8a988c', 'textTransform': 'uppercase', 'letterSpacing': '.5px', 'margin': '22px 0 10px'}}>General</p>
           <div style={{'background': '#fff', 'borderRadius': '18px', 'border': '1px solid #eef3ec', 'overflow': 'hidden', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
-            { settingLinks.map((s, index) => (
+            { visibleSettingLinks.map((s, index) => (
               <button onClick={s.go} style={{width: '100%', display: 'flex', alignItems: 'center', gap: '13px', padding: '15px 18px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', borderTop: s.border}}>
                 <span style={{'width': '36px', 'height': '36px', 'borderRadius': '11px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d={s.icon}/></svg>
