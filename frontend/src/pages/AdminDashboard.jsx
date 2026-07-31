@@ -1678,11 +1678,12 @@ export default function AdminDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Service Request Queue</h3>
             {renderTable(
-              ['Ticket #', 'Customer', 'Subject', 'Priority', 'Status', 'Date', 'Actions'],
+              ['Ticket #', 'Customer', 'Contact', 'Subject', 'Priority', 'Status', 'Date', 'Actions'],
               visibleSupportTickets.length
                 ? visibleSupportTickets.map((item) => [
                     item.ticket_number,
                     item.customer_name,
+                    renderContactActions(item.contact || item.customer_phone || item.phone, `Hello ${item.customer_name || 'there'}, this is Rivan Realty regarding your service request ${item.ticket_number || ''}.`),
                     item.subject,
                     <span style={tone(item.priority)}>{item.priority}</span>,
                     <span style={tone(recordStatusLabel(item, item.status))}>{String(recordStatusLabel(item, item.status)).replace('_', ' ')}</span>,
@@ -1701,7 +1702,7 @@ export default function AdminDashboard() {
                       )}
                     </div>,
                   ])
-                : [[<span style={{ color: '#8a9a8c' }}>No support tickets match the current filters.</span>, '', '', '', '', '', '']],
+                : [[<span style={{ color: '#8a9a8c' }}>No support tickets match the current filters.</span>, '', '', '', '', '', '', '']],
             )}
           </section>
         )}

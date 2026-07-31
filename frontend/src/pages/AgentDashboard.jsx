@@ -1130,11 +1130,12 @@ export default function AgentDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Assigned Leads</h3>
             {renderTable(
-              ['Lead', 'Phone', 'Source', 'Tags', 'Updated'],
+              ['Lead', 'Phone', 'Source', 'Contact', 'Tags', 'Updated'],
               visibleLeads.map((item) => [
                 item.name || 'Lead',
                 formatPhoneDisplay(item.phone) || '—',
                 item.source || 'manual',
+                renderContactActions(item.phone || item.customer_phone || item.mobile, `Hello ${item.name || 'there'}, this is Rivan Realty regarding your property enquiry.`),
                 (item.tags || []).join(', ') || '—',
                 formatDateTime(item.updated_at),
               ]),
@@ -1146,12 +1147,13 @@ export default function AgentDashboard() {
           <section style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>Opportunities</h3>
             {renderTable(
-              ['Lead', 'Property', 'Plot', 'Stage', 'Updated'],
+              ['Lead', 'Property', 'Plot', 'Stage', 'Contact', 'Updated'],
               visibleOpportunities.map((item) => [
                 item.lead_name || item.name || item.lead_id || 'Lead',
                 item.property_name || item.property_id || 'Property',
                 item.plot_number || item.plot_id || '—',
                 <span style={badgeTone(item.stage)}>{String(item.stage || 'new').replaceAll('_', ' ')}</span>,
+                renderContactActions(item.phone || item.lead_phone || item.customer_phone || item.mobile, `Hello ${item.lead_name || item.name || 'there'}, this is Rivan Realty regarding your property opportunity.`),
                 formatDateTime(item.updated_at),
               ]),
             )}
