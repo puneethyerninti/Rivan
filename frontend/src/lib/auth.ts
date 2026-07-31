@@ -18,8 +18,14 @@ export function getWebSocketUrl(token) {
 let liveUpdatesCapabilityPromise = null;
 let liveUpdatesCapabilityCheckedAt = 0;
 const LIVE_UPDATES_CAPABILITY_TTL_MS = 90000;
+const FORCE_DISABLE_WEBSOCKETS = true;
 
 export async function supportsLiveUpdates() {
+  // Render free-tier WebSocket upgrades are unstable for this app right now.
+  // Keep realtime on API polling unless we intentionally remove this guard.
+  if (FORCE_DISABLE_WEBSOCKETS) {
+    return false;
+  }
   if (import.meta.env.VITE_ENABLE_WEBSOCKETS !== "true") {
     return false;
   }
