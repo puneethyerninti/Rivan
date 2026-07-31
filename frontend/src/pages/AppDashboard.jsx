@@ -20,6 +20,16 @@ const G = [
 const DEFAULT_PROPERTY_IMAGE = '/Property Image 1.jpeg';
 const FAST_LOGO = '/RivanRealtyLogo-fast.webp';
 const PUBLIC_DASHBOARD_CACHE_KEY = 'rivan_customer_dashboard_public_cache';
+const RIVAN_SUPPORT_PHONE = '9052644345';
+const RIVAN_SUPPORT_PHONE_DISPLAY = '+91 90526 44345';
+const CUSTOMER_SERVICE_TYPES = [
+  'Borewell',
+  'Fencing',
+  'Electricity Connection',
+  'Water Connection',
+  'Property Maintenance',
+  'Legal Documentation',
+];
 const DEFAULT_LIVE_PROPERTY = {
   id: 'prop-1',
   name: 'Sirpuram Gardens Independent House',
@@ -245,6 +255,13 @@ export default function AppDashboard() {
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [contactMessage, setContactMessage] = useState('');
+  const [serviceForm, setServiceForm] = useState({
+    service_type: 'Property Maintenance',
+    preferred_date: defaultVisitDate(),
+    description: '',
+    property_id: '',
+  });
+  const [serviceSubmitting, setServiceSubmitting] = useState(false);
   const [homeSearch, setHomeSearch] = useState('');
   const [exploreSearch, setExploreSearch] = useState('');
   const [actionFormMode, setActionFormMode] = useState(null);
@@ -683,8 +700,8 @@ export default function AppDashboard() {
   const profileMenuRaw = [
     pm('M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M5 20c0-3.5 3-6 7-6s7 2.5 7 6', 'Personal Details', 'personal'),
     pm('M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0', 'Notifications', 'notif'),
-    pm('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.5 9a2.5 2.5 0 0 1 4 2c0 1.5-2 2-2 3.5M12 17h.01', 'Help Center', null),
-    pm('M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z', 'Service Requests', null),
+    pm('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.5 9a2.5 2.5 0 0 1 4 2c0 1.5-2 2-2 3.5M12 17h.01', 'Help Center', 'help'),
+    pm('M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z', 'Service Requests', 'services'),
     pm('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M12 3v2M12 19v2M4 12H2M22 12h-2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4', 'Settings', 'settings'),
     pm('M15 4h4v16h-4M10 8l-4 4 4 4M6 12h9', 'Logout', null, { iconBg: '#fdecec', iconColor: '#c0392b', textColor: '#c0392b' }),
   ];
@@ -870,6 +887,8 @@ export default function AppDashboard() {
     notif: 'profile',
     settings: 'profile',
     personal: 'profile',
+    help: 'profile',
+    services: 'profile',
   };
   const active = tabOf[cur];
   const navColor = (t) => (active === t ? '#ffffff' : 'rgba(255,255,255,.5)');
@@ -884,7 +903,7 @@ export default function AppDashboard() {
   const navClassProfile = navClass('profile');
 
   const showNav = mainTabs.includes(cur);
-  const greenHeader = ['home', 'explore', 'props', 'payments', 'profile', 'payhistory', 'emi', 'notif', 'settings', 'personal'].includes(cur);
+  const greenHeader = ['home', 'explore', 'props', 'payments', 'profile', 'payhistory', 'emi', 'notif', 'settings', 'personal', 'help', 'services'].includes(cur);
 
   const SW = [
     ['home', 'Home'],
@@ -898,6 +917,8 @@ export default function AppDashboard() {
     ['notif', 'Notifications'],
     ['settings', 'Settings'],
     ['personal', 'Personal'],
+    ['help', 'Help'],
+    ['services', 'Services'],
   ];
   const switcher = SW.map(([id, label]) => ({
     label,
@@ -933,6 +954,8 @@ export default function AppDashboard() {
   const isSettings = cur === 'settings';
   const isContact = cur === 'contact';
   const isPersonal = cur === 'personal';
+  const isHelp = cur === 'help';
+  const isServices = cur === 'services';
   const goHome = () => tab('home');
   const goExplore = () => tab('explore');
   const goProps = () => navigate('/my-lands');
@@ -1112,15 +1135,62 @@ export default function AppDashboard() {
       openNotice('Request Failed', error?.message || 'We could not submit the request right now.');
     }
   };
+  const callRivanSupport = () => {
+    try { window.open(`tel:+91${RIVAN_SUPPORT_PHONE}`); } catch {}
+  };
+  const whatsAppRivanSupport = (message = 'Hello Rivan Realty, I need support.') => {
+    try {
+      window.open(`https://wa.me/91${RIVAN_SUPPORT_PHONE}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    } catch {}
+  };
+  const submitSupportRequest = (subject, message) => submitContactSales('support', message || subject);
+  const submitServiceRequest = async () => {
+    if (!session?.access_token || serviceSubmitting) return;
+    const description = String(serviceForm.description || '').trim();
+    if (!description) {
+      openNotice('Add Service Details', 'Please describe what support or service you need.');
+      return;
+    }
+    setServiceSubmitting(true);
+    try {
+      await postJson('/api/services/request', {
+        service_type: serviceForm.service_type,
+        property_id: serviceForm.property_id || landRows[0]?.property_id || landRows[0]?.property?.id || null,
+        preferred_date: serviceForm.preferred_date || defaultVisitDate(),
+        description,
+        contact: session.user?.phone || RIVAN_SUPPORT_PHONE,
+      }, session.access_token);
+      const [nextServices, nextNotifications] = await Promise.all([
+        getJson('/api/services/mine', session.access_token).catch(() => []),
+        getJson('/api/notifications', session.access_token).catch(() => []),
+      ]);
+      setServiceRows(Array.isArray(nextServices) ? nextServices : []);
+      setNotificationRows(Array.isArray(nextNotifications) ? nextNotifications : []);
+      setServiceForm((current) => ({ ...current, description: '' }));
+      openNotice('Service Request Submitted', 'Your service request was submitted and sent to the Rivan team.');
+    } catch (error) {
+      if (String(error?.message || '').toLowerCase().includes('available only after purchase')) {
+        await submitContactSales('support', `${serviceForm.service_type}: ${description}`);
+        openNotice('Support Request Submitted', 'Property services are available after purchase, so we created a support follow-up request for the team.');
+      } else {
+        openNotice('Request Failed', error?.message || 'We could not submit the service request right now.');
+      }
+    } finally {
+      setServiceSubmitting(false);
+    }
+  };
   const closeModal = () => setShowPaidModal(false);
   const contactActions = [
     {
       label: 'Request Callback',
-      sub: session?.user?.phone ? `Use ${formatIndianPhone(session.user.phone)}` : 'Create a live callback request',
+      sub: `Rivan callback desk: ${RIVAN_SUPPORT_PHONE_DISPLAY}`,
       color: '#2b6d3d',
       bg: '#eef6ea',
       icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12 19.79 19.79 0 0 1 1.07 3.18 2 2 0 0 1 3.05 1h3a2 2 0 0 1 2 1.72c.13 1.01.36 2 .71 2.96a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.96.35 1.95.58 2.96.71A2 2 0 0 1 21 16z',
-      action: () => submitContactSales('callback', `Please call me back regarding ${selectedProperty?.name || 'the property'} .`),
+      action: async () => {
+        await submitContactSales('callback', `Please call me back from ${RIVAN_SUPPORT_PHONE_DISPLAY} regarding ${selectedProperty?.name || 'the property'}.`);
+        callRivanSupport();
+      },
     },
     {
       label: 'Sales Inquiry',
@@ -1139,6 +1209,39 @@ export default function AppDashboard() {
       action: () => submitContactSales('whatsapp', contactMessage || `Please continue the conversation on WhatsApp for ${selectedProperty?.name || 'this property'}.`),
     },
   ];
+  const helpActions = [
+    {
+      title: 'Call Rivan Support',
+      body: `Speak with the team at ${RIVAN_SUPPORT_PHONE_DISPLAY}.`,
+      icon: 'M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
+      go: callRivanSupport,
+    },
+    {
+      title: 'WhatsApp Support',
+      body: 'Start a WhatsApp conversation with the support team.',
+      icon: 'M7 20l1.5-3A7 7 0 1 1 12 19a7.5 7.5 0 0 1-3.5-.9M9 9c.5 2.3 2.2 4 4.7 4.8l1.3-1.3',
+      go: () => whatsAppRivanSupport(`Hello Rivan Realty, I need help with my account ${formatIndianPhone(session?.user?.phone)}.`),
+    },
+    {
+      title: 'Booking Help',
+      body: 'Create a live support request for booking or property doubts.',
+      icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4',
+      go: () => submitSupportRequest('Booking Help', 'I need help with my booking or property details.'),
+    },
+    {
+      title: 'Visit Help',
+      body: 'Ask the team to help with schedule visit or reschedule issues.',
+      icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+      go: () => submitSupportRequest('Visit Help', 'I need help with my site visit schedule.'),
+    },
+  ];
+  const serviceHistory = (Array.isArray(serviceRows) ? serviceRows : []).map((item) => ({
+    id: item.id || `${item.service_type}-${item.created_at}`,
+    title: item.subject || `${item.service_type || 'Service'} request`,
+    description: item.description || 'Request submitted to Rivan team.',
+    status: item.status || 'pending',
+    date: formatDateOnly(item.updated_at || item.created_at),
+  }));
 
   return (
 
@@ -1774,7 +1877,6 @@ export default function AppDashboard() {
         <div style={{'padding': '22px'}}>
           <div style={{'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'marginBottom': '8px'}}>
             <div style={{'width': '78px', 'height': '78px', 'borderRadius': '24px', 'background': 'linear-gradient(160deg,#2b6d3d,#3f8a54)', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'fontSize': '28px', 'fontWeight': '800', 'color': '#fff'}}>{initials}</div>
-            <button onClick={() => openNotice('Profile Photo', 'Profile photo upload will be available in an upcoming update.')} style={{'marginTop': '12px', 'border': '1px solid #e2e8e0', 'background': '#fff', 'borderRadius': '20px', 'padding': '7px 16px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#2b6d3d', 'cursor': 'pointer'}}>Change Photo</button>
           </div>
           { personalFields.map((p, index) => (
             <div style={{'marginTop': '15px'}}>
@@ -1790,6 +1892,81 @@ export default function AppDashboard() {
             </div>
           ))}
           <button onClick={saveProfile} style={{'marginTop': '26px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{savingProfile ? 'Saving...' : 'Save Changes'}</button>
+        </div>
+      </div>
+      )}
+
+      {/* ===================== HELP CENTER ===================== */}
+      {isHelp && (
+      <div className="rv-screen">
+        <div style={{'background': 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+          <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
+          <div>
+            <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Help Center</span>
+            <p style={{'margin': '4px 0 0', 'fontSize': '12.5px', 'fontWeight': '600', 'color': '#cfe0cd'}}>Real support actions connected to Rivan team</p>
+          </div>
+        </div>
+        <div style={{'padding': '22px'}}>
+          <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '20px', 'padding': '18px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)', 'marginBottom': '16px'}}>
+            <p style={{'margin': '0', 'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31'}}>Need help now?</p>
+            <p style={{'margin': '7px 0 0', 'fontSize': '13px', 'lineHeight': '1.5', 'color': '#6d7d6f'}}>Use callback, WhatsApp, booking help, or visit help. Each support request is saved and visible to the admin support dashboard.</p>
+          </div>
+          <div style={{'display': 'grid', 'gap': '12px'}}>
+            {helpActions.map((item) => (
+              <button key={item.title} onClick={item.go} style={{'display': 'flex', 'alignItems': 'center', 'gap': '14px', 'textAlign': 'left', 'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '16px', 'fontFamily': 'inherit', 'cursor': 'pointer', 'boxShadow': '0 10px 26px -22px rgba(18,53,29,.5)'}}>
+                <span style={{'width': '46px', 'height': '46px', 'borderRadius': '14px', 'background': '#eef6ea', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2b6d3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
+                </span>
+                <span style={{'flex': '1'}}>
+                  <span style={{'display': 'block', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{item.title}</span>
+                  <span style={{'display': 'block', 'marginTop': '3px', 'fontSize': '12px', 'fontWeight': '600', 'color': '#8a988c'}}>{item.body}</span>
+                </span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2cdc0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* ===================== SERVICE REQUESTS ===================== */}
+      {isServices && (
+      <div className="rv-screen">
+        <div style={{'background': 'linear-gradient(160deg,#2b6d3d 0%,#377e4b 100%)', 'padding': '56px 22px 22px', 'borderRadius': '0 0 26px 26px', 'display': 'flex', 'alignItems': 'center', 'gap': '14px'}}>
+          <button onClick={back} style={{'width': '38px', 'height': '38px', 'borderRadius': '12px', 'border': 'none', 'background': 'rgba(255,255,255,.14)', 'color': '#fff', 'fontSize': '18px', 'cursor': 'pointer'}}>←</button>
+          <div>
+            <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Service Requests</span>
+            <p style={{'margin': '4px 0 0', 'fontSize': '12.5px', 'fontWeight': '600', 'color': '#cfe0cd'}}>Create and track property service support</p>
+          </div>
+        </div>
+        <div style={{'padding': '22px'}}>
+          <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '20px', 'padding': '18px', 'boxShadow': '0 12px 30px -24px rgba(18,53,29,.5)'}}>
+            <p style={{'margin': '0 0 14px', 'fontSize': '16px', 'fontWeight': '800', 'color': '#1f5a31'}}>New Request</p>
+            <div style={{'display': 'grid', 'gap': '12px'}}>
+              <select value={serviceForm.service_type} onChange={(event) => setServiceForm((current) => ({ ...current, service_type: event.target.value }))} style={{'height': '50px', 'border': '1.5px solid #e2e8e0', 'borderRadius': '14px', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'color': '#16231a', 'background': '#fff'}}>
+                {CUSTOMER_SERVICE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+              </select>
+              <input type="date" value={serviceForm.preferred_date} onChange={(event) => setServiceForm((current) => ({ ...current, preferred_date: event.target.value }))} style={{'height': '50px', 'border': '1.5px solid #e2e8e0', 'borderRadius': '14px', 'padding': '0 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'fontWeight': '700', 'color': '#16231a'}} />
+              <textarea value={serviceForm.description} onChange={(event) => setServiceForm((current) => ({ ...current, description: event.target.value }))} placeholder="Describe the service or support you need..." style={{'height': '96px', 'border': '1.5px solid #e2e8e0', 'borderRadius': '14px', 'padding': '12px 13px', 'fontFamily': 'inherit', 'fontSize': '13.5px', 'color': '#16231a', 'resize': 'none'}} />
+              <button onClick={submitServiceRequest} disabled={serviceSubmitting} style={{'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#2b6d3d,#3f8a54)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '800', 'cursor': serviceSubmitting ? 'wait' : 'pointer', 'boxShadow': '0 14px 26px -12px rgba(18,68,35,.7)'}}>{serviceSubmitting ? 'Submitting...' : 'Submit Service Request'}</button>
+            </div>
+          </div>
+
+          <p style={{'fontSize': '12px', 'fontWeight': '800', 'color': '#8a988c', 'textTransform': 'uppercase', 'letterSpacing': '.5px', 'margin': '22px 0 10px'}}>Request History</p>
+          <div style={{'display': 'grid', 'gap': '12px'}}>
+            {serviceHistory.length ? serviceHistory.map((item) => (
+              <div key={item.id} style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '15px', 'boxShadow': '0 10px 26px -22px rgba(18,53,29,.5)'}}>
+                <div style={{'display': 'flex', 'justifyContent': 'space-between', 'gap': '10px'}}>
+                  <p style={{'margin': '0', 'fontSize': '14.5px', 'fontWeight': '800', 'color': '#16231a'}}>{item.title}</p>
+                  <span style={{'height': '24px', 'padding': '0 10px', 'borderRadius': '20px', 'display': 'inline-flex', 'alignItems': 'center', 'background': '#e8f3e3', 'color': '#2b6d3d', 'fontSize': '11px', 'fontWeight': '800', 'textTransform': 'capitalize'}}>{String(item.status).replace(/_/g, ' ')}</span>
+                </div>
+                <p style={{'margin': '7px 0 0', 'fontSize': '12.5px', 'lineHeight': '1.5', 'color': '#6d7d6f'}}>{item.description}</p>
+                <p style={{'margin': '8px 0 0', 'fontSize': '11.5px', 'fontWeight': '700', 'color': '#8a988c'}}>Updated {item.date}</p>
+              </div>
+            )) : (
+              <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '18px', 'padding': '18px', 'fontSize': '13px', 'fontWeight': '600', 'color': '#6d7d6f'}}>No service requests yet. Submit one above and it will appear here with live status.</div>
+            )}
+          </div>
         </div>
       </div>
       )}
