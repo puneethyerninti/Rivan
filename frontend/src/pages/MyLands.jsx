@@ -117,6 +117,43 @@ function landImage(land = {}) {
   );
 }
 
+function normalizeSearch(value) {
+  return String(value || '').toLowerCase().trim();
+}
+
+function flattenSearchValues(values) {
+  const out = [];
+  const visit = (value) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(visit);
+      return;
+    }
+    out.push(String(value));
+  };
+  visit(values);
+  return out;
+}
+
+function matchesSearch(values, query) {
+  const normalized = normalizeSearch(query);
+  if (!normalized) return true;
+  const haystack = flattenSearchValues(values).map(normalizeSearch).join(' ');
+  return normalized.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
+}
+
+function landTypeShort(land = {}) {
+  const raw = normalizeSearch(land.property?.property_type || land.property_type || land.category || land.type);
+  if (raw.includes('villa')) return 'Villa';
+  if (raw.includes('apartment') || raw.includes('flat')) return 'Apartment';
+  if (raw.includes('farm')) return 'Farmland';
+  return 'Plot';
+}
+
 function PropertyImage({ src, alt, fallback, style = {}, children, eager = false }) {
   const imageUrl = normalizeImageUrl(src || DEFAULT_PROPERTY_IMAGE);
   return (
@@ -190,7 +227,7 @@ export default function MyLands() {
     spec: `${land.area || land.plot_area || '—'} • ${land.facing || '—'} Facing`,
     reg: land.property?.rera_number || land.rera_number || 'RERA available on request',
     status: land.purchase_complete ? 'Completed' : 'Active',
-    typeShort: String(land.property?.property_type || '').toLowerCase().includes('villa') ? 'Villa' : 'Plot',
+    typeShort: landTypeShort(land),
     grad: G[index % G.length],
     image: landImage(land),
     progress: `${Math.round((Number(land.payment_progress || 0)) * 100)}%`,
@@ -198,7 +235,10 @@ export default function MyLands() {
     paid: `₹${Math.round(Number(land.paid_amount || 0)).toLocaleString('en-IN')}`,
     remaining: `₹${Math.round(Number(land.balance_amount || 0)).toLocaleString('en-IN')}`,
     date: land.created_at ? new Date(land.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-    infoLabel: String(land.property?.property_type || '').toLowerCase().includes('villa') ? 'Villa Info' : 'Plot Info',
+    infoLabel: landTypeShort(land) === 'Villa' ? 'Villa Info' : 'Plot Info',
+    propertyCode: land.property?.property_code || land.property_code || land.property?.code || '',
+    propertyStatus: land.property?.status || land.property?.availability_status || land.property?.availability_label || '',
+    raw: land,
     aboutRows: [
       { k: 'Location', v: land.property?.location || land.location || 'Achutapuram, Visakhapatnam' },
       { k: 'Plot Size', v: land.area || land.plot_area || '—' },
@@ -209,20 +249,26 @@ export default function MyLands() {
 
   const sourceLands = liveLands;
 
-  const query = String(search || '').toLowerCase().trim();
+  const query = normalizeSearch(search);
   const filteredLands = sourceLands.filter((l) => {
     const matchesType =
       filter === 'All' ||
       (filter === 'Plots' && l.typeShort === 'Plot') ||
-      (filter === 'Villas' && l.typeShort === 'Villa');
-    const matchesText = !query || [
+      (filter === 'Villas' && l.typeShort === 'Villa') ||
+      (filter === 'Apartments' && l.typeShort === 'Apartment') ||
+      (filter === 'Farmlands' && l.typeShort === 'Farmland');
+    const matchesText = matchesSearch([
       l.name,
       l.code,
+      l.propertyCode,
       l.spec,
       l.reg,
       l.status,
+      l.propertyStatus,
+      l.typeShort,
+      l.raw,
       ...(Array.isArray(l.aboutRows) ? l.aboutRows.flatMap((row) => [row.k, row.v]) : []),
-    ].some((value) => String(value || '').toLowerCase().includes(query));
+    ], query);
     return matchesType && matchesText;
   });
 
@@ -310,14 +356,17 @@ export default function MyLands() {
                   <button key={c} onClick={() => setFilter(c)} style={chipStyle(c)}>{c}</button>
                 ))}
               </div>
+              <p style={{ margin: '11px 2px 0', fontSize: '11.5px', fontWeight: '600', color: '#7c8c7e' }}>
+                {filteredLands.length} result{filteredLands.length === 1 ? '' : 's'}{query ? ` for "${query}"` : ''}{filter !== 'All' ? ` in ${filter}` : ''}
+              </p>
 
               {filteredLands.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '48px 24px' }}>
                   <div style={{ width: '96px', height: '96px', borderRadius: '30px', background: '#eef6ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#8fae8c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5M10 21v-6h4v6" /></svg>
                   </div>
-                  <p style={{ margin: '22px 0 6px', fontSize: '17px', fontWeight: '800', color: '#1f5a31' }}>No properties yet</p>
-                  <p style={{ margin: '0 0 22px', fontSize: '13.5px', color: '#8a988c', maxWidth: '250px', lineHeight: '1.55' }}>Start your investment journey with Rivan Reality — explore premium plots, villas and farmlands.</p>
+                  <p style={{ margin: '22px 0 6px', fontSize: '17px', fontWeight: '800', color: '#1f5a31' }}>{sourceLands.length ? 'No matching properties' : 'No properties yet'}</p>
+                  <p style={{ margin: '0 0 22px', fontSize: '13.5px', color: '#8a988c', maxWidth: '250px', lineHeight: '1.55' }}>{sourceLands.length ? 'Try a project name, location, property code, plot number, facing, size, status, or clear filters.' : 'Start your investment journey with Rivan Realty by exploring premium plots, villas and farmlands.'}</p>
                   <button onClick={() => navigate('/app')} style={{ height: '52px', padding: '0 32px', border: 'none', borderRadius: '15px', background: 'linear-gradient(180deg,#eb9236,#e2822a)', color: '#fff', fontFamily: 'inherit', fontSize: '15px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 12px 24px -10px rgba(226,130,42,.6)' }}>Explore Properties</button>
                 </div>
               ) : (

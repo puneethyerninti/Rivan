@@ -477,10 +477,15 @@ export default function AgentDashboard() {
     (asset) => !visitForm.property_id || asset.property_id === visitForm.property_id,
   );
   const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
+  const matchesSearchTokens = (item, query) => {
+    const normalized = normalizeSearch(query);
+    if (!normalized) return true;
+    const haystack = normalizeSearch(JSON.stringify(item || {}));
+    return normalized.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
+  };
   const matchesPartnerSearch = (item) => {
     const query = normalizeSearch(partnerSearch);
-    if (!query) return true;
-    return normalizeSearch(JSON.stringify(item)).includes(query);
+    return matchesSearchTokens(item, query);
   };
   const matchesPartnerStatus = (item) => {
     if (partnerStatusFilter === 'all') return true;

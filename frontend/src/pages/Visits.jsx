@@ -65,6 +65,35 @@ function propertyImageFromRecord(visit = {}, property = {}) {
   );
 }
 
+function normalizeSearch(value) {
+  return String(value || '').toLowerCase().trim();
+}
+
+function flattenSearchValues(values) {
+  const out = [];
+  const visit = (value) => {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.values(value).forEach(visit);
+      return;
+    }
+    out.push(String(value));
+  };
+  visit(values);
+  return out;
+}
+
+function matchesSearch(values, query) {
+  const normalized = normalizeSearch(query);
+  if (!normalized) return true;
+  const haystack = flattenSearchValues(values).map(normalizeSearch).join(' ');
+  return normalized.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
+}
+
 function PropertyImage({ src, alt, fallback, style = {}, children, eager = false }) {
   const imageUrl = normalizeImageUrl(src || DEFAULT_PROPERTY_IMAGE);
   return (
@@ -104,6 +133,8 @@ export default function Visits() {
   const [propertyRows, setPropertyRows] = useState(() => initialVisitsCache.properties);
   const [loadingVisits, setLoadingVisits] = useState(!initialVisitsCache.visits.length);
   const [notice, setNotice] = useState('');
+  const [visitSearch, setVisitSearch] = useState('');
+  const [visitStatusFilter, setVisitStatusFilter] = useState('All');
 
   const cur = stack[stack.length - 1];
 
@@ -286,6 +317,7 @@ export default function Visits() {
       : { flex: 1, height: '40px', borderRadius: '11px', border: 'none', background: 'transparent', color: '#cfe0cd', fontFamily: 'inherit', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' },
   });
   const tabs = [getTab('Upcoming'), getTab('Completed')];
+  const visitQuery = normalizeSearch(visitSearch);
 
   const cardActions = (v) => v.phase === 'upcoming' ? [
     { label: 'Directions', icon: I.nav, go: (e) => { e.stopPropagation(); dir(); }, style: actStyle(false), stroke: '#2b6d3d' },
@@ -307,7 +339,28 @@ export default function Visits() {
       actions: cardActions(v), open: () => openVisit(v)
     };
   };
-  const list = (tab === 'Upcoming' ? upcoming : completed).map(decorate);
+  const baseVisitList = tab === 'Upcoming' ? upcoming : completed;
+  const visitStatusOptions = ['All', ...Array.from(new Set(baseVisitList.map((visit) => visit.status).filter(Boolean)))];
+  const list = baseVisitList
+    .filter((visit) => visitStatusFilter === 'All' || visit.status === visitStatusFilter)
+    .filter((visit) => matchesSearch([
+      visit.id,
+      visit.name,
+      visit.project,
+      visit.plot,
+      visit.type,
+      visit.location,
+      visit.date,
+      visit.time,
+      visit.bookingId,
+      visit.status,
+      visit.countdown,
+      visit.assignedAgentName,
+      visit.assignedAgentPhone,
+      visit.notes,
+      visit.specs,
+    ], visitQuery))
+    .map(decorate);
   const emptyVisit = {
     id: 'empty-visit',
     name: 'Siripuram Property Visit',
@@ -420,8 +473,9 @@ export default function Visits() {
   const directions = () => dir();
   const listShow = list.length > 0;
   const listEmpty = list.length === 0;
-  const emptyTitle = emptyMap[tab][0];
-  const emptyText = emptyMap[tab][1];
+  const hasVisitFilter = !!visitQuery || visitStatusFilter !== 'All';
+  const emptyTitle = hasVisitFilter ? 'No matching visits' : emptyMap[tab][0];
+  const emptyText = hasVisitFilter ? 'Try property name, plot, location, date, status, booking ID, or clear the filters.' : emptyMap[tab][1];
 
   const goReschedule = () => { setMode('reschedule'); setStack((st) => [...st, 'book']); setTimeout(top, 10); };
   const askCancel = () => setShowCancel(true);
@@ -560,9 +614,21 @@ export default function Visits() {
               <button onClick={t.pick} style={t.style}>{t.label}</button>
             ))}
           </div>
+          <div style={{'marginTop': '14px', 'display': 'grid', 'gridTemplateColumns': 'minmax(0,1.4fr) minmax(0,.8fr)', 'gap': '10px'}}>
+            <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '9px', 'height': '44px', 'background': '#fff', 'borderRadius': '13px', 'padding': '0 12px'}}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7c8c7e" stroke-width="1.8" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5"/></svg>
+              <input value={visitSearch} onChange={(event) => setVisitSearch(event.target.value)} placeholder="Search visits" style={{'flex': '1', 'minWidth': 0, 'border': 'none', 'background': 'transparent', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '600', 'color': '#16231a'}} />
+            </div>
+            <select value={visitStatusFilter} onChange={(event) => setVisitStatusFilter(event.target.value)} style={{'height': '44px', 'minWidth': 0, 'border': 'none', 'borderRadius': '13px', 'background': '#fff', 'padding': '0 10px', 'fontFamily': 'inherit', 'fontSize': '12.5px', 'fontWeight': '700', 'color': '#1f5a31'}}>
+              {visitStatusOptions.map((status) => <option key={status} value={status}>{status === 'All' ? 'All statuses' : status}</option>)}
+            </select>
+          </div>
         </div>
 
         <div style={{'padding': '18px 22px 0'}}>
+          <p style={{'margin': '0 0 12px 2px', 'fontSize': '11.5px', 'fontWeight': '600', 'color': '#7c8c7e'}}>
+            {list.length} visit{list.length === 1 ? '' : 's'}{visitQuery ? ` for "${visitQuery}"` : ''}{visitStatusFilter !== 'All' ? ` with ${visitStatusFilter} status` : ''}
+          </p>
           {loadingVisits && listEmpty && (
           <div style={{'display': 'flex', 'flexDirection': 'column', 'gap': '14px'}}>
             {[1, 2].map((item) => (

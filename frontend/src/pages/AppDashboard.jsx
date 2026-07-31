@@ -466,24 +466,72 @@ export default function AppDashboard() {
   };
 
   const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
-  const matchesSearch = (value, query) => String(value || '').toLowerCase().includes(query);
+  const flattenSearchValues = (values) => {
+    const out = [];
+    const visit = (value) => {
+      if (value === null || value === undefined) return;
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      if (typeof value === 'object') {
+        Object.values(value).forEach(visit);
+        return;
+      }
+      out.push(String(value));
+    };
+    visit(values);
+    return out;
+  };
+  const matchesSearch = (values, query) => {
+    const normalized = normalizeSearch(query);
+    if (!normalized) return true;
+    const haystack = flattenSearchValues(values).map(normalizeSearch).join(' ');
+    return normalized.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
+  };
   const propertyMatches = (item, query) => {
-    if (!query) return true;
-    return [
+    const property = item?.property || item || {};
+    return matchesSearch([
+      item?.id,
       item?.name,
       item?.loc,
       item?.tag,
       item?.price,
       item?.type,
-      item?.property?.name,
-      item?.property?.location,
-      item?.property?.address,
-      item?.property?.property_type,
-      item?.property?.category,
-      item?.property?.plot_number,
+      item?.code,
+      item?.status,
       item?.plot,
       item?.spec,
-    ].some((value) => matchesSearch(value, query));
+      item?.date,
+      property?.id,
+      property?.name,
+      property?.location,
+      property?.address,
+      property?.city,
+      property?.area,
+      property?.property_code,
+      property?.code,
+      property?.rera_number,
+      property?.property_type,
+      property?.category,
+      property?.plot_number,
+      property?.plot_size,
+      property?.plot_area,
+      property?.area_range,
+      property?.facing,
+      property?.status,
+      property?.availability_status,
+      property?.availability_label,
+      property?.description,
+      property?.short_description,
+      property?.amenities,
+      property?.features,
+      property?.tags,
+      property?.location_keywords,
+      property?.plots,
+      propertyDisplayPrice(property),
+      propertyPriceValue(property),
+    ], query);
   };
 
   const featured = [
@@ -509,13 +557,14 @@ export default function AppDashboard() {
         ? { flex: 'none', padding: '9px 18px', borderRadius: '12px', border: 'none', background: '#2b6d3d', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }
         : { flex: 'none', padding: '9px 18px', borderRadius: '12px', border: '1px solid #e2e8e0', background: '#fff', color: '#3d4f40', fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   });
-  const chips = ['All', 'Plots', 'Villas', 'Apartments'].map(getChip);
+  const chips = Array.from(new Set(['All', ...propertyRows.map((property) => propertyType(property)), 'Plots', 'Villas', 'Apartments'].filter(Boolean))).map(getChip);
 
+  const firstLiveLocation = propertyTag(propertyRows[0] || featuredRows[0] || DEFAULT_LIVE_PROPERTY);
   const filterIcons = [
-    { label: 'Filter', icon: 'M4 6h16M7 12h10M10 18h4', go: () => openNotice('Filter by search', 'Use the search box to filter live properties by project, location, or plot.') },
-    { label: 'Location', icon: 'M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', go: () => setExploreSearch('Achutapuram') },
+    { label: 'All', icon: 'M4 6h16M7 12h10M10 18h4', go: () => { setChip('All'); setExploreSearch(''); setHomeSearch(''); } },
+    { label: 'Location', icon: 'M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5', go: () => setExploreSearch(firstLiveLocation) },
     { label: 'Visits', icon: 'M8 7V3M16 7V3M4 11h16M5 5h14v16H5z', go: () => go('visits') },
-    { label: 'Bookings', icon: 'M7 4h10l2 4v12H5V8zM9 13h6M9 17h4', go: () => go('props') },
+    { label: 'Plots', icon: 'M7 4h10l2 4v12H5V8zM9 13h6M9 17h4', go: () => setChip('Plots') },
     { label: 'Contact', icon: 'M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z', go: () => go('contact') },
   ];
 
@@ -550,6 +599,8 @@ export default function AppDashboard() {
       tag: propertyTag(property),
       price: propertyDisplayPrice(property),
       grad: propertyGradient(index),
+      code: property.property_code || property.code || property.id || '',
+      status: property.status || property.availability_status || property.availability_label || 'Available',
       property,
       open: () => openProject({
         id: property.id || `featured-${index}`,
@@ -558,6 +609,8 @@ export default function AppDashboard() {
         tag: propertyTag(property),
         price: propertyDisplayPrice(property),
         grad: propertyGradient(index),
+        code: property.property_code || property.code || property.id || '',
+        status: property.status || property.availability_status || property.availability_label || 'Available',
         property,
       }),
     }));
@@ -571,6 +624,8 @@ export default function AppDashboard() {
       loc: property.location || property.address || 'Achutapuram, Visakhapatnam',
       price: propertyDisplayPrice(property),
       type: propertyType(property),
+      code: property.property_code || property.code || property.id || '',
+      status: property.status || property.availability_status || property.availability_label || 'Available',
       grad: propertyGradient(index),
       property,
     })));
@@ -589,14 +644,17 @@ export default function AppDashboard() {
       image: propertyPrimaryImage(land.property || land),
       loc: land.property?.location || land.location || 'Achutapuram, Visakhapatnam',
       price: propertyDisplayPrice(land.property || land),
+      code: land.property?.property_code || land.property_code || land.property?.code || '',
+      property: land.property || land,
     })));
   }
 
   const filteredFeatured = featured.filter((item) => propertyMatches(item, homeQuery));
   const homeDataLoading = pageLoading && !featuredRows.length && !propertyRows.length;
+  const activePropertyQuery = exploreQuery || homeQuery;
   const nearby = nearbyAll
     .filter((n) => chip === 'All' || n.type === chip)
-    .filter((n) => propertyMatches(n, exploreQuery || homeQuery))
+    .filter((n) => propertyMatches(n, activePropertyQuery))
     .map((n) => {
       const isLiked = !!liked[n.name];
       return {
@@ -1220,6 +1278,9 @@ export default function AppDashboard() {
             <span style={{'fontSize': '15px', 'fontWeight': '800', 'color': '#1f5a31'}}>Projects Near You</span>
             <a onClick={refreshExplore} style={{'fontSize': '12.5px', 'fontWeight': '700', 'color': '#e2822a', 'cursor': 'pointer'}}>↻ Refresh</a>
           </div>
+          <p style={{'margin': '-5px 0 12px', 'fontSize': '11.5px', 'fontWeight': '600', 'color': '#7c8c7e'}}>
+            {nearby.length} live result{nearby.length === 1 ? '' : 's'}{activePropertyQuery ? ` for "${activePropertyQuery}"` : ''}{chip !== 'All' ? ` in ${chip}` : ''}
+          </p>
 
           {/* loading skeletons */}
           {exploreLoading && (
@@ -1254,7 +1315,7 @@ export default function AppDashboard() {
               </div>
             ))}
             {!nearby.length && (
-              <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '18px', 'fontSize': '13px', 'fontWeight': '600', 'color': '#6d7d6f'}}>No live properties matched this search.</div>
+              <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '18px', 'fontSize': '13px', 'fontWeight': '600', 'color': '#6d7d6f'}}>No live properties matched {activePropertyQuery ? `"${activePropertyQuery}"` : 'this filter'}. Try a project name, location, code, plot size, facing, or clear filters.</div>
             )}
           </div>
           )}

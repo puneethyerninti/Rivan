@@ -580,14 +580,19 @@ export default function AdminDashboard() {
   const latestTickets = supportTickets.slice(0, 6);
   const latestAudit = auditLogs.slice(0, 8);
   const normalizeSearch = (value) => String(value || '').toLowerCase().trim();
+  const matchesSearchTokens = (item, query) => {
+    const normalized = normalizeSearch(query);
+    if (!normalized) return true;
+    const haystack = normalizeSearch(JSON.stringify(item || {}));
+    return normalized.split(/\s+/).filter(Boolean).every((token) => haystack.includes(token));
+  };
   const isArchivedRecord = (item) => Boolean(item?.archived || item?.is_archived || item?.deleted_at);
   const recordStatusLabel = (item, fallback = 'active') => (
     isArchivedRecord(item) ? 'archived' : (item?.status || item?.availability || fallback)
   );
   const matchesAdminSearch = (item) => {
     const query = normalizeSearch(adminSearch);
-    if (!query) return true;
-    return normalizeSearch(JSON.stringify(item)).includes(query);
+    return matchesSearchTokens(item, query);
   };
   const matchesAdminStatus = (item) => {
     if (adminStatusFilter === 'all') return true;
