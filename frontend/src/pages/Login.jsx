@@ -515,7 +515,7 @@ export default function Login() {
   };
 
   const subtitleByRole = {
-    customer: "Sign in to continue with Rivan Reality",
+    customer: "Sign in to continue with Rivan Realty",
     agent: "Use your approved mobile number to access the Partner portal",
     admin: "Only the authorized admin mobile number can continue",
   };

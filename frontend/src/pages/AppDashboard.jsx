@@ -1810,7 +1810,7 @@ export default function AppDashboard() {
               </button>
             ))}
           </div>
-          <p style={{'textAlign': 'center', 'margin': '18px 0 0', 'fontSize': '11.5px', 'color': '#9aa89c', 'fontWeight': '600'}}>Rivan Reality • v1.0.0</p>
+          <p style={{'textAlign': 'center', 'margin': '18px 0 0', 'fontSize': '11.5px', 'color': '#9aa89c', 'fontWeight': '600'}}>Rivan Realty v1.0.0</p>
         </div>
       </div>
       )}
@@ -1910,6 +1910,24 @@ export default function AppDashboard() {
           <span style={{'fontSize': '18px', 'fontWeight': '800', 'color': '#fff'}}>Payment History</span>
         </div>
         <div style={{'padding': '18px 22px 0', 'display': 'flex', 'flexDirection': 'column', 'gap': '12px'}}>
+          {history.length === 0 && (
+            <div style={{'background': 'linear-gradient(160deg,#fff 0%,#f7fbf4 55%,#fff4e5 100%)', 'border': '1px solid #e3ecdf', 'borderRadius': '22px', 'padding': '22px', 'boxShadow': '0 18px 40px -28px rgba(18,53,29,.55)'}}>
+              <span style={{'display': 'inline-flex', 'alignItems': 'center', 'height': '32px', 'padding': '0 12px', 'borderRadius': '999px', 'background': '#fff4e5', 'color': '#b8651b', 'fontSize': '11px', 'fontWeight': '900', 'letterSpacing': '.4px', 'textTransform': 'uppercase'}}>Payments on hold</span>
+              <h2 style={{'margin': '16px 0 6px', 'fontSize': '22px', 'lineHeight': '1.18', 'color': '#12351d'}}>Online payment history is coming soon</h2>
+              <p style={{'margin': '0', 'fontSize': '13.5px', 'lineHeight': '1.65', 'color': '#68796b'}}>Rivan Realty is currently tracking bookings, visits, documents, notifications, and support in real time. Payment collection is offline for now, so no fake transactions are shown here.</p>
+              <div style={{'marginTop': '16px', 'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '10px'}}>
+                <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '13px'}}>
+                  <p style={{'margin': '0', 'fontSize': '11px', 'fontWeight': '900', 'color': '#8a988c', 'textTransform': 'uppercase'}}>Current status</p>
+                  <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'fontWeight': '900', 'color': '#16231a'}}>Tracking only</p>
+                </div>
+                <div style={{'background': '#fff', 'border': '1px solid #eef3ec', 'borderRadius': '16px', 'padding': '13px'}}>
+                  <p style={{'margin': '0', 'fontSize': '11px', 'fontWeight': '900', 'color': '#8a988c', 'textTransform': 'uppercase'}}>Gateway</p>
+                  <p style={{'margin': '5px 0 0', 'fontSize': '13px', 'fontWeight': '900', 'color': '#16231a'}}>Pending integration</p>
+                </div>
+              </div>
+              <button onClick={goPayments} style={{'marginTop': '18px', 'width': '100%', 'height': '48px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#2b6d3d,#1f5a31)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '14px', 'fontWeight': '900', 'cursor': 'pointer'}}>View payments overview</button>
+            </div>
+          )}
           { history.map((h, index) => (
             <div style={{'display': 'flex', 'alignItems': 'center', 'gap': '13px', 'background': '#fff', 'borderRadius': '16px', 'padding': '15px', 'border': '1px solid #eef3ec', 'boxShadow': '0 10px 26px -22px rgba(18,53,29,.5)'}}>
               <span style={{'width': '42px', 'height': '42px', 'borderRadius': '12px', 'background': '#e8f3e3', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'flex': 'none'}}>

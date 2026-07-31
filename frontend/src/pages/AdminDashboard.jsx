@@ -721,8 +721,8 @@ export default function AdminDashboard() {
       setSettings(response.settings || settings);
       setNotice('Admin settings saved successfully.');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setError('Settings are not available right now.');
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
+        setError('Admin settings could not be saved because the backend settings route is unavailable. Please verify /api/admin/settings on Render.');
         return;
       }
       setError(err?.message || 'Failed to save admin settings');

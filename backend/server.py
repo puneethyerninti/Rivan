@@ -1,5 +1,5 @@
 """
-Rivan Reality LLP - Customer App Backend
+Rivan Realty LLP - Customer App Backend
 FastAPI + MongoDB customer platform with production auth flows.
 """
 import asyncio
@@ -269,7 +269,7 @@ client = AsyncIOMotorClient(
 )
 db = client[DB_NAME]
 
-app = FastAPI(title="Rivan Reality API")
+app = FastAPI(title="Rivan Realty API")
 api_router = APIRouter(prefix="/api")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
@@ -863,7 +863,7 @@ def phone_identity_variants(phone: Optional[str]) -> List[str]:
 
 
 PROFILE_PLACEHOLDER_NAMES = {"agent", "partner", "admin", "customer", "user"}
-AGENT_PROFILE_SYNC_FIELDS = {"name", "address", "occupation", "age", "aadhaar_number", "agent_brand_name", "updated_at"}
+AGENT_PROFILE_SYNC_FIELDS = {"name", "email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name", "updated_at"}
 ADMIN_PROFILE_SYNC_FIELDS = {"name", "email", "address", "updated_at"}
 
 
@@ -3532,7 +3532,7 @@ async def upsert_user_identity(
     await db.users.insert_one(user)
     await create_notification(
         user_id,
-        "Welcome to Rivan Reality",
+        "Welcome to Rivan Realty",
         "Your account is ready. Explore premium properties and track your journey in one place.",
     )
     return clean_user(user)
@@ -8768,7 +8768,7 @@ async def seed_data():
 
         # Notifications for demo
         demo_notifs = [
-            ("Welcome to Rivan Reality", "Legacy of trust, legacy of wealth.", "welcome"),
+            ("Welcome to Rivan Realty", "Legacy of trust, legacy of wealth.", "welcome"),
             ("Installment Due Reminder", f"Your next installment of ₹{installment_amount:,.0f} is due soon.", "payment"),
             ("New Layout Launched", "Rivan Lakeside Layout — bookings open now!", "project"),
             ("Document Uploaded", "Your sale deed draft has been uploaded to the document locker.", "document"),

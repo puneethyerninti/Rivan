@@ -1,4 +1,4 @@
-/* Rivan Reality — PWA service worker
+/* Rivan Realty — PWA service worker
    Strategy:
    - Precache the app shell (pages, runtime, logos, icons) on install.
    - Navigations: network-first, fall back to the cached page, then to index.
@@ -6,7 +6,7 @@
    - Cross-origin (React/Babel CDN, Google Fonts): stale-while-revalidate so
      the app boots offline once it has been opened online at least once.
 */
-const CACHE = 'rivan-pwa-v8';
+const CACHE = 'rivan-pwa-v9';
 
 const CORE = [
   './',

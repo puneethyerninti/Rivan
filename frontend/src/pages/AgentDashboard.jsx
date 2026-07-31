@@ -27,7 +27,8 @@ const EMPTY_AGENT_DATA = { profile: {}, kpis: {}, assets: [], bookings: [], visi
 const EMPTY_CRM_DATA = { leads: [], opportunities: [], tasks: [], activities: [], metrics: {}, stage_counts: {} };
 
 function partnerCacheOwner(user) {
-  return String(user?.id || user?.phone || '').trim();
+  const phoneOwner = phoneDigits(user?.phone);
+  return phoneOwner || String(user?.id || '').trim();
 }
 
 function loadPartnerDashboardCache(user) {
