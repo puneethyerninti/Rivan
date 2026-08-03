@@ -306,11 +306,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   .rv-nav::before {
     content: '';
     display: block;
-    width: 36px;
-    height: 36px;
+    width: 54px;
+    height: 54px;
     background: url('/RivanRealtyLogo-icon.webp') center/contain no-repeat;
-    border-radius: 8px;
-    margin-bottom: 16px;
+    border-radius: 12px;
+    margin-bottom: 18px;
     opacity: .9;
   }
 
@@ -336,7 +336,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     align-items: flex-start;
     padding: 28px 12px;
   }
-  .rv-nav::before { margin-left: 8px; margin-bottom: 24px; }
+  .rv-nav::before {
+    width: 88px;
+    height: 88px;
+    margin-left: 10px;
+    margin-bottom: 28px;
+  }
   .rv-nav-btn {
     flex-direction: row;
     justify-content: flex-start;
