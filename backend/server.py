@@ -87,6 +87,7 @@ JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))
 REFRESH_TOKEN_EXPIRES_MIN = int(os.environ.get("REFRESH_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 30)))
 ALLOW_LOCAL_AUTH_FALLBACK = False
 ENABLE_DEMO_DATA = False
+ENABLE_WEBSOCKETS = get_env_bool("ENABLE_WEBSOCKETS", False)
 DEMO_AUTH_USER_IDS = (
     "admin-user-001",
     "agent-main-001",
@@ -5341,16 +5342,18 @@ async def health_check():
             "mode": "mongo",
             "firebase_project_id_configured": bool(get_firebase_project_id()),
             "push_notifications": firebase_push_status(),
-            "live_updates_enabled": True,
+            "live_updates_enabled": ENABLE_WEBSOCKETS,
             "live_updates_path": "/ws/live",
+            "live_updates_transport": "websocket" if ENABLE_WEBSOCKETS else "api-polling-fallback",
         }
     if ALLOW_LOCAL_AUTH_FALLBACK:
         return {
             "ok": True,
             "database": "offline",
             "mode": "local-auth-fallback",
-            "live_updates_enabled": True,
+            "live_updates_enabled": ENABLE_WEBSOCKETS,
             "live_updates_path": "/ws/live",
+            "live_updates_transport": "websocket" if ENABLE_WEBSOCKETS else "api-polling-fallback",
             "push_notifications": firebase_push_status(),
         }
     return {
@@ -5361,6 +5364,7 @@ async def health_check():
         "push_notifications": firebase_push_status(),
         "live_updates_enabled": False,
         "live_updates_path": "/ws/live",
+        "live_updates_transport": "unavailable",
         "detail": "Database unavailable",
     }
 

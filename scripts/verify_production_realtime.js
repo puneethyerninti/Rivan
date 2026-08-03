@@ -121,13 +121,20 @@ async function main() {
     mode: health.mode,
     live_updates_enabled: health.live_updates_enabled,
     live_updates_path: health.live_updates_path,
+    live_updates_transport: health.live_updates_transport,
   });
 
   const ready = await fetchJson('/api/ready');
   console.log('ready: ok', ready);
 
-  const ws = await verifyWebSocket();
-  console.log('websocket: ok', ws);
+  if (health.live_updates_enabled === false) {
+    console.log('websocket: skipped', {
+      reason: health.live_updates_transport || 'api-polling-fallback',
+    });
+  } else {
+    const ws = await verifyWebSocket();
+    console.log('websocket: ok', ws);
+  }
 
   if (accessToken) {
     const push = await fetchJson('/api/push/status');
