@@ -512,7 +512,7 @@ export default function AdminDashboard() {
     background: '#eef2ec',
     color: '#16231a',
     overflowX: 'hidden',
-    overflowY: isMobile ? 'visible' : 'hidden',
+    overflowY: isMobile ? 'auto' : 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
@@ -560,11 +560,11 @@ export default function AdminDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: 0,
+    minHeight: isMobile ? 'auto' : 0,
     minWidth: 0,
     padding: isMobile ? '14px 12px calc(32px + env(safe-area-inset-bottom))' : '24px',
     overflowX: 'hidden',
-    overflowY: 'auto',
+    overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',

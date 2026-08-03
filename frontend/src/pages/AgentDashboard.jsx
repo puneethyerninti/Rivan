@@ -170,9 +170,14 @@ function firstDisplayName(...values) {
 
 function mergePartnerIdentity(...sources) {
   const merged = Object.assign({}, ...sources.filter(Boolean));
+  const realName = firstDisplayName(...sources.map((source) => source?.name), merged.name);
+  const hasSavedProfileSignal = sources.some((source) =>
+    source &&
+    ['email', 'address', 'occupation', 'age', 'agent_brand_name'].some((field) => String(source[field] || '').trim()),
+  );
   return {
     ...merged,
-    name: firstDisplayName(...sources.map((source) => source?.name), merged.name),
+    name: realName || (hasSavedProfileSignal ? '' : firstRealValue(...sources.map((source) => source?.name), merged.name)),
     email: firstRealValue(...sources.map((source) => source?.email), merged.email),
     phone: firstRealValue(...sources.map((source) => source?.phone), merged.phone),
     address: firstRealValue(...sources.map((source) => source?.address), merged.address),
@@ -184,6 +189,13 @@ function mergePartnerIdentity(...sources) {
 
 function cleanPartnerName(...values) {
   return firstDisplayName(...values);
+}
+
+function partnerProfileStatus(profile) {
+  const realName = firstDisplayName(profile?.name);
+  const hasProfileDetails = ['email', 'address', 'occupation', 'agent_brand_name'].some((field) => String(profile?.[field] || '').trim());
+  if (realName) return realName;
+  return hasProfileDetails ? 'Add partner name' : 'Profile setup needed';
 }
 
 function formatSquareYards(item) {
@@ -413,7 +425,7 @@ export default function AgentDashboard() {
 
       if (!profileDirtyRef.current || pageRef.current !== 'profile') {
         setProfileForm({
-          name: cleanPartnerName(profileSource.name, user.name),
+          name: cleanPartnerName(profileSource.name, cachedProfileRef.current?.name, user.name),
           email: profileSource.email || user.email || '',
           address: profileSource.address || user.address || '',
           occupation: profileSource.occupation || user.occupation || '',
@@ -614,7 +626,7 @@ export default function AgentDashboard() {
     background: '#eef2ec',
     color: '#16231a',
     overflowX: 'hidden',
-    overflowY: isMobile ? 'visible' : 'hidden',
+    overflowY: isMobile ? 'auto' : 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
@@ -664,11 +676,11 @@ export default function AgentDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: 0,
+    minHeight: isMobile ? 'auto' : 0,
     padding: isMobile ? '12px 10px calc(32px + env(safe-area-inset-bottom))' : '28px 32px 40px',
     minWidth: 0,
     overflowX: 'hidden',
-    overflowY: 'auto',
+    overflowY: isMobile ? 'visible' : 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
@@ -1376,7 +1388,7 @@ export default function AgentDashboard() {
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: '#f4faf2', border: '1px solid #dfe8dc', color: '#1f5a31', fontWeight: 800 }}>
                 <span style={{ width: '34px', height: '34px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: '#2f7d48', color: '#fff' }}>{initialsOf(displayedUser.name)}</span>
-                <span>{displayedUser.name || 'Profile setup needed'}</span>
+                <span>{partnerProfileStatus(displayedUser)}</span>
               </div>
             </div>
 
