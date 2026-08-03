@@ -99,7 +99,7 @@ function initialsOf(name) {
 }
 
 function isPlaceholderName(value) {
-  return ['agent', 'partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
+  return ['agent', 'partner', 'rivan partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
 }
 
 function firstRealValue(...values) {
@@ -217,8 +217,10 @@ export default function AdminDashboard() {
   const [adminStatusFilter, setAdminStatusFilter] = useState('all');
   const [profileDirty, setProfileDirty] = useState(false);
   const [actionBusy, setActionBusy] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState(null);
   const profileDirtyRef = useRef(false);
   const actionBusyRef = useRef(false);
+  const confirmResolverRef = useRef(null);
   const pageRef = useRef(page);
   const mainRef = useRef(null);
 
@@ -501,6 +503,7 @@ export default function AdminDashboard() {
   }).sort((a, b) => (b.closed - a.closed) || (b.bookings - a.bookings) || (b.visits - a.visits));
   const displayedUser = mergeAdminIdentity(user, profileDirty ? profileForm : null);
   const shellStyle = {
+    width: '100%',
     height: isMobile ? 'auto' : '100svh',
     maxHeight: isMobile ? 'none' : '100svh',
     minHeight: '100svh',
@@ -524,7 +527,7 @@ export default function AdminDashboard() {
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: isMobile ? '10px' : '18px',
-    position: 'relative',
+    position: isMobile ? 'sticky' : 'relative',
     flexShrink: 0,
     top: 0,
     zIndex: 30,
@@ -535,6 +538,7 @@ export default function AdminDashboard() {
     flexDirection: isMobile ? 'row' : 'column',
     gap: '8px',
     overflowX: isMobile ? 'auto' : 'visible',
+    overflowY: 'hidden',
     paddingBottom: isMobile ? '4px' : 0,
     flex: 1,
     minWidth: 0,
@@ -556,11 +560,11 @@ export default function AdminDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: isMobile ? 'auto' : 0,
+    minHeight: 0,
     minWidth: 0,
     padding: isMobile ? '14px 12px calc(32px + env(safe-area-inset-bottom))' : '24px',
     overflowX: 'hidden',
-    overflowY: isMobile ? 'visible' : 'auto',
+    overflowY: 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
@@ -806,6 +810,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const askAdminConfirmation = ({ title, message, confirmLabel = 'Confirm', tone: toneValue = 'default', requireNotes = false, notesLabel = 'Notes or reason' }) => (
+    new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog({
+        title,
+        message,
+        confirmLabel,
+        tone: toneValue,
+        requireNotes,
+        notesLabel,
+        notes: '',
+      });
+    })
+  );
+
+  const closeAdminConfirmation = (result) => {
+    const resolver = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmDialog(null);
+    resolver?.(result);
+  };
+
   const updateArchiveState = async (recordType, item, archive = true) => {
     if (actionBusy || actionBusyRef.current) return;
     const recordId = item?.id;
@@ -815,7 +841,13 @@ export default function AdminDashboard() {
     }
     const action = archive ? 'archive' : 'restore';
     const label = item?.name || item?.property_name || item?.plot_number || item?.ticket_number || item?.id || 'this record';
-    if (!window.confirm(`Confirm ${action} for ${label}?`)) return;
+    const confirmation = await askAdminConfirmation({
+      title: `${archive ? 'Archive' : 'Restore'} record`,
+      message: `Confirm ${action} for ${label}?`,
+      confirmLabel: archive ? 'Archive record' : 'Restore record',
+      tone: archive ? 'danger' : 'success',
+    });
+    if (!confirmation?.confirmed) return;
     actionBusyRef.current = true;
     setActionBusy(`${action}:${recordType}:${recordId}`);
     try {
@@ -1012,7 +1044,13 @@ export default function AdminDashboard() {
     try {
       setError('');
       setNotice('');
-      if (!window.confirm('Reserve this booking and mark the plot as booked?')) return;
+      const confirmation = await askAdminConfirmation({
+        title: 'Reserve booking',
+        message: 'Reserve this booking and mark the plot as booked?',
+        confirmLabel: 'Reserve booking',
+        tone: 'success',
+      });
+      if (!confirmation?.confirmed) return;
       actionBusyRef.current = true;
       setActionBusy(`booking:${bookingId}:confirm`);
       await postJson(`/api/admin/bookings/${bookingId}/confirm`, {}, session.access_token);
@@ -1032,8 +1070,19 @@ export default function AdminDashboard() {
       setError('');
       setNotice('');
       const needsConfirm = ['completed', 'rejected', 'cancelled'].includes(status);
-      if (needsConfirm && !window.confirm(`Confirm booking status change to ${status.replace('_', ' ')}?`)) return;
-      const review_notes = needsConfirm ? window.prompt('Add review notes or reason for this booking update:', '') || '' : '';
+      let review_notes = '';
+      if (needsConfirm) {
+        const confirmation = await askAdminConfirmation({
+          title: 'Update booking status',
+          message: `Confirm booking status change to ${status.replace('_', ' ')}?`,
+          confirmLabel: `Mark ${status.replace('_', ' ')}`,
+          tone: ['rejected', 'cancelled'].includes(status) ? 'danger' : 'success',
+          requireNotes: true,
+          notesLabel: 'Review notes or reason',
+        });
+        if (!confirmation?.confirmed) return;
+        review_notes = confirmation.notes || '';
+      }
       actionBusyRef.current = true;
       setActionBusy(`booking:${bookingId}:${status}`);
       await postJson(`/api/admin/bookings/${bookingId}/status`, { status, review_notes }, session.access_token);
@@ -1836,6 +1885,68 @@ export default function AdminDashboard() {
           </section>
         )}
       </main>
+      {confirmDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-confirm-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'grid',
+            placeItems: 'center',
+            padding: '18px',
+            background: 'rgba(9,32,16,.46)',
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => closeAdminConfirmation({ confirmed: false, notes: '' })}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              borderRadius: '24px',
+              background: '#fff',
+              border: '1px solid #e7ede3',
+              boxShadow: '0 28px 70px -36px rgba(9,32,16,.9)',
+              padding: isMobile ? '18px' : '22px',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '14px', display: 'grid', placeItems: 'center', background: confirmDialog.tone === 'danger' ? '#fdeaea' : '#eef6ea', color: confirmDialog.tone === 'danger' ? '#c93b3b' : '#1a8a4a', flex: '0 0 auto' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {confirmDialog.tone === 'danger' ? <path d="M12 9v4M12 17h.01M10.3 4.1 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.1a2 2 0 0 0-3.4 0z" /> : <path d="M20 6 9 17l-5-5" />}
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h2 id="admin-confirm-title" style={{ margin: 0, color: '#16231a', fontSize: isMobile ? '20px' : '22px', lineHeight: 1.15 }}>{confirmDialog.title}</h2>
+                <p style={{ margin: '8px 0 0', color: '#6d7d6f', lineHeight: 1.55, fontSize: '14px' }}>{confirmDialog.message}</p>
+              </div>
+            </div>
+            {confirmDialog.requireNotes && (
+              <label style={{ display: 'grid', gap: '8px', marginTop: '18px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: '#3d4f40' }}>{confirmDialog.notesLabel}</span>
+                <textarea
+                  value={confirmDialog.notes}
+                  onChange={(event) => setConfirmDialog((current) => ({ ...current, notes: event.target.value }))}
+                  placeholder="Add a short reason for audit history"
+                  rows={4}
+                  style={{ width: '100%', resize: 'vertical', borderRadius: '14px', border: '1px solid #dfe8dc', padding: '12px 14px', fontFamily: 'inherit', color: '#16231a' }}
+                />
+              </label>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
+              <button onClick={() => closeAdminConfirmation({ confirmed: false, notes: '' })} style={{ minHeight: '42px', borderRadius: '12px', border: '1px solid #dfe8dc', background: '#fff', color: '#3d4f40', padding: '0 16px', fontWeight: 800, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={() => closeAdminConfirmation({ confirmed: true, notes: confirmDialog.notes || '' })} style={{ minHeight: '42px', borderRadius: '12px', border: 'none', background: confirmDialog.tone === 'danger' ? '#c93b3b' : '#2b6d3d', color: '#fff', padding: '0 16px', fontWeight: 800, cursor: 'pointer' }}>
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

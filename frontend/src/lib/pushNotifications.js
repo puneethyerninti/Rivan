@@ -89,15 +89,7 @@ export async function registerPushNotifications(session) {
     if (permission.receive !== 'granted') {
       const primerSeen = localStorage.getItem(PUSH_PERMISSION_PRIMER_KEY) === 'true';
       if (!primerSeen) {
-        const accepted = window.confirm(
-          'Allow Rivan Realty to send visit, booking, approval, and account update notifications on this device?',
-        );
         localStorage.setItem(PUSH_PERMISSION_PRIMER_KEY, 'true');
-        if (!accepted) {
-          const result = { registered: false, reason: 'primer_declined' };
-          savePushStatus(result);
-          return result;
-        }
       }
       permission = await PushNotifications.requestPermissions();
     }

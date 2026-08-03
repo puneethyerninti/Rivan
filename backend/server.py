@@ -862,7 +862,8 @@ def phone_identity_variants(phone: Optional[str]) -> List[str]:
     return [value for value in variants if value]
 
 
-PROFILE_PLACEHOLDER_NAMES = {"agent", "partner", "admin", "customer", "user"}
+PRIMARY_AGENT_DISPLAY_NAME = "Rivan Partner"
+PROFILE_PLACEHOLDER_NAMES = {"agent", "partner", "admin", "customer", "user", PRIMARY_AGENT_DISPLAY_NAME.lower()}
 AGENT_PROFILE_SYNC_FIELDS = {"name", "email", "address", "occupation", "age", "aadhaar_number", "agent_brand_name", "updated_at"}
 ADMIN_PROFILE_SYNC_FIELDS = {"name", "email", "address", "updated_at"}
 
@@ -3977,7 +3978,7 @@ async def ensure_primary_agent_seed() -> None:
             },
             "$setOnInsert": {
                 "id": PRIMARY_AGENT_USER_ID,
-                "name": "Agent",
+                "name": PRIMARY_AGENT_DISPLAY_NAME,
                 "email": PRIMARY_AGENT_EMAIL,
                 "email_verified": False,
                 "agent_brand_name": "Rivan Realty",
@@ -4108,7 +4109,7 @@ def build_primary_agent_payload(*, created_at: Optional[str] = None, updated_at:
     timestamp = now_utc().isoformat()
     return {
         "id": PRIMARY_AGENT_USER_ID,
-        "name": "Agent",
+        "name": PRIMARY_AGENT_DISPLAY_NAME,
         "phone": PRIMARY_AGENT_PHONE,
         "email": PRIMARY_AGENT_EMAIL,
         "role": ROLE_AGENT,

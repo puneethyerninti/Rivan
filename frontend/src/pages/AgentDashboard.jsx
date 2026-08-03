@@ -157,7 +157,7 @@ function phoneDigits(value) {
 }
 
 function isPlaceholderName(value) {
-  return ['agent', 'partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
+  return ['agent', 'partner', 'rivan partner', 'admin', 'customer', 'user'].includes(String(value || '').trim().toLowerCase());
 }
 
 function firstRealValue(...values) {
@@ -605,6 +605,7 @@ export default function AgentDashboard() {
   const canSubmitVisit = Boolean(visitForm.property_id && visitForm.customer_name.trim() && visitForm.customer_phone.trim() && visitForm.visit_date && visitForm.visit_time.trim());
   const canSubmitBooking = Boolean(bookingForm.plot_id && bookingForm.customer_name.trim() && bookingForm.customer_phone.trim());
   const shellStyle = {
+    width: '100%',
     height: isMobile ? 'auto' : '100svh',
     maxHeight: isMobile ? 'none' : '100svh',
     minHeight: '100svh',
@@ -613,7 +614,7 @@ export default function AgentDashboard() {
     background: '#eef2ec',
     color: '#16231a',
     overflowX: 'hidden',
-    overflowY: isMobile ? 'visible' : 'auto',
+    overflowY: isMobile ? 'visible' : 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
@@ -627,12 +628,12 @@ export default function AgentDashboard() {
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: isMobile ? '10px' : '14px',
-    position: isMobile ? 'relative' : 'sticky',
+    position: isMobile ? 'sticky' : 'sticky',
     flexShrink: 0,
     top: 0,
     alignSelf: isMobile ? 'stretch' : 'flex-start',
     minHeight: isMobile ? 'auto' : '100svh',
-    overflow: 'visible',
+    overflow: isMobile ? 'visible' : 'hidden',
     zIndex: 30,
     boxShadow: isMobile ? '0 12px 28px -24px rgba(9,32,16,.9)' : 'none',
   };
@@ -641,6 +642,7 @@ export default function AgentDashboard() {
     flexDirection: isMobile ? 'row' : 'column',
     gap: isMobile ? '8px' : '7px',
     overflowX: isMobile ? 'auto' : 'visible',
+    overflowY: 'hidden',
     paddingBottom: isMobile ? '4px' : 0,
     flex: isMobile ? 1 : '0 0 auto',
     minWidth: 0,
@@ -662,11 +664,11 @@ export default function AgentDashboard() {
   };
   const mainStyle = {
     flex: 1,
-    minHeight: isMobile ? 'auto' : 0,
+    minHeight: 0,
     padding: isMobile ? '12px 10px calc(32px + env(safe-area-inset-bottom))' : '28px 32px 40px',
     minWidth: 0,
     overflowX: 'hidden',
-    overflowY: isMobile ? 'visible' : 'auto',
+    overflowY: 'auto',
     WebkitOverflowScrolling: 'touch',
     overscrollBehaviorY: isMobile ? 'auto' : 'contain',
     touchAction: 'pan-y',
