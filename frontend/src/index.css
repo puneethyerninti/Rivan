@@ -139,8 +139,8 @@ button, input, select, textarea { font: inherit; }
 }
 .rv-secondary-cta:hover {
   transform: translateY(-2px);
-  background: #eef6ea !important;
-  border-color: rgba(31,90,49,.28) !important;
+  background: rgba(255,255,255,.98) !important;
+  border-color: rgba(255,255,255,.7) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -159,6 +159,19 @@ button, input, select, textarea { font: inherit; }
 @media (max-width: 640px) {
   .rv-splash-brand-zone {
     min-height: clamp(300px, 46vh, 380px);
+  }
+  .rv-splash-actions {
+    padding-top: 26px !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+    padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important;
+    gap: 12px !important;
+  }
+  .rv-primary-cta,
+  .rv-secondary-cta {
+    height: 54px !important;
+    border-radius: 16px !important;
+    font-size: 14px !important;
   }
 }
 

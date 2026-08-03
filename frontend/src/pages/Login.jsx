@@ -605,7 +605,7 @@ export default function Login() {
                 flexDirection: "column",
                 overflow: "visible",
                 background:
-                  "radial-gradient(circle at 50% 20%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 74%,#1f5a31 74%,#123f24 100%)",
+                  "radial-gradient(circle at 50% 20%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 64%,#1f5a31 64%,#123f24 100%)",
               }}
             >
               <span className="rv-splash-orb one" aria-hidden="true" />
@@ -777,12 +777,12 @@ export default function Login() {
               <div
                 className="rv-splash-brand-zone"
                 style={{
-                  flex: "0 0 clamp(300px, 48vh, 470px)",
+                  flex: "0 0 clamp(310px, 50vh, 500px)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "76px 24px 20px",
+                  padding: "76px 24px 34px",
                   textAlign: "center",
                   position: "relative",
                   zIndex: 1,
@@ -803,7 +803,7 @@ export default function Login() {
               <div
                 className="rv-splash-actions"
                 style={{
-                  padding: "30px clamp(18px, 3vw, 52px) calc(34px + env(safe-area-inset-bottom))",
+                  padding: "34px clamp(18px, 3vw, 52px) calc(42px + env(safe-area-inset-bottom))",
                   display: "flex",
                   flexDirection: "column",
                   gap: "14px",
@@ -844,9 +844,9 @@ export default function Login() {
                   style={{
                     width: "100%",
                     height: "58px",
-                    border: "1.5px solid rgba(31,90,49,.16)",
+                    border: "1.5px solid rgba(255,255,255,.42)",
                     borderRadius: "18px",
-                    background: "#f5f9f2",
+                    background: "rgba(255,255,255,.95)",
                     color: "#1f5a31",
                     fontFamily: "inherit",
                     fontSize: "15px",
