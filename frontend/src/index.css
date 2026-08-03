@@ -139,8 +139,8 @@ button, input, select, textarea { font: inherit; }
 }
 .rv-secondary-cta:hover {
   transform: translateY(-2px);
-  background: rgba(255,255,255,.12) !important;
-  border-color: rgba(255,255,255,.55) !important;
+  background: #eef6ea !important;
+  border-color: rgba(31,90,49,.28) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

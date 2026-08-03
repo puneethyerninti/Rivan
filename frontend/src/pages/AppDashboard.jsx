@@ -262,6 +262,8 @@ export default function AppDashboard() {
   const [showPaidModal, setShowPaidModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('Request Submitted');
   const [modalMessage, setModalMessage] = useState('Your latest request has been recorded successfully.');
+  const [modalActionLabel, setModalActionLabel] = useState('Done');
+  const [modalAction, setModalAction] = useState(null);
   const [amount, setAmount] = useState(2000000);
   const [rate, setRate] = useState(9);
   const [years, setYears] = useState(10);
@@ -917,7 +919,7 @@ export default function AppDashboard() {
       icon: 'M4 5h16v12H7l-3 3V5zM8 9h8M8 13h5',
       label: 'Help & Support',
       value: '',
-      go: () => go('contact'),
+      go: () => goContact(),
     },
     {
       icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 8v5M12 16h.01',
@@ -1034,7 +1036,7 @@ export default function AppDashboard() {
     { icon: 'M4 20L20 4M4 9V4h5M20 15v5h-5', label: 'Interactive Layout', go: () => openFirstProject() },
     { icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', label: 'Schedule Visit', go: () => scheduleSelectedPropertyVisit() },
     { icon: 'M6 3h12v18H6zM9 7h6M8 11h.01M12 11h.01M16 11v6M8 15h.01M12 15h.01', label: 'EMI Calculator', go: () => go('emi') },
-    { icon: 'M6 4h12v16l-6-3-6 3z', label: 'Contact Sales', go: () => go('contact') },
+    { icon: 'M6 4h12v16l-6-3-6 3z', label: 'Contact Sales', go: () => goContact() },
   ];
   const savedPreview = savedProperties.slice(0, 4);
   const recentPreview = recentProperties.filter((item) => !savedPreview.some((saved) => propertyRecordId(saved) === propertyRecordId(item))).slice(0, 4);
@@ -1043,6 +1045,7 @@ export default function AppDashboard() {
   const initials = initialsFromName(userName);
   const statusColor = greenHeader && cur !== 'propDetail' ? '#ffffff' : cur === 'propDetail' ? '#ffffff' : '#1f5a31';
   const scrollPad = showNav ? '86px' : '0px';
+  const isGuestViewer = !!guestSession?.guest;
 
   const isHome = cur === 'home';
   const isExplore = cur === 'explore';
@@ -1058,13 +1061,54 @@ export default function AppDashboard() {
   const isPersonal = cur === 'personal';
   const isHelp = cur === 'help';
   const isServices = cur === 'services';
+  const openNotice = (title, message, options = {}) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalActionLabel(options.actionLabel || 'Done');
+    setModalAction(() => (typeof options.onAction === 'function' ? options.onAction : null));
+    setShowPaidModal(true);
+  };
+  const sendGuestToLogin = () => {
+    try {
+      localStorage.removeItem('rivan_guest_session');
+    } catch {}
+    setGuestSession(null);
+    navigate('/login');
+  };
+  const requireCustomerLogin = (intent, detail) => {
+    if (!isGuestViewer && session?.access_token) return false;
+    openNotice(
+      'Login Required',
+      detail || `Please log in with your mobile number to ${intent.toLowerCase()} and continue with live customer updates.`,
+      {
+        actionLabel: 'Login to Continue',
+        onAction: sendGuestToLogin,
+      },
+    );
+    return true;
+  };
   const goHome = () => tab('home');
   const goExplore = () => tab('explore');
-  const goProps = () => navigate('/my-lands');
-  const goPayments = () => go('payments');
-  const goProfile = () => tab('profile');
-  const goNotif = () => go('notif');
-  const goVisitsPage = () => navigate('/visits');
+  const goProps = () => {
+    if (requireCustomerLogin('view your booked lands', 'Please log in to view your lands, documents, and booking progress.')) return;
+    navigate('/my-lands');
+  };
+  const goPayments = () => {
+    if (requireCustomerLogin('view your payment overview', 'Please log in to view booking, payment, and registration tracking.')) return;
+    go('payments');
+  };
+  const goProfile = () => {
+    if (requireCustomerLogin('open your profile', 'Please log in to manage your profile, settings, notifications, and support history.')) return;
+    tab('profile');
+  };
+  const goNotif = () => {
+    if (requireCustomerLogin('view notifications', 'Please log in to see your visit, booking, and support notifications.')) return;
+    go('notif');
+  };
+  const goVisitsPage = () => {
+    if (requireCustomerLogin('manage site visits', 'Please log in to schedule, reschedule, and track your site visits.')) return;
+    navigate('/visits');
+  };
   const goContact = () => go('contact');
 
   const refreshExplore = () => {
@@ -1104,7 +1148,12 @@ export default function AppDashboard() {
     return availablePlots;
   };
   const openPropertyActionForm = async (mode) => {
-    if (!session?.access_token) return;
+    if (requireCustomerLogin(
+      mode === 'booking' ? 'book this property' : 'schedule a site visit',
+      mode === 'booking'
+        ? 'Please log in before submitting a live booking request for this property.'
+        : 'Please log in before scheduling a site visit for this property.',
+    )) return;
     const propertyId = propertyIdForAction();
     if (!propertyId) {
       openNotice('Property not ready', 'Live property data is still syncing for this request. Please try again in a moment.');
@@ -1130,7 +1179,7 @@ export default function AppDashboard() {
   };
   const requestBooking = () => openPropertyActionForm('booking');
   const updatePreferenceToggle = async (key) => {
-    if (!session?.access_token) return;
+    if (requireCustomerLogin('update settings')) return;
     const previousToggles = toggles;
     const nextToggles = { ...toggles, [key]: !toggles[key] };
     setToggles(nextToggles);
@@ -1155,7 +1204,7 @@ export default function AppDashboard() {
     }
   };
   const saveProfile = async () => {
-    if (!session?.access_token) return;
+    if (requireCustomerLogin('save your profile', 'Please log in before saving profile details.')) return;
     try {
       setSavingProfile(true);
       const updated = await putJson('/api/auth/profile', {
@@ -1172,7 +1221,7 @@ export default function AppDashboard() {
     }
   };
   const submitPropertyActionForm = async () => {
-    if (!session?.access_token) return;
+    if (requireCustomerLogin(actionFormMode === 'booking' ? 'submit a booking request' : 'submit a visit request')) return;
     const propertyId = propertyIdForAction();
     if (!propertyId) {
       openNotice('Property not ready', 'Live property data is still syncing for this request. Please try again in a moment.');
@@ -1225,13 +1274,8 @@ export default function AppDashboard() {
     }
   };
   const scheduleSelectedPropertyVisit = () => openPropertyActionForm('visit');
-  const openNotice = (title, message) => {
-    setModalTitle(title);
-    setModalMessage(message);
-    setShowPaidModal(true);
-  };
   const submitContactSales = async (requestChannel = 'contact_sales', overrideMessage = '') => {
-    if (!session?.access_token) return;
+    if (requireCustomerLogin('contact the sales team', 'Please log in before sending a tracked sales request. You can still call or WhatsApp the team directly from this page.')) return;
     const message = String(overrideMessage || contactMessage || '').trim();
     if (!message) {
       openNotice('Add a Message', 'Enter a short note so the sales team knows what you need.');
@@ -1267,8 +1311,13 @@ export default function AppDashboard() {
     } catch {}
   };
   const submitSupportRequest = (subject, message) => submitContactSales('support', message || subject);
+  const requestLoanAssistance = () => {
+    if (requireCustomerLogin('request loan assistance', 'Please log in before requesting EMI and loan assistance from the Rivan team.')) return;
+    openNotice('Loan Assistance', `Your estimated EMI is ${emi}. Our team will call you with loan partner options and required documents.`);
+  };
   const submitServiceRequest = async () => {
-    if (!session?.access_token || serviceSubmitting) return;
+    if (requireCustomerLogin('create a service request', 'Please log in before creating a property service request.')) return;
+    if (serviceSubmitting) return;
     const description = String(serviceForm.description || '').trim();
     if (!description) {
       openNotice('Add Service Details', 'Please describe what support or service you need.');
@@ -1302,7 +1351,16 @@ export default function AppDashboard() {
       setServiceSubmitting(false);
     }
   };
-  const closeModal = () => setShowPaidModal(false);
+  const closeModal = () => {
+    setShowPaidModal(false);
+    setModalActionLabel('Done');
+    setModalAction(null);
+  };
+  const handleModalAction = () => {
+    const action = modalAction;
+    closeModal();
+    if (action) action();
+  };
   const contactActions = [
     {
       label: 'Request Callback',
@@ -1983,7 +2041,7 @@ export default function AppDashboard() {
               <input type="range" min="1" max="30" step="1" value={tenureYears} onChange={(event) => setYears(Number(event.target.value))} style={{'width': '100%'}}/>
             </div>
           </div>
-          <button onClick={() => openNotice('Loan Assistance', `Your estimated EMI is ${emi}. Our team will call you with loan partner options and required documents.`)} style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(226,130,42,.6)'}}>Request Loan Assistance</button>
+          <button onClick={requestLoanAssistance} style={{'marginTop': '28px', 'width': '100%', 'height': '56px', 'border': 'none', 'borderRadius': '16px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer', 'boxShadow': '0 14px 26px -12px rgba(226,130,42,.6)'}}>Request Loan Assistance</button>
         </div>
       </div>
       )}
@@ -2342,7 +2400,7 @@ export default function AppDashboard() {
         </div>
         <p style={{'margin': '18px 0 6px', 'fontSize': '20px', 'fontWeight': '800', 'color': '#1f5a31'}}>{modalTitle}</p>
         <p style={{'margin': '0', 'fontSize': '13.5px', 'color': '#6d7d6f', 'lineHeight': '1.55'}}>{modalMessage}</p>
-        <button onClick={closeModal} style={{'marginTop': '22px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer'}}>Done</button>
+        <button onClick={handleModalAction} style={{'marginTop': '22px', 'width': '100%', 'height': '52px', 'border': 'none', 'borderRadius': '15px', 'background': 'linear-gradient(180deg,#eb9236,#e2822a)', 'color': '#fff', 'fontFamily': 'inherit', 'fontSize': '15px', 'fontWeight': '700', 'cursor': 'pointer'}}>{modalActionLabel}</button>
       </div>
     </div>
     )}
