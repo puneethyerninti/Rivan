@@ -599,11 +599,12 @@ export default function Login() {
             <div
               className="rv-screen rv-login-splash"
               style={{
-                minHeight: "100svh",
+                minHeight: "100dvh",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
-                overflow: "visible",
+                justifyContent: "space-between",
+                overflow: "hidden",
                 background:
                   "radial-gradient(circle at 50% 20%, rgba(255,255,255,.9), rgba(255,255,255,0) 34%), linear-gradient(180deg,#f7fbf4 0%,#eaf3e5 64%,#1f5a31 64%,#123f24 100%)",
               }}
@@ -777,12 +778,12 @@ export default function Login() {
               <div
                 className="rv-splash-brand-zone"
                 style={{
-                  flex: "0 0 clamp(310px, 50vh, 500px)",
+                  flex: "1 1 auto",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "76px 24px 34px",
+                  padding: "76px 24px 22px",
                   textAlign: "center",
                   position: "relative",
                   zIndex: 1,
@@ -803,7 +804,8 @@ export default function Login() {
               <div
                 className="rv-splash-actions"
                 style={{
-                  padding: "34px clamp(18px, 3vw, 52px) calc(42px + env(safe-area-inset-bottom))",
+                  marginTop: "auto",
+                  padding: "20px clamp(18px, 3vw, 52px) calc(32px + env(safe-area-inset-bottom))",
                   display: "flex",
                   flexDirection: "column",
                   gap: "14px",
